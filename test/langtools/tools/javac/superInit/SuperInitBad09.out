@@ -1,0 +1,2 @@
+SuperInitBad09.java:12:30: compiler.err.not.encl.class: java.util.concurrent.atomic.AtomicReference
+1 error

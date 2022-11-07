@@ -1,0 +1,2 @@
+SuperInitBad18.java:13:22: compiler.err.call.must.only.appear.in.ctor: super
+1 error

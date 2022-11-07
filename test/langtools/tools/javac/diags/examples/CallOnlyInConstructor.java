@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,10 +21,10 @@
  * questions.
  */
 
-// key: compiler.err.invalid.canonical.constructor.in.record
-// key: compiler.misc.canonical.must.not.contain.explicit.constructor.invocations
-// key: compiler.misc.canonical
+// key: compiler.err.call.must.only.appear.in.ctor
 
-record R(int x) {
-    public R(int x) { super(); this.x = x; }
+class CallOnlyInConstructor {
+    void foo() {
+        super();
+    }
 }

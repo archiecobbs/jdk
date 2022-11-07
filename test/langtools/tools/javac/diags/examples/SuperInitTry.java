@@ -21,11 +21,14 @@
  * questions.
  */
 
-// key: compiler.err.call.must.be.first.stmt.in.ctor
+// key: compiler.err.call.may.not.appear.within.try
 
-class CallMustBeFirst {
-    CallMustBeFirst() {
-        int i = 0;
-        super();
+class X {
+    X() {
+        try {
+            super();
+        } catch (Error e) {
+            throw e;
+        }
     }
 }

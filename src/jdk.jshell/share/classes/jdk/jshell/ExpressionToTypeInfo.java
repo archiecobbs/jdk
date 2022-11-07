@@ -428,7 +428,8 @@ class ExpressionToTypeInfo {
                         MethodInvocationTree superCall =
                                 clazz.getMembers()
                                      .stream()
-                                     .map(TreeInfo::firstConstructorCall)
+                                     .map(TreeInfo::findAllConstructorCalls)
+                                     .flatMap(List::stream)
                                      .findAny()
                                      .get();
                         TreePath superCallPath

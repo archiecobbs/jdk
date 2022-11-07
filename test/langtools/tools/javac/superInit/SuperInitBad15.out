@@ -1,0 +1,7 @@
+SuperInitBad15.java:11:14: compiler.err.call.must.only.appear.in.ctor: super
+SuperInitBad15.java:15:13: compiler.err.call.must.only.appear.in.ctor: this
+SuperInitBad15.java:19:14: compiler.err.call.must.only.appear.in.ctor: super
+SuperInitBad15.java:22:13: compiler.err.call.must.only.appear.in.ctor: this
+SuperInitBad15.java:25:33: compiler.err.call.must.only.appear.in.ctor: super
+SuperInitBad15.java:28:32: compiler.err.call.must.only.appear.in.ctor: this
+6 errors

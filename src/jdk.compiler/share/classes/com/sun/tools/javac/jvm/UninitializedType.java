@@ -66,4 +66,9 @@ class UninitializedType extends Type.DelegatedType {
     Type initializedType() {
         return qtype;
     }
+
+    @Override
+    public String toString() {
+        return super.toString() + "[!INIT]";
+    }
 }

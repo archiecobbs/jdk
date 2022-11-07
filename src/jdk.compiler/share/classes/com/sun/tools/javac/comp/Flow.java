@@ -37,6 +37,7 @@ import java.util.stream.StreamSupport;
 
 import com.sun.source.tree.LambdaExpressionTree.BodyKind;
 import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.code.Kinds.KindSelector;
 import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
@@ -55,6 +56,7 @@ import static com.sun.tools.javac.code.Flags.BLOCK;
 import static com.sun.tools.javac.code.Kinds.Kind.*;
 import com.sun.tools.javac.code.Type.TypeVar;
 import static com.sun.tools.javac.code.TypeTag.BOOLEAN;
+import static com.sun.tools.javac.code.TypeTag.CLASS;
 import static com.sun.tools.javac.code.TypeTag.NONE;
 import static com.sun.tools.javac.code.TypeTag.VOID;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
@@ -1199,33 +1201,6 @@ public class Flow {
                     }
                 }
 
-                // add intersection of all thrown clauses of initial constructors
-                // to set of caught exceptions, unless class is anonymous.
-                if (!anonymousClass) {
-                    boolean firstConstructor = true;
-                    for (List<JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
-                        if (TreeInfo.isInitialConstructor(l.head)) {
-                            List<Type> mthrown =
-                                ((JCMethodDecl) l.head).sym.type.getThrownTypes();
-                            if (firstConstructor) {
-                                caught = mthrown;
-                                firstConstructor = false;
-                            } else {
-                                caught = chk.intersect(mthrown, caught);
-                            }
-                        }
-                    }
-                }
-
-                // process all the instance initializers
-                for (List<JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
-                    if (!l.head.hasTag(METHODDEF) &&
-                        (TreeInfo.flags(l.head) & STATIC) == 0) {
-                        scan(l.head);
-                        errorUncaught();
-                    }
-                }
-
                 // in an anonymous class, add the set of thrown exceptions to
                 // the throws clause of the synthetic constructor and propagate
                 // outwards.
@@ -1279,7 +1254,7 @@ public class Flow {
                     JCVariableDecl def = l.head;
                     scan(def);
                 }
-                if (TreeInfo.isInitialConstructor(tree))
+                if (TreeInfo.hasConstructorCalls(tree, names._super))
                     caught = chk.union(caught, mthrown);
                 else if ((tree.sym.flags() & (BLOCK | STATIC)) != BLOCK)
                     caught = mthrown;
@@ -1571,8 +1546,25 @@ public class Flow {
         public void visitApply(JCMethodInvocation tree) {
             scan(tree.meth);
             scan(tree.args);
+
+            // Mark as thrown exceptions thrown by the method being invoked
             for (List<Type> l = tree.meth.type.getThrownTypes(); l.nonEmpty(); l = l.tail)
                 markThrown(tree, l.head);
+
+            // If invoking super(), add in exceptions thrown by initializer blocks
+            Name name = TreeInfo.name(tree.meth);
+            if (name != null) {
+                Names names = name.table.names;
+                if (name == names._super) {
+                    for (List<JCTree> l = classDef.defs; l.nonEmpty(); l = l.tail) {
+                        if (!l.head.hasTag(METHODDEF) &&
+                            (TreeInfo.flags(l.head) & STATIC) == 0) {
+                            scan(l.head);
+                            errorUncaught();
+                        }
+                    }
+                }
+            }
         }
 
         public void visitNewClass(JCNewClass tree) {
@@ -1885,6 +1877,8 @@ public class Flow {
         final Bits uninitsWhenFalse;
 
         /** A mapping from addresses to variable symbols.
+         *  In constructors, one unused slot may be null;
+         *  it is used to track superclass initialization.
          */
         protected JCVariableDecl[] vardecls;
 
@@ -1903,6 +1897,15 @@ public class Flow {
         /** The first variable sequence number in a block that can return.
          */
         protected int returnadr;
+
+        /** The variable sequence number representing superclass initialization (if any, else -1).
+         *  We track superclass initialization as if it were assignment to a final variable.
+         */
+        protected int superadr;
+
+        /** Indicates we are within a try block, where calls to super()/this() are not allowed.
+         */
+        protected boolean inTryBlock;
 
         /** The list of unreferenced automatic resources.
          */
@@ -1946,15 +1949,15 @@ public class Flow {
             uninitsWhenFalse = new Bits(true);
         }
 
-        private boolean isInitialConstructor = false;
+        private boolean isConstructor;
 
         @Override
         protected void markDead() {
-            if (!isInitialConstructor) {
+            if (!isConstructor) {
                 inits.inclRange(returnadr, nextadr);
             } else {
                 for (int address = returnadr; address < nextadr; address++) {
-                    if (!(isFinalUninitializedStaticField(vardecls[address].sym))) {
+                    if (vardecls[address] == null || !isFinalUninitializedStaticField(vardecls[address].sym)) {
                         inits.incl(address);
                     }
                 }
@@ -2036,13 +2039,16 @@ public class Flow {
         }
         //where
             void uninit(VarSymbol sym) {
-                if (!inits.isMember(sym.adr)) {
+                uninit(sym.adr);
+            }
+            void uninit(int address) {
+                if (!inits.isMember(address)) {
                     // reachable assignment
-                    uninits.excl(sym.adr);
-                    uninitsTry.excl(sym.adr);
+                    uninits.excl(address);
+                    uninitsTry.excl(address);
                 } else {
                     //log.rawWarning(pos, "unreachable assignment");//DEBUG
-                    uninits.excl(sym.adr);
+                    uninits.excl(address);
                 }
             }
 
@@ -2101,6 +2107,84 @@ public class Flow {
         protected void merge() {
             inits.assign(initsWhenFalse.andSet(initsWhenTrue));
             uninits.assign(uninitsWhenFalse.andSet(uninitsWhenTrue));
+        }
+
+        /*-------------- Superclass Initialization --------------*/
+
+        /** Allocate a "trackable variable" slot representing superclass initialization.
+         *  The superclass might be "definitely initialized" or "definitely uninitialized".
+         */
+        void trackSuperInit() {
+            vardecls = ArrayUtils.ensureCapacity(vardecls, nextadr);
+            superadr = nextadr++;
+            vardecls[superadr] = null;
+            inits.excl(superadr);
+            uninits.incl(superadr);
+        }
+
+        /** Record superclass initialization, i.e., an invocation of this() or super().
+         *  Verify that we haven't already done so, and any track implied initializations.
+         */
+        void recordSuperInit(DiagnosticPosition pos, Name name) {
+
+            // Are we tracking superclass initialization?
+            if (superadr < 0)
+                return;
+            Assert.check(vardecls[superadr] == null);
+            Assert.check(isConstructor);
+
+            // Verify that we are not within a try/catch block (JVM StackMaps disallow this)
+            if (inTryBlock) {
+                log.error(pos, Errors.CallMayNotAppearWithinTry(name));
+            }
+
+            // Verify superclass initialization is "DU" and mark it as now "DA"
+            if (!uninits.isMember(superadr)) {
+                log.error(pos, Errors.SuperclassConstructorMightAlreadyHaveBeenInvoked);
+            } else {
+                uninit(superadr);
+            }
+            inits.incl(superadr);
+
+            // If super(): at this point all initialization blocks will execute
+            if (name == names._super) {
+                for (List<JCTree> l = classDef.defs; l.nonEmpty(); l = l.tail) {
+                    if (!l.head.hasTag(METHODDEF) &&
+                        (TreeInfo.flags(l.head) & STATIC) == 0) {
+                        scan(l.head);
+                        clearPendingExits(false);
+                    }
+                }
+            } else {
+
+                // If this(): at this point all final uninitialized fields will get initialized
+                for (int address = firstadr; address < nextadr; address++) {
+                    if (address != superadr) {
+                        VarSymbol sym = vardecls[address].sym;
+                        if (isFinalUninitializedField(sym) && !sym.isStatic()) {
+                            letInit(pos, sym);
+                        }
+                    }
+                }
+            }
+        }
+
+        /** Check that super() or this() has been definitely invoked.
+         */
+        void checkSuperInit(DiagnosticPosition pos, Symbol sym) {
+
+            // are we tracking superclass initialization?
+            if (superadr < 0)
+                return;
+            Assert.check(vardecls[superadr] == null);
+
+            // verify superclass initialization is "DA"
+            if (!inits.isMember(superadr)) {
+                log.error(pos, sym != null ?
+                    Errors.CantRefBeforeCtorCalled(sym) :
+                    Errors.SuperclassConstructorMightNotHaveBeenInvoked);
+                inits.incl(superadr);
+            }
         }
 
     /* ************************************************************************
@@ -2182,9 +2266,15 @@ public class Flow {
                 JCClassDecl classDefPrev = classDef;
                 int firstadrPrev = firstadr;
                 int nextadrPrev = nextadr;
+                int superadrPrev = superadr;
+                superadr = -1;
                 ListBuffer<PendingExit> pendingExitsPrev = pendingExits;
 
                 pendingExits = new ListBuffer<>();
+
+                boolean inTryBlockPrev = inTryBlock;
+                inTryBlock = false;
+
                 if (tree.name != names.empty) {
                     firstadr = nextadr;
                 }
@@ -2225,15 +2315,6 @@ public class Flow {
                         }
                     }
 
-                    // process all the instance initializers
-                    for (List<JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
-                        if (!l.head.hasTag(METHODDEF) &&
-                            (TreeInfo.flags(l.head) & STATIC) == 0) {
-                            scan(l.head);
-                            clearPendingExits(false);
-                        }
-                    }
-
                     // process all the methods
                     for (List<JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
                         if (l.head.hasTag(METHODDEF)) {
@@ -2244,6 +2325,8 @@ public class Flow {
                     pendingExits = pendingExitsPrev;
                     nextadr = nextadrPrev;
                     firstadr = firstadrPrev;
+                    superadr = superadrPrev;
+                    inTryBlock = inTryBlockPrev;
                     classDef = classDefPrev;
                 }
             } finally {
@@ -2279,15 +2362,28 @@ public class Flow {
                 int nextadrPrev = nextadr;
                 int firstadrPrev = firstadr;
                 int returnadrPrev = returnadr;
+                int superadrPrev = superadr;
+                superadr = -1;
+                boolean inTryBlockPrev = inTryBlock;
+                inTryBlock = false;
 
                 Assert.check(pendingExits.isEmpty());
-                boolean lastInitialConstructor = isInitialConstructor;
+                boolean lastConstructor = isConstructor;
                 try {
-                    isInitialConstructor = TreeInfo.isInitialConstructor(tree);
+                    isConstructor = TreeInfo.isConstructor(tree);
 
-                    if (!isInitialConstructor) {
+                    // we only track field initialization inside constructors
+                    if (!isConstructor) {
                         firstadr = nextadr;
                     }
+
+                    // if super()/this() is invoked, enable tracking to ensure it's invoked exactly once
+                    final boolean invokesSuperOrThis = isConstructor && TreeInfo.hasAnyConstructorCalls(tree);
+                    if (invokesSuperOrThis) {
+                        trackSuperInit();
+                    }
+
+                    // initialize parameters
                     for (List<JCVariableDecl> l = tree.params; l.nonEmpty(); l = l.tail) {
                         JCVariableDecl def = l.head;
                         scan(def);
@@ -2301,13 +2397,18 @@ public class Flow {
                     // leave caught unchanged.
                     scan(tree.body);
 
+                    // at the end of a constructor, verify all fields are initialized
+                    // either explicitly or implicitly by an invocation of this()
                     boolean isCompactOrGeneratedRecordConstructor = (tree.sym.flags() & Flags.COMPACT_RECORD_CONSTRUCTOR) != 0 ||
                             (tree.sym.flags() & (GENERATEDCONSTR | RECORD)) == (GENERATEDCONSTR | RECORD);
-                    if (isInitialConstructor) {
+                    if (isConstructor) {
                         boolean isSynthesized = (tree.sym.flags() &
                                                  GENERATEDCONSTR) != 0;
                         for (int i = firstadr; i < nextadr; i++) {
                             JCVariableDecl vardecl = vardecls[i];
+                            // skip the slot for tracking super()/this(), if any
+                            if (vardecl == null)
+                                continue;
                             VarSymbol var = vardecl.sym;
                             if (var.owner == classDef.sym) {
                                 // choose the diagnostic position based on whether
@@ -2339,14 +2440,22 @@ public class Flow {
                             }
                         }
                     }
+
+                    // if super()/this() was invoked, ensure it was definitely invoked
+                    if (invokesSuperOrThis) {
+                        checkSuperInit(TreeInfo.diagEndPos(tree.body), null);
+                    }
+
                     clearPendingExits(true);
                 } finally {
                     inits.assign(initsPrev);
                     uninits.assign(uninitsPrev);
                     nextadr = nextadrPrev;
                     firstadr = firstadrPrev;
+                    superadr = superadrPrev;
+                    inTryBlock = inTryBlockPrev;
                     returnadr = returnadrPrev;
-                    isInitialConstructor = lastInitialConstructor;
+                    isConstructor = lastConstructor;
                 }
             } finally {
                 lint = lintPrev;
@@ -2362,11 +2471,16 @@ public class Flow {
                 Assert.check((inMethod && exit.tree.hasTag(RETURN)) ||
                                  log.hasErrorOn(exit.tree.pos()),
                              exit.tree);
-                if (inMethod && isInitialConstructor) {
+                if (inMethod && isConstructor) {
                     Assert.check(exit instanceof AssignPendingExit);
                     inits.assign(((AssignPendingExit) exit).exit_inits);
                     for (int i = firstadr; i < nextadr; i++) {
-                        checkInit(exit.tree.pos(), vardecls[i].sym);
+                        JCVariableDecl vardecl = vardecls[i];
+                        if (vardecl == null) {
+                            checkSuperInit(exit.tree.pos(), null);
+                        } else {
+                            checkInit(exit.tree.pos(), vardecl.sym);
+                        }
                     }
                 }
             }
@@ -2644,7 +2758,13 @@ public class Flow {
                     throw new AssertionError(tree);  // parser error
                 }
             }
-            scan(tree.body);
+            boolean inTryBlockPrev = inTryBlock;
+            inTryBlock = true;
+            try {
+                scan(tree.body);
+            } finally {
+                inTryBlock = inTryBlockPrev;
+            }
             uninitsTry.andSet(uninits);
             final Bits initsEnd = new Bits(inits);
             final Bits uninitsEnd = new Bits(uninits);
@@ -2825,6 +2945,12 @@ public class Flow {
         public void visitApply(JCMethodInvocation tree) {
             scanExpr(tree.meth);
             scanExprs(tree.args);
+
+            // If we see this() or super(), record superclass initialization
+            Name name = TreeInfo.name(tree.meth);
+            if (name == names._this || name == names._super) {
+                recordSuperInit(tree.pos(), name);
+            }
         }
 
         public void visitNewClass(JCNewClass tree) {
@@ -2890,10 +3016,22 @@ public class Flow {
             letInit(tree.lhs);
         }
 
-        // check fields accessed through this.<field> are definitely
-        // assigned before reading their value
         public void visitSelect(JCFieldAccess tree) {
             super.visitSelect(tree);
+
+            // In constructors, check for illegal early references via X.this or X.super;
+            // expression is a self-reference if X is a supertype but not an enclosing type.
+            if (isConstructor && tree.sym.kind == VAR) {
+                if (tree.selected.type.hasTag(CLASS) &&
+                        (tree.name == names._super || tree.name == names._this) &&
+                        types.isSubtype(types.erasure(classDef.sym.type), types.erasure(tree.selected.type)) &&
+                        !isStrictOuterType(tree.selected.type)) {
+                    checkSuperInit(tree.pos(), tree.sym);
+                }
+            }
+
+            // check fields accessed through this.<field> are definitely
+            // assigned before reading their value
             if (TreeInfo.isThisQualifier(tree.selected) &&
                 tree.sym.kind == VAR) {
                 checkInit(tree.pos(), (VarSymbol)tree.sym);
@@ -2956,6 +3094,20 @@ public class Flow {
         }
 
         public void visitIdent(JCIdent tree) {
+
+            // In constructors, disallow references to the current instance,
+            // either explicit or implicit, prior to superclass construction.
+            if (isConstructor) {
+                boolean isThisOrSuper = tree.name == names._this || tree.name == names._super;
+                if ((tree.sym.kind == VAR &&
+                        (isThisOrSuper || requiresSuperInit(tree.sym))) ||
+                    (tree.sym.kind == MTH &&
+                        (!isThisOrSuper && requiresSuperInit(tree.sym)))) {
+                    checkSuperInit(tree.pos(), tree.sym);
+                }
+            }
+
+            // disallow a reference to any variable before it has been initialized
             if (tree.sym.kind == VAR) {
                 checkInit(tree.pos(), (VarSymbol)tree.sym);
                 referenced(tree.sym);
@@ -2992,6 +3144,32 @@ public class Flow {
             unrefdResources.remove(sym);
         }
 
+        /** Check whether the given type encloses, but does not equal, the current class.
+         */
+        boolean isStrictOuterType(Type outer) {
+            for (Type type = classDef.sym.type.getEnclosingType();
+                    type.hasTag(CLASS);
+                    type = type.getEnclosingType()) {
+                if (type.equalsIgnoreMetadata(outer)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /** Check whether the given symbol refers to a non-static (and non-synthetic)
+         *  member of the current class or some supertype, but not to a containing type.
+         *  In other words, it implies a reference to 'this' and therefore should not
+         *  be accessed prior to this()/super() in a constructor.
+         */
+        boolean requiresSuperInit(Symbol sym) {
+            return sym.kind.matches(KindSelector.VAL_MTH) &&
+                (sym.flags() & (STATIC | SYNTHETIC)) == 0 &&
+                sym.owner.kind == TYP &&
+                classDef.sym.isSubClass(sym.owner, types) &&
+                !isStrictOuterType(sym.owner.type);
+        }
+
         public void visitAnnotatedType(JCAnnotatedType tree) {
             // annotations don't get scanned
             tree.underlyingType.accept(this);
@@ -3022,6 +3200,7 @@ public class Flow {
                         vardecls[i] = null;
                 firstadr = 0;
                 nextadr = 0;
+                superadr = -1;
                 Flow.this.make = make;
                 pendingExits = new ListBuffer<>();
                 this.classDef = null;
@@ -3038,6 +3217,7 @@ public class Flow {
                 }
                 firstadr = 0;
                 nextadr = 0;
+                superadr = -1;
                 Flow.this.make = null;
                 pendingExits = null;
                 this.classDef = null;

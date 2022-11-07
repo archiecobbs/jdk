@@ -1,0 +1,3 @@
+SuperInitBad13.java:25:13: compiler.err.var.might.already.be.assigned: x
+SuperInitBad13.java:30:13: compiler.err.var.might.already.be.assigned: z
+2 errors

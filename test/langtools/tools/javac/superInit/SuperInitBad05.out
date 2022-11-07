@@ -1,0 +1,2 @@
+SuperInitBad05.java:15:18: compiler.err.cant.ref.before.ctor.called: x
+1 error

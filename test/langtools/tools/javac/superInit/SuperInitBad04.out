@@ -1,0 +1,2 @@
+SuperInitBad04.java:11:9: compiler.err.cant.ref.before.ctor.called: super
+1 error

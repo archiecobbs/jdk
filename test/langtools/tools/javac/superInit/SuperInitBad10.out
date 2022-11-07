@@ -1,0 +1,5 @@
+SuperInitBad10.java:13:5: compiler.err.superclass.constructor.might.not.have.been.invoked
+SuperInitBad10.java:17:18: compiler.err.superclass.constructor.might.already.have.been.invoked
+SuperInitBad10.java:18:5: compiler.err.superclass.constructor.might.not.have.been.invoked
+SuperInitBad10.java:30:5: compiler.err.superclass.constructor.might.not.have.been.invoked
+4 errors

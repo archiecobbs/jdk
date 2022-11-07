@@ -3701,15 +3701,16 @@ public class Check {
      */
     void checkCyclicConstructors(JCClassDecl tree) {
         // use LinkedHashMap so we generate errors deterministically
-        Map<Symbol,Symbol> callMap = new LinkedHashMap<>();
+        Map<Symbol,List<Symbol>> callMap = new LinkedHashMap<>();
 
         // enter each constructor this-call into the map
         for (List<JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
-            JCMethodInvocation app = TreeInfo.firstConstructorCall(l.head);
-            if (app == null) continue;
+            if (!TreeInfo.isConstructor(l.head))
+                continue;
             JCMethodDecl meth = (JCMethodDecl) l.head;
-            if (TreeInfo.name(app.meth) == names._this) {
-                callMap.put(meth.sym, TreeInfo.symbol(app.meth));
+            List<JCMethodInvocation> apps = TreeInfo.findConstructorCalls(meth, names._this);
+            if (!apps.isEmpty()) {
+                callMap.put(meth.sym, apps.map(app -> TreeInfo.symbol(app.meth)));
             } else {
                 meth.sym.flags_field |= ACYCLIC;
             }
@@ -3727,14 +3728,14 @@ public class Check {
      *  call cycle.
      */
     private void checkCyclicConstructor(JCClassDecl tree, Symbol ctor,
-                                        Map<Symbol,Symbol> callMap) {
+                                        Map<Symbol,List<Symbol>> callMap) {
         if (ctor != null && (ctor.flags_field & ACYCLIC) == 0) {
             if ((ctor.flags_field & LOCKED) != 0) {
                 log.error(TreeInfo.diagnosticPositionFor(ctor, tree, false, t -> t.hasTag(IDENT)),
                           Errors.RecursiveCtorInvocation);
             } else {
                 ctor.flags_field |= LOCKED;
-                checkCyclicConstructor(tree, callMap.remove(ctor), callMap);
+                callMap.remove(ctor).forEach(sym -> checkCyclicConstructor(tree, sym, callMap));
                 ctor.flags_field &= ~LOCKED;
             }
             ctor.flags_field |= ACYCLIC;

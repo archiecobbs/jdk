@@ -565,16 +565,16 @@ public class Code {
             state.push(syms.doubleType);
             break;
         case aload_0:
-            state.push(lvar[0].sym.type);
+            state.push(lvar[0]);
             break;
         case aload_1:
-            state.push(lvar[1].sym.type);
+            state.push(lvar[1]);
             break;
         case aload_2:
-            state.push(lvar[2].sym.type);
+            state.push(lvar[2]);
             break;
         case aload_3:
-            state.push(lvar[3].sym.type);
+            state.push(lvar[3]);
             break;
         case iaload:
         case baload:
@@ -953,7 +953,7 @@ public class Code {
             state.push(syms.doubleType);
             break;
         case aload:
-            state.push(lvar[od].sym.type);
+            state.push(lvar[od]);
             break;
         case lstore:
         case dstore:
@@ -1269,7 +1269,7 @@ public class Code {
         int nextLocal = 0;
         for (int i=max_locals-1; i>=0; i--) {
             if (state.defined.isMember(i) && lvar[i] != null) {
-                nextLocal = i + width(lvar[i].sym.erasure(types));
+                nextLocal = i + width(types.erasure(state.type(lvar[i])));
                 break;
             }
         }
@@ -1296,7 +1296,7 @@ public class Code {
         frame.locals = new Type[localsSize];
         for (int i=0; i<localsSize; i++) {
             if (state.defined.isMember(i) && lvar[i] != null) {
-                Type vtype = lvar[i].sym.type;
+                Type vtype = state.type(lvar[i]);
                 if (!(vtype instanceof UninitializedType))
                     vtype = types.erasure(vtype);
                 frame.locals[i] = vtype;
@@ -1325,7 +1325,7 @@ public class Code {
         Type[] locals = new Type[localsSize];
         for (int i=0; i<localsSize; i++, localCount++) {
             if (state.defined.isMember(i) && lvar[i] != null) {
-                Type vtype = lvar[i].sym.type;
+                Type vtype = state.type(lvar[i]);
                 if (!(vtype instanceof UninitializedType))
                     vtype = types.erasure(vtype);
                 locals[i] = vtype;
@@ -1656,6 +1656,9 @@ public class Code {
         /** The (types of the) contents of the machine stack. */
         Type[] stack;
 
+        /** The set of UninitializedType locals that are now initialized. */
+        Bits initialized;
+
         /** The first stack position currently unused. */
         int stacksize;
 
@@ -1665,6 +1668,7 @@ public class Code {
 
         State() {
             defined = new Bits();
+            initialized = new Bits();
             stack = new Type[16];
         }
 
@@ -1672,6 +1676,7 @@ public class Code {
             try {
                 State state = (State)super.clone();
                 state.defined = new Bits(defined);
+                state.initialized = new Bits(initialized);
                 state.stack = stack.clone();
                 if (locks != null) state.locks = locks.clone();
                 if (debugCode) {
@@ -1682,6 +1687,20 @@ public class Code {
             } catch (CloneNotSupportedException ex) {
                 throw new AssertionError(ex);
             }
+        }
+
+        /** All queries for the type of a LocalVar should go through this method,
+         *  because with LocalVar's used for instantiation the type changes over
+         *  time from uninitialized to initialized, and that change is a function
+         *  of which branch of the code we've taken. This is captured in "initialized".
+         */
+        Type type(LocalVar lvar) {
+            Type type = lvar.sym.type;
+            if (initialized.isMember(lvar.sym.adr)) {
+                Assert.check(type instanceof UninitializedType);
+                type = ((UninitializedType)type).initializedType();
+            }
+            return type;
         }
 
         void lock(int register) {
@@ -1698,6 +1717,10 @@ public class Code {
             nlocks--;
             Assert.check(locks[nlocks] == register);
             locks[nlocks] = -1;
+        }
+
+        void push(LocalVar lvar) {
+            push(type(lvar));
         }
 
         void push(Type t) {
@@ -1788,12 +1811,9 @@ public class Code {
             }
             for (int i=0; i<lvar.length; i++) {
                 LocalVar lv = lvar[i];
-                if (lv != null && lv.sym.type == old) {
-                    VarSymbol sym = lv.sym;
-                    sym = sym.clone(sym.owner);
-                    sym.type = newtype;
-                    LocalVar newlv = lvar[i] = new LocalVar(sym);
-                    newlv.aliveRanges = lv.aliveRanges;
+                if (lv != null && type(lv) == old) {
+                    Assert.check(!initialized.isMember(lv.sym.adr));
+                    initialized.incl(lv.sym.adr);
                 }
             }
         }
@@ -1855,7 +1875,7 @@ public class Code {
                         System.err.println("UNKNOWN!");
                     else
                         System.err.println("" + var.sym + " of type " +
-                                           var.sym.erasure(types));
+                                           types.erasure(type(var)));
                 } else {
                     System.err.println("undefined");
                 }
@@ -1879,6 +1899,7 @@ public class Code {
 
     /** A live range of a local variable. */
     static class LocalVar {
+        // note: access sym.type through State.type() to handle initialization
         final VarSymbol sym;
         final char reg;
 
@@ -1917,6 +1938,17 @@ public class Code {
         }
         public LocalVar dup() {
             return new LocalVar(sym);
+        }
+
+        /** Create an initialized local from an uninitialized instance.
+         */
+        public LocalVar dupInitialized() {
+            Assert.check(sym.type instanceof UninitializedType);
+            VarSymbol newsym = sym.clone(sym.owner);
+            newsym.type = ((UninitializedType)sym.type).initializedType();
+            LocalVar newlval = new LocalVar(newsym);
+            newlval.aliveRanges = aliveRanges;
+            return newlval;
         }
 
         Range firstRange() {
@@ -2008,6 +2040,7 @@ public class Code {
         }
         lvar[adr] = new LocalVar(v);
         state.defined.excl(adr);
+        state.initialized.excl(adr);
     }
 
     void adjustAliveRanges(int oldCP, int delta) {
@@ -2103,6 +2136,7 @@ public class Code {
             lvar[adr] = null;
         }
         state.defined.excl(adr);
+        state.initialized.excl(adr);
     }
 
     private void fillLocalVarPosition(LocalVar lv) {
@@ -2189,6 +2223,10 @@ public class Code {
                 ((var.sym.owner.flags() & Flags.LAMBDA_METHOD) == 0 ||
                  (var.sym.flags() & Flags.PARAMETER) == 0);
         if (ignoredSyntheticVar) return;
+        // Replace any original UninitializedType's with actual type
+        if (var.sym.type instanceof UninitializedType)
+            var = var.dupInitialized();
+        // Add to buffer
         if (varBuffer == null)
             varBuffer = new LocalVar[20];
         else

@@ -48,6 +48,7 @@ import static com.sun.tools.javac.tree.JCTree.Tag.SYNCHRONIZED;
 
 import javax.tools.JavaFileObject;
 
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.ToIntFunction;
 
@@ -109,25 +110,6 @@ public class TreeInfo {
         for (List<JCTree> l = trees; l.nonEmpty(); l = l.tail)
             if (isConstructor(l.head)) return true;
         return false;
-    }
-
-    /** Is there a constructor invocation in the given list of trees?
-     */
-    public static Name getConstructorInvocationName(List<? extends JCTree> trees, Names names) {
-        for (JCTree tree : trees) {
-            if (tree.hasTag(EXEC)) {
-                JCExpressionStatement stat = (JCExpressionStatement)tree;
-                if (stat.expr.hasTag(APPLY)) {
-                    JCMethodInvocation apply = (JCMethodInvocation)stat.expr;
-                    Name methName = TreeInfo.name(apply.meth);
-                    if (methName == names._this ||
-                        methName == names._super) {
-                        return methName;
-                    }
-                }
-            }
-        }
-        return names.empty;
     }
 
     public static boolean isMultiCatch(JCCatch catchClause) {
@@ -236,32 +218,113 @@ public class TreeInfo {
                 .collect(List.collector());
     }
 
-    /** Is this a constructor whose first (non-synthetic) statement is not
-     *  of the form this(...)?
-     */
-    public static boolean isInitialConstructor(JCTree tree) {
-        JCMethodInvocation app = firstConstructorCall(tree);
-        if (app == null) return false;
-        Name meth = name(app.meth);
-        return meth == null || meth != meth.table.names._this;
+    /** Is the given tree a constructor containing any super() or this() call(s)?
+      */
+    public static boolean hasAnyConstructorCalls(JCTree tree) {
+        return hasConstructorCalls(tree, null);
     }
 
-    /** Return the first call in a constructor definition. */
-    public static JCMethodInvocation firstConstructorCall(JCTree tree) {
-        if (!tree.hasTag(METHODDEF)) return null;
-        JCMethodDecl md = (JCMethodDecl) tree;
+    /** Is the given tree a constructor containing any super() and/or this() call(s)?
+      * The "target" is either names._this, names._super, or null for either/both.
+      */
+    public static boolean hasConstructorCalls(JCTree tree, Name target) {
+        return !findConstructorCalls(tree, target).isEmpty();
+    }
+
+    /** Finds all super() and this() calls in the given tree, which must be a constructor.
+      */
+    public static List<JCMethodInvocation> findAllConstructorCalls(JCTree tree) {
+        return findConstructorCalls(tree, null);
+    }
+
+    /** Finds super() and/or this() calls in the given tree, which must be a constructor.
+      * The "target" is either names._this, names._super, or null for either/both.
+      */
+    public static List<JCMethodInvocation> findConstructorCalls(JCTree tree, Name target) {
+        if (!tree.hasTag(METHODDEF))
+            return List.nil();
+        JCMethodDecl md = (JCMethodDecl)tree;
         Names names = md.name.table.names;
-        if (md.name != names.init) return null;
-        if (md.body == null) return null;
-        List<JCStatement> stats = md.body.stats;
-        // Synthetic initializations can appear before the super call.
-        while (stats.nonEmpty() && isSyntheticInit(stats.head))
-            stats = stats.tail;
-        if (stats.isEmpty()) return null;
-        if (!stats.head.hasTag(EXEC)) return null;
-        JCExpressionStatement exec = (JCExpressionStatement) stats.head;
-        if (!exec.expr.hasTag(APPLY)) return null;
-        return (JCMethodInvocation)exec.expr;
+        if (md.name != names.init || md.body == null)
+            return List.nil();
+        return new ConstructorCallFinder(names, target).find(md);
+    }
+
+    /** Finds all super() invocations and translates them using the given mapping.
+     */
+    public static void mapSuperCalls(JCBlock block, Function<? super JCExpressionStatement, ? extends JCStatement> mapper) {
+        block.stats = block.stats.map(new TreeInfo.SuperCallTranslator(mapper)::translate);
+    }
+
+    /** Finds any calls to this() and/or super() in a given constructor method.
+     */
+    private static class ConstructorCallFinder extends TreeScanner {
+
+        final ListBuffer<JCMethodInvocation> calls = new ListBuffer<>();
+        final Names names;
+        final Name target;
+
+        ConstructorCallFinder(Names names, Name target) {
+            this.names = names;
+            this.target = target;
+        }
+
+        List<JCMethodInvocation> find(JCMethodDecl meth) {
+            scan(meth);
+            return calls.toList();
+        }
+
+        @Override
+        public void visitApply(JCMethodInvocation invoke) {
+            Name name = TreeInfo.name(invoke.meth);
+            if ((name == names._this || name == names._super) && (name == target || target == null))
+                calls.append(invoke);
+            super.visitApply(invoke);
+        }
+
+        @Override
+        public void visitClassDef(JCClassDecl tree) {
+            // don't descend any further
+        }
+
+        @Override
+        public void visitLambda(JCLambda tree) {
+            // don't descend any further
+        }
+    }
+
+    /** Finds all super() invocations and translates them somehow.
+     */
+    private static class SuperCallTranslator extends TreeTranslator {
+
+        final Function<? super JCExpressionStatement, ? extends JCStatement> translator;
+
+        /** Constructor.
+         *
+         * @param translator translates super() invocations, returning replacement statement or null for no change
+         */
+        SuperCallTranslator(Function<? super JCExpressionStatement, ? extends JCStatement> translator) {
+            this.translator = translator;
+        }
+
+        // Because it returns void, anywhere super() can legally appear must be a location where a JCStatement
+        // could also appear, so it's OK that we are replacing a JCExpressionStatement with a JCStatement here.
+        @Override
+        public void visitExec(JCExpressionStatement stat) {
+            if (!TreeInfo.isSuperCall(stat) || (result = this.translator.apply(stat)) == null) {
+                super.visitExec(stat);
+            }
+        }
+
+        @Override
+        public void visitClassDef(JCClassDecl tree) {
+            // don't descend any further
+        }
+
+        @Override
+        public void visitLambda(JCLambda tree) {
+            // don't descend any further
+        }
     }
 
     /** Return true if a tree represents a diamond new expr. */

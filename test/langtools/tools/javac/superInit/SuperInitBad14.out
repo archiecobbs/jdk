@@ -1,0 +1,5 @@
+SuperInitBad14.java:13:17: compiler.err.call.may.not.appear.within.try: this
+SuperInitBad14.java:21:18: compiler.err.call.may.not.appear.within.try: super
+SuperInitBad14.java:29:17: compiler.err.call.may.not.appear.within.try: this
+SuperInitBad14.java:37:17: compiler.err.call.may.not.appear.within.try: this
+4 errors
