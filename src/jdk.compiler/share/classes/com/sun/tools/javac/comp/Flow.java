@@ -3152,14 +3152,9 @@ public class Flow {
         /** Check whether the given type encloses, but does not equal, the current class.
          */
         boolean isStrictOuterType(Type outer) {
-            for (Type type = classDef.sym.type.getEnclosingType();
-                    type.hasTag(CLASS);
-                    type = type.getEnclosingType()) {
-                if (type.equalsIgnoreMetadata(outer)) {
-                    return true;
-                }
-            }
-            return false;
+            ClassSymbol classSym = (ClassSymbol)((Type.ClassType)types.erasure(classDef.sym.type)).tsym;
+            ClassSymbol outerSym = (ClassSymbol)((Type.ClassType)types.erasure(outer)).tsym;
+            return classSym != outerSym && classSym.isEnclosedBy(outerSym);
         }
 
         /** Check whether the given symbol refers to a non-static (and non-synthetic)
