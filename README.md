@@ -13,9 +13,9 @@ tracking.
 
 _Note: the content below is temporary and will be removed before submission_
 
-**JDK-8193760 - allow code in a constructor before the call to the super constructor**
+**JDK-8194743 - Permit additional statements before this/super in constructors**
 
-This is an initial proof-of-concept for JDK-8193760, which relaxes the rules for where `this()` and `super()` can appear in constructors to match what the JVM actually accepts.
+This is an initial proof-of-concept for [JDK-8194743](https://bugs.openjdk.org/browse/JDK-8194743) which relaxes the rules for where `this()` and `super()` can appear in constructors to match what the JVM actually accepts.
 
 _The goal of this draft PR is just to play around with how this might be implemented at the compiler level to see what it might look like. Since this change implies a JLS change, there is obviously a larger discussion that would need to occur if people wanted to pursue this further._
 
