@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2519,7 +2519,7 @@ address StubGenerator::generate_base64_decodeBlock() {
     // Decode all bytes within our merged input
     __ evmovdquq(tmp, lookup_lo, Assembler::AVX_512bit);
     __ evpermt2b(tmp, input_initial_valid_b64, lookup_hi, Assembler::AVX_512bit);
-    __ vporq(mask, tmp, input_initial_valid_b64, Assembler::AVX_512bit);
+    __ evporq(mask, tmp, input_initial_valid_b64, Assembler::AVX_512bit);
 
     // Check for error.  Compare (decoded | initial) to all invalid.
     // If any bytes have their high-order bit set, then we have an error.
@@ -3504,7 +3504,7 @@ RuntimeStub* StubGenerator::generate_jfr_write_checkpoint() {
     framesize // inclusive of return address
   };
 
-  CodeBuffer code("jfr_write_checkpoint", 512, 64);
+  CodeBuffer code("jfr_write_checkpoint", 1024, 64);
   MacroAssembler* _masm = new MacroAssembler(&code);
   address start = __ pc();
 
@@ -3519,14 +3519,7 @@ RuntimeStub* StubGenerator::generate_jfr_write_checkpoint() {
   __ reset_last_Java_frame(true);
 
   // rax is jobject handle result, unpack and process it through a barrier.
-  Label L_null_jobject;
-  __ testptr(rax, rax);
-  __ jcc(Assembler::zero, L_null_jobject);
-
-  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-  bs->load_at(_masm, ACCESS_READ | IN_NATIVE, T_OBJECT, rax, Address(rax, 0), c_rarg0, r15_thread);
-
-  __ bind(L_null_jobject);
+  __ resolve_global_jobject(rax, r15_thread, c_rarg0);
 
   __ leave();
   __ ret(0);
@@ -3709,6 +3702,10 @@ void StubGenerator::generate_initial() {
     StubRoutines::_updateBytesCRC32 = generate_updateBytesCRC32();
   }
 
+  if (UsePoly1305Intrinsics) {
+    StubRoutines::_poly1305_processBlocks = generate_poly1305_processBlocks();
+  }
+
   if (UseCRC32CIntrinsics) {
     bool supports_clmul = VM_Version::supports_clmul();
     StubRoutines::x86::generate_CRC32C_table(supports_clmul);
@@ -3804,6 +3801,8 @@ void StubGenerator::generate_all() {
   generate_aes_stubs();
 
   generate_ghash_stubs();
+
+  generate_chacha_stubs();
 
   if (UseMD5Intrinsics) {
     StubRoutines::_md5_implCompress = generate_md5_implCompress(false, "md5_implCompress");
