@@ -2977,6 +2977,18 @@ public class Flow {
             scanExpr(tree.encl);
             scanExprs(tree.args);
             scan(tree.def);
+
+            // In constructors, disallow inner class instantiation using the
+            // current 'this' as outer instance prior to superclass construction
+            Symbol sym = tree.clazz.type.tsym;
+            if (isConstructor &&
+                    tree.encl == null &&
+                    sym != classDef.sym &&
+                    sym.isEnclosedBy(classDef.sym) &&
+                    !sym.isStatic()) {
+                checkSuperInit(tree.pos(),
+                    () -> Errors.CantRefBeforeCtorCalled(names._this.toString()));
+            }
         }
 
         @Override
