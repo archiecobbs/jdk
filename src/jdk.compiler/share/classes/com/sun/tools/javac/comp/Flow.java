@@ -32,6 +32,7 @@ import java.util.Map.Entry;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -2193,7 +2194,7 @@ public class Flow {
 
         /** Check that super() or this() has been definitely invoked.
          */
-        void checkSuperInit(DiagnosticPosition pos, Symbol sym) {
+        void checkSuperInit(DiagnosticPosition pos, Supplier<Error> errorMaker) {
 
             // are we tracking superclass initialization?
             if (superadr < 0)
@@ -2202,11 +2203,17 @@ public class Flow {
 
             // verify superclass initialization is "DA"
             if (!inits.isMember(superadr)) {
-                log.error(pos, sym != null ?
-                    Errors.CantRefBeforeCtorCalled(sym) :
-                    Errors.SuperclassConstructorMightNotHaveBeenInvoked);
+                log.error(pos, errorMaker.get());
                 inits.incl(superadr);
             }
+        }
+
+        void checkSuperInit(DiagnosticPosition pos) {
+            checkSuperInit(pos, () -> Errors.SuperclassConstructorMightNotHaveBeenInvoked);
+        }
+
+        void checkSuperInit(DiagnosticPosition pos, Symbol sym) {
+            checkSuperInit(pos, () -> Errors.CantRefBeforeCtorCalled(sym));
         }
 
     /* ************************************************************************
@@ -2452,7 +2459,7 @@ public class Flow {
 
                     // if super()/this() was invoked, ensure it was definitely invoked
                     if (invokesSuperOrThis) {
-                        checkSuperInit(TreeInfo.diagEndPos(tree.body), null);
+                        checkSuperInit(TreeInfo.diagEndPos(tree.body));
                     }
 
                     clearPendingExits(true);
@@ -2486,7 +2493,7 @@ public class Flow {
                     for (int i = firstadr; i < nextadr; i++) {
                         JCVariableDecl vardecl = vardecls[i];
                         if (vardecl == null) {
-                            checkSuperInit(exit.tree.pos(), null);
+                            checkSuperInit(exit.tree.pos());
                         } else {
                             checkInit(exit.tree.pos(), vardecl.sym);
                         }
