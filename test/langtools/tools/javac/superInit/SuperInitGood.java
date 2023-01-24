@@ -22,7 +22,7 @@
  */
 /*
  * @test
- * @bug 8193760
+ * @bug 8194743
  * @summary Test valid placements of super()/this() in constructors
  */
 

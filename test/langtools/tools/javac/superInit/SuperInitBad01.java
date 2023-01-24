@@ -1,6 +1,6 @@
 /*
  * @test /nodynamiccopyright/
- * @bug 8193760
+ * @bug 8194743
  * @summary Test circular invocation of this() in constructors
  *
  * @compile/fail/ref=SuperInitBad01.out -XDrawDiagnostics SuperInitBad01.java

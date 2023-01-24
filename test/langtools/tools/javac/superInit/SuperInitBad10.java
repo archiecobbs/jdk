@@ -1,6 +1,6 @@
 /*
  * @test /nodynamiccopyright/
- * @bug 8193760
+ * @bug 8194743
  * @summary Verify when present this()/super() must be invoked exactly once
  *
  * @compile/fail/ref=SuperInitBad10.out -XDrawDiagnostics SuperInitBad10.java

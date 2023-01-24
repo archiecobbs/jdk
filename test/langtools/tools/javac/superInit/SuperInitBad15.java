@@ -1,6 +1,6 @@
 /*
  * @test /nodynamiccopyright/
- * @bug 8193760
+ * @bug 8194743
  * @summary Verify this()/super() can only be invoked from constructors
  *
  * @compile/fail/ref=SuperInitBad15.out -XDrawDiagnostics SuperInitBad15.java

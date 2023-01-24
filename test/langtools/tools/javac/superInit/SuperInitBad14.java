@@ -1,6 +1,6 @@
 /*
  * @test /nodynamiccopyright/
- * @bug 8193760
+ * @bug 8194743
  * @summary Disallow calls to this() and super() within try blocks
  *
  * @compile/fail/ref=SuperInitBad14.out -XDrawDiagnostics SuperInitBad14.java

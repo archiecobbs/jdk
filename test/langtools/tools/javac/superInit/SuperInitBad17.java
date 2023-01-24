@@ -1,6 +1,6 @@
 /*
  * @test /nodynamiccopyright/
- * @bug 8193760
+ * @bug 8194743
  * @summary Verify non-canonical record constructors only invoke this()
  *
  * @compile/fail/ref=SuperInitBad17.out -XDrawDiagnostics SuperInitBad17.java

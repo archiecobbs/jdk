@@ -1,6 +1,6 @@
 /*
  * @test /nodynamiccopyright/
- * @bug 8193760
+ * @bug 8194743
  * @summary Test invalid reference to "this" prior to superclass construction
  *
  * @compile/fail/ref=SuperInitBad02.out -XDrawDiagnostics SuperInitBad02.java

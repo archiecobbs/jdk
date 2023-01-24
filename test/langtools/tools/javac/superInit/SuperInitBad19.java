@@ -1,6 +1,6 @@
 /*
  * @test /nodynamiccopyright/
- * @bug 8193760
+ * @bug 8194743
  * @summary Test order in which duplicate assignments are reported
  *
  * @compile/fail/ref=SuperInitBad19.out -XDrawDiagnostics SuperInitBad19.java

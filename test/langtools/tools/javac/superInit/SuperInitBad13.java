@@ -1,6 +1,6 @@
 /*
  * @test /nodynamiccopyright/
- * @bug 8193760
+ * @bug 8194743
  * @summary Test final fields are initialized exactly once
  *
  * @compile/fail/ref=SuperInitBad13.out -XDrawDiagnostics SuperInitBad13.java
