@@ -305,9 +305,8 @@ public class TreeInfo {
         // could also appear, so it's OK that we are replacing a JCExpressionStatement with a JCStatement here.
         @Override
         public void visitExec(JCExpressionStatement stat) {
-            if (!TreeInfo.isSuperCall(stat) || (result = this.translator.apply(stat)) == null) {
+            if (!TreeInfo.isSuperCall(stat) || (result = this.translator.apply(stat)) == null)
                 super.visitExec(stat);
-            }
         }
 
         @Override

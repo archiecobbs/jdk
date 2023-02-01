@@ -1582,11 +1582,11 @@ public class Flow {
             scan(tree.meth);
             scan(tree.args);
 
-            // Mark as thrown exceptions thrown by the method being invoked
+            // Mark as thrown the exceptions thrown by the method being invoked
             for (List<Type> l = tree.meth.type.getThrownTypes(); l.nonEmpty(); l = l.tail)
                 markThrown(tree, l.head);
 
-            // When we see super(), incorporate exceptions thrown by initializers
+            // After super(), scan initializers to uncover any exceptions they throw
             if (TreeInfo.name(tree.meth) == names._super) {
                 forEachInitializer(classDef, false, def -> {
                     scan(def);

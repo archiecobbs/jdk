@@ -1510,7 +1510,7 @@ public class Resolve {
                     if (staticOnly)
                         return new StaticError(sym);
                     if (env1.info.ctorPrologue && (sym.flags_field & SYNTHETIC) == 0)
-                        return new ConstructorPrologueError(sym);
+                        return new RefBeforeCtorCalledError(sym);
                 }
                 return sym;
             } else {
@@ -2015,7 +2015,7 @@ public class Resolve {
                         if (staticOnly)
                             return new StaticError(sym);
                         if (env1.info.ctorPrologue && env1 == env)
-                            return new ConstructorPrologueError(sym);
+                            return new RefBeforeCtorCalledError(sym);
                     }
                     return sym;
                 } else {
@@ -3766,7 +3766,7 @@ public class Resolve {
                     if (staticOnly)
                         sym = new StaticError(sym);
                     else if (env1.info.ctorPrologue)
-                        sym = new ConstructorPrologueError(sym);
+                        sym = new RefBeforeCtorCalledError(sym);
                     return accessBase(sym, pos, env.enclClass.sym.type,
                                   name, true);
                 }
@@ -3859,8 +3859,7 @@ public class Resolve {
                 if (env1.enclClass.sym.isSubClass(member.owner.enclClass(), types)) {
                     Symbol sym = env1.info.scope.findFirst(name);
                     if (sym != null) {
-                        if (staticOnly)
-                            sym = new StaticError(sym);
+                        if (staticOnly) sym = new StaticError(sym);
                         return sym;
                     }
                 }
@@ -4603,9 +4602,9 @@ public class Resolve {
     /**
      * Specialization of {@link StaticError} for accesses in a constructor prologue.
      */
-    class ConstructorPrologueError extends InvalidSymbolError {
+    class RefBeforeCtorCalledError extends InvalidSymbolError {
 
-        ConstructorPrologueError(Symbol sym) {
+        RefBeforeCtorCalledError(Symbol sym) {
             super(STATICERR, sym, "prologue error");
         }
 
