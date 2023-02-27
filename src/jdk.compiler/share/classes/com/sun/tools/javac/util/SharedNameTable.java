@@ -105,9 +105,7 @@ public class SharedNameTable extends Name.Table {
             n = n.next;
         }
         if (n == null) {
-            n = new NameImpl(this);
-            n.index = nc;
-            n.length = nbytes;
+            n = newNameImpl(nc, nbytes);
             n.next = hashes[h];
             hashes[h] = n;
             this.nc = nc + nbytes;
@@ -131,9 +129,7 @@ public class SharedNameTable extends Name.Table {
             int nc = this.nc;
             names = this.bytes = ArrayUtils.ensureCapacity(names, nc + len);
             System.arraycopy(cs, start, names, nc, len);
-            n = new NameImpl(this);
-            n.index = nc;
-            n.length = len;
+            n = newNameImpl(nc, len);
             n.next = hashes[h];
             hashes[h] = n;
             this.nc = nc + len;
@@ -149,6 +145,21 @@ public class SharedNameTable extends Name.Table {
         dispose(this);
     }
 
+    // Build and return an AsciiNameImpl, if possible, otherwise a regular NameImpl
+    NameImpl newNameImpl(final int index, final int length) {
+        int offset = index;
+        int remain = length;
+        while (remain > 0) {
+            if ((bytes[offset++] & 0x80) != 0)
+                break;
+            remain--;
+        }
+        return remain == 0 ?
+          new AsciiNameImpl(this, index, length) :
+          new NameImpl(this, index, length);
+    }
+
+    // Implementation used when there are one or more non-ASCII characters
     static class NameImpl extends Name {
         /** The next name occupying the same hash bucket.
          */
@@ -163,8 +174,10 @@ public class SharedNameTable extends Name.Table {
          */
         int length;
 
-        NameImpl(SharedNameTable table) {
+        NameImpl(SharedNameTable table, int index, int length) {
             super(table);
+            this.index = index;
+            this.length = length;
         }
 
         @Override
@@ -207,7 +220,97 @@ public class SharedNameTable extends Name.Table {
                     && table == name.table
                     && index == name.getIndex();
         }
-
     }
 
+    // Implementation used when there are only ASCII (0x00 - 0x7f) characters
+    static class AsciiNameImpl extends NameImpl {
+
+        AsciiNameImpl(SharedNameTable table, int index, int length) {
+            super(table, index, length);
+        }
+
+        @Override
+        public boolean contentEquals(CharSequence cs) {
+            if (cs.length() != length)
+                return false;
+            byte[] data = getByteArray();
+            int off = index;
+            for (int i = 0; i < length; i++) {
+                char ch = cs.charAt(i);
+                if ((int)ch != (data[off++] & 0xff))
+                    return false;
+            }
+            return true;
+        }
+
+        @Override
+        public char charAt(int pos) {
+            if (pos < 0 || pos >= length)
+                throw new IndexOutOfBoundsException();
+            return (char)(getByteArray()[index + pos] & 0xff);
+        }
+
+        @Override
+        public int length() {
+            return length;
+        }
+
+        @Override
+        public CharSequence subSequence(int start, int end) {
+            if (start < 0 || end < start || end > length)
+                throw new IndexOutOfBoundsException();
+            return new AsciiCharSequence(getByteArray(), index + start, end - start);
+        }
+
+        @Override
+        public String toString() {
+            return AsciiNameImpl.toString(getByteArray(), index, length);
+        }
+
+        static String toString(byte[] data, int offset, int length) {
+            char[] array = new char[length];
+            for (int i = 0; i < length; i++)
+                array[i] = (char)(data[offset + i] & 0xff);
+            return new String(array);
+        }
+    }
+
+// AsciiCharSequence
+
+    static class AsciiCharSequence implements CharSequence {
+
+        private final byte[] data;
+        private final int offset;
+        private final int length;
+
+        AsciiCharSequence(byte[] data, int offset, int length) {
+            this.data = data;
+            this.offset = offset;
+            this.length = length;
+        }
+
+        @Override
+        public char charAt(int index) {
+            if (index < 0 || index >= length)
+                throw new IndexOutOfBoundsException();
+            return (char)(data[offset + index] & 0xff);
+        }
+
+        @Override
+        public int length() {
+            return length;
+        }
+
+        @Override
+        public CharSequence subSequence(int start, int end) {
+            if (start < 0 || end < start || end > length)
+                throw new IndexOutOfBoundsException();
+            return new AsciiCharSequence(data, offset + start, end - start);
+        }
+
+        @Override
+        public String toString() {
+            return AsciiNameImpl.toString(data, offset, length);
+        }
+    }
 }
