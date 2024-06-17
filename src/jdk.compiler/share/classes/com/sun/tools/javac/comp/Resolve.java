@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -100,6 +100,7 @@ public class Resolve {
     DeferredAttr deferredAttr;
     Check chk;
     Infer infer;
+    Preview preview;
     ClassFinder finder;
     ModuleFinder moduleFinder;
     Types types;
@@ -135,7 +136,7 @@ public class Resolve {
         moduleFinder = ModuleFinder.instance(context);
         types = Types.instance(context);
         diags = JCDiagnostic.Factory.instance(context);
-        Preview preview = Preview.instance(context);
+        preview = Preview.instance(context);
         Source source = Source.instance(context);
         Options options = Options.instance(context);
         compactMethodDiags = options.isSet(Option.XDIAGS, "compact") ||
@@ -1480,10 +1481,11 @@ public class Resolve {
 
     /** Find unqualified variable or field with given name.
      *  Synthetic fields always skipped.
+     *  @param pos       The position to use for error reporting.
      *  @param env     The current environment.
      *  @param name    The name of the variable or field.
      */
-    Symbol findVar(Env<AttrContext> env, Name name) {
+    Symbol findVar(DiagnosticPosition pos, Env<AttrContext> env, Name name) {
         Symbol bestSoFar = varNotFound;
         Env<AttrContext> env1 = env;
         boolean staticOnly = false;
@@ -1508,7 +1510,7 @@ public class Resolve {
                         (sym.flags() & STATIC) == 0) {
                     if (staticOnly)
                         return new StaticError(sym);
-                    if (env1.info.ctorPrologue && !isAllowedEarlyReference(env1, (VarSymbol)sym))
+                    if (env1.info.ctorPrologue && !isAllowedEarlyReference(pos, env1, (VarSymbol)sym))
                         return new RefBeforeCtorCalledError(sym);
                 }
                 return sym;
@@ -2421,15 +2423,15 @@ public class Resolve {
      *                   (a subset of VAL, TYP, PCK).
      */
     Symbol findIdent(DiagnosticPosition pos, Env<AttrContext> env, Name name, KindSelector kind) {
-        return checkNonExistentType(checkRestrictedType(pos, findIdentInternal(env, name, kind), name));
+        return checkNonExistentType(checkRestrictedType(pos, findIdentInternal(pos, env, name, kind), name));
     }
 
-    Symbol findIdentInternal(Env<AttrContext> env, Name name, KindSelector kind) {
+    Symbol findIdentInternal(DiagnosticPosition pos, Env<AttrContext> env, Name name, KindSelector kind) {
         Symbol bestSoFar = typeNotFound;
         Symbol sym;
 
         if (kind.contains(KindSelector.VAL)) {
-            sym = findVar(env, name);
+            sym = findVar(pos, env, name);
             if (sym.exists()) return sym;
             else bestSoFar = bestOf(bestSoFar, sym);
         }
@@ -3776,7 +3778,7 @@ public class Resolve {
                 if (sym != null) {
                     if (staticOnly)
                         sym = new StaticError(sym);
-                    else if (env1.info.ctorPrologue && !isAllowedEarlyReference(env1, (VarSymbol)sym))
+                    else if (env1.info.ctorPrologue && !isAllowedEarlyReference(pos, env1, (VarSymbol)sym))
                         sym = new RefBeforeCtorCalledError(sym);
                     return accessBase(sym, pos, env.enclClass.sym.type,
                                   name, true);
@@ -3845,7 +3847,7 @@ public class Resolve {
      * We also don't verify that the field has no initializer, which is required.
      * To catch those cases, we rely on similar logic in Attr.checkAssignable().
      */
-    private boolean isAllowedEarlyReference(Env<AttrContext> env, VarSymbol v) {
+    private boolean isAllowedEarlyReference(DiagnosticPosition pos, Env<AttrContext> env, VarSymbol v) {
 
         // Check assumptions
         Assert.check(env.info.ctorPrologue);
@@ -3861,11 +3863,27 @@ public class Resolve {
 
         // Get the symbol's qualifier, if any
         JCExpression lhs = TreeInfo.skipParens(assign.lhs);
-        JCExpression base = lhs instanceof JCFieldAccess select ? select.selected : null;
+        JCExpression base;
+        switch (lhs.getTag()) {
+        case IDENT:
+            base = null;
+            break;
+        case SELECT:
+            JCFieldAccess select = (JCFieldAccess)lhs;
+            base = select.selected;
+            if (!TreeInfo.isExplicitThisReference(types, (ClassType)env.enclClass.type, base))
+                return false;
+            break;
+        default:
+            return false;
+        }
 
         // If an early reference, the field must not be declared in a superclass
         if (isEarlyReference(env, base, v) && v.owner != env.enclClass.sym)
             return false;
+
+        // The flexible constructors feature must be enabled
+        preview.checkSourceLevel(pos, Feature.FLEXIBLE_CONSTRUCTORS);
 
         // OK
         return true;
@@ -3947,21 +3965,34 @@ public class Resolve {
     }
 
     /**
-     * Resolve an appropriate implicit this instance for t's container.
-     * JLS 8.8.5.1 and 15.9.2
+     * Resolve an appropriate implicit outer instance for type t.
+     * This assumes that an outer instance exists (i.e., t.tsym.hasOuterInstance()).
      */
-    Type resolveImplicitThis(DiagnosticPosition pos, Env<AttrContext> env, Type t) {
-        return resolveImplicitThis(pos, env, t, false);
+    Type resolveImplicitOuterInstance(DiagnosticPosition pos, Env<AttrContext> env, Type t) {
+        return resolveImplicitOuterInstance(pos, env, t, false);
     }
 
-    Type resolveImplicitThis(DiagnosticPosition pos, Env<AttrContext> env, Type t, boolean isSuperCall) {
-        Type thisType = (t.tsym.owner.kind.matches(KindSelector.VAL_MTH)
-                         ? resolveSelf(pos, env, t.getEnclosingType().tsym, names._this)
-                         : resolveSelfContaining(pos, env, t.tsym, isSuperCall)).type;
-        if (env.info.ctorPrologue && thisType.tsym == env.enclClass.sym) {
-            log.error(pos, Errors.CantRefBeforeCtorCalled(names._this));
+    Type resolveImplicitOuterInstance(DiagnosticPosition pos, Env<AttrContext> env, Type t, boolean isSuperCall) {
+        Assert.check(t.tsym.hasOuterInstance());
+
+        // Resolve the target type
+        Type targetType;
+        if (t.tsym.owner.kind.matches(KindSelector.VAL_MTH)) {
+            Type outerType = t.tsym.innermostAccessibleEnclosingClass().type;
+            targetType = resolveSelf(pos, env, outerType.tsym, names._this).type;
+        } else
+            targetType = resolveSelfContaining(pos, env, t.tsym, isSuperCall).type;
+
+        // Verify we're not in an early construction context for that type
+        for (Env<AttrContext> env1 = env; env1 != null; env1 = env1.outer) {
+            if (env1.info.ctorPrologue && targetType.tsym == env1.enclClass.sym) {
+                log.error(pos, Errors.CantRefBeforeCtorCalled(names._this));
+                break;
+            }
         }
-        return thisType;
+
+        // Done
+        return targetType;
     }
 
 /* ***************************************************************************
