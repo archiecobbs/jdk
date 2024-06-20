@@ -1487,6 +1487,11 @@ public class Lower extends TreeTranslator {
      */
     List<VarSymbol> outerThisStack;
 
+    /** {@code true} is the current class 'this' can be accessed e.g. because
+     * we are not in the current class' early-construction context.
+     */
+    boolean canRefThis;
+
     /** The name of a free variable proxy.
      */
     Name proxyName(Name name, int index) {
@@ -1620,6 +1625,7 @@ public class Lower extends TreeTranslator {
     JCExpression makeThis(DiagnosticPosition pos, TypeSymbol c) {
         if (currentClass == c) {
             // in this case, `this' works fine
+            Assert.check(canRefThis);
             return make.at(pos).This(c.erasure(types));
         } else {
             // need to go via this$n
@@ -1839,8 +1845,8 @@ public class Lower extends TreeTranslator {
      */
     JCExpression makeOwnerThis(DiagnosticPosition pos, Symbol sym, boolean preciseMatch) {
         Symbol c = sym.owner;
-        if (preciseMatch ? sym.isMemberOf(currentClass, types)
-                         : currentClass.isSubClass(sym.owner, types)) {
+        if (canRefThis && (preciseMatch ? sym.isMemberOf(currentClass, types)
+                         : currentClass.isSubClass(sym.owner, types))) {
             // in this case, `this' works fine
             return make.at(pos).This(c.erasure(types));
         } else {
@@ -2235,7 +2241,9 @@ public class Lower extends TreeTranslator {
         Env<AttrContext> prevEnv = attrEnv;
         ClassSymbol currentClassPrev = currentClass;
         MethodSymbol currentMethodSymPrev = currentMethodSym;
+        boolean prevCanRefThis = canRefThis;
 
+        canRefThis = true;
         currentClass = tree.sym;
         currentMethodSym = null;
         attrEnv = typeEnvs.remove(currentClass);
@@ -2333,6 +2341,7 @@ public class Lower extends TreeTranslator {
         attrEnv = prevEnv;
         currentClass = currentClassPrev;
         currentMethodSym = currentMethodSymPrev;
+        canRefThis = prevCanRefThis;
 
         // Return empty block {} as a placeholder for an inner class.
         result = make_at(tree.pos()).Block(SYNTHETIC, List.nil());
@@ -2765,6 +2774,7 @@ public class Lower extends TreeTranslator {
             // and create definitions for any this$n and proxy parameters.
             Map<Symbol, Symbol> prevProxies = proxies;
             proxies = new HashMap<>(proxies);
+            boolean prevCanRefThis = canRefThis;
             List<VarSymbol> prevOuterThisStack = outerThisStack;
             List<VarSymbol> fvs = freevars(currentClass);
             JCVariableDecl otdef = null;
@@ -2792,6 +2802,7 @@ public class Lower extends TreeTranslator {
 
             // Determine whether this constructor has a super() invocation
             boolean invokesSuper = TreeInfo.hasConstructorCall(tree, names._super);
+            canRefThis = false;
 
             // Create initializers for this$n and proxies
             ListBuffer<JCStatement> added = new ListBuffer<>();
@@ -2826,7 +2837,7 @@ public class Lower extends TreeTranslator {
 
             // pop local variables from proxy stack
             proxies = prevProxies;
-
+            canRefThis = prevCanRefThis;
             outerThisStack = prevOuterThisStack;
         } else {
             super.visitMethodDef(tree);
@@ -3281,6 +3292,7 @@ public class Lower extends TreeTranslator {
                 }
                 tree.args = tree.args.prepend(thisArg);
             }
+            canRefThis = true;
         } else {
             // We are seeing a normal method invocation; translate this as usual.
             tree.meth = translate(tree.meth);
