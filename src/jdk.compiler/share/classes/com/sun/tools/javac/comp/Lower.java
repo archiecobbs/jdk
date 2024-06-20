@@ -1487,7 +1487,7 @@ public class Lower extends TreeTranslator {
      */
     List<VarSymbol> outerThisStack;
 
-    /** {@code true} is the current class 'this' can be accessed e.g. because
+    /** {@code true} if the current class 'this' can be accessed e.g. because
      * we are not in the current class' early-construction context.
      */
     boolean canRefThis;
