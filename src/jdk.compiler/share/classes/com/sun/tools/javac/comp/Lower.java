@@ -1600,21 +1600,14 @@ public class Lower extends TreeTranslator {
      *  @param pos          The source code position to be used for the trees.
      *  @param freevars     The list of free variables.
      */
-    List<JCExpression> loadFreevars(DiagnosticPosition pos, Env<AttrContext> env, List<VarSymbol> freevars) {
+    List<JCExpression> loadFreevars(DiagnosticPosition pos, List<VarSymbol> freevars) {
         List<JCExpression> args = List.nil();
         for (List<VarSymbol> l = freevars; l.nonEmpty(); l = l.tail)
-            args = args.prepend(loadFreevar(pos, env, l.head));
+            args = args.prepend(loadFreevar(pos, l.head));
         return args;
     }
 //where
-        JCExpression loadFreevar(DiagnosticPosition pos, Env<AttrContext> env, VarSymbol v) {
-
-            // Verify we are not trying to access a proxy field from a static method
-            Symbol proxy = proxies.get(v);
-            if (proxy != null && proxy.owner == currentClass && currentMethodSym.isStatic())
-                log.error(pos, Errors.NonStaticCantBeRef(Kinds.kindName(v), v));
-
-            // Access symbol
+        JCExpression loadFreevar(DiagnosticPosition pos, VarSymbol v) {
             return access(v, make.at(pos).Ident(v), null, false);
         }
 
@@ -3054,7 +3047,7 @@ public class Lower extends TreeTranslator {
         // If created class is local, add free variables after
         // explicit constructor arguments.
         if (c.isDirectlyOrIndirectlyLocal() && !c.isStatic()) {
-            tree.args = tree.args.appendList(loadFreevars(tree.pos(), attrEnv, freevars(c)));
+            tree.args = tree.args.appendList(loadFreevars(tree.pos(), freevars(c)));
         }
 
         // If an access constructor is used, append null as a last argument.
@@ -3250,7 +3243,7 @@ public class Lower extends TreeTranslator {
             // free variables after explicit constructor arguments.
             ClassSymbol c = (ClassSymbol)constructor.owner;
             if (c.isDirectlyOrIndirectlyLocal() && !c.isStatic()) {
-                tree.args = tree.args.appendList(loadFreevars(tree.pos(), attrEnv, freevars(c)));
+                tree.args = tree.args.appendList(loadFreevars(tree.pos(), freevars(c)));
             }
 
             // If we are calling a constructor of an enum class, pass
