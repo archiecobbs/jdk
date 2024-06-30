@@ -1084,7 +1084,8 @@ public class LambdaToMethod extends TreeTranslator {
             try {
                 frameStack = frameStack.prepend(new Frame(tree));
                 super.visitMethodDef(tree);
-            } finally {
+            }
+            finally {
                 frameStack = prevStack;
             }
         }
