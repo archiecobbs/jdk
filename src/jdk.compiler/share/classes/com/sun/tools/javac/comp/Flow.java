@@ -2155,6 +2155,15 @@ public class Flow {
          */
         protected int returnadr;
 
+        /**
+         * This is for the "try/catch DU exception" and is only used while visiting the very last
+         * statement of a try { } block when (a) that statement is a simple assignemnt to a trackable
+         * variable and (b) the variable is DU just prior to when the assignment occurs. In that case,
+         * any catch block can safely assume that the variable is still DU, because an exception can
+         * only be thrown in the block prior to when the actual assignment occurs.
+         */
+        VarSymbol tryCatchDU;
+
         /** The list of unreferenced automatic resources.
          */
         WriteableScope unrefdResources;
@@ -2246,6 +2255,8 @@ public class Flow {
             if (sym.adr >= firstadr && trackable(sym)) {
                 if ((sym.flags() & EFFECTIVELY_FINAL) != 0) {
                     if (!uninits.isMember(sym.adr)) {
+                        if (sym == tryCatchDU)     // invalidate any try/catch DU exception
+                            tryCatchDU = null;
                         //assignment targeting an effectively final variable
                         //makes the variable lose its status of effectively final
                         //if the variable is _not_ definitively unassigned
@@ -2264,6 +2275,8 @@ public class Flow {
                                       Errors.FinalParameterMayNotBeAssigned(sym));
                         }
                     } else if (!uninits.isMember(sym.adr)) {
+                        if (sym == tryCatchDU)     // invalidate any try/catch DU exception
+                            tryCatchDU = null;
                         log.error(pos, diags.errorKey(flowKind.errKey, sym));
                     } else {
                         uninit(sym);
@@ -2866,7 +2879,26 @@ public class Flow {
                     throw new AssertionError(tree);  // parser error
                 }
             }
-            scan(tree.body);
+
+            // Visit the try { } block and apply the "try/catch DU exception", where
+            // we look for an assignment to a DU variable as the very last statement.
+            int nextadrPrev = nextadr;
+            VarSymbol tryCatchDUPrev = tryCatchDU;
+            tryCatchDU = null;
+            for (List<JCStatement> l = tree.body.stats; l.nonEmpty(); l = l.tail) {
+                JCTree stat = l.head;
+                if (l.tail.isEmpty() &&
+                        stat instanceof JCExpressionStatement estat &&
+                        estat.expr instanceof JCAssign astat &&
+                        TreeInfo.symbol(astat.lhs) instanceof VarSymbol sym &&
+                        sym.adr >= firstadr &&
+                        trackable(sym) &&
+                        uninits.isMember(sym.adr)) {
+                    tryCatchDU = sym;
+                }
+                scan(stat);
+            }
+            nextadr = nextadrPrev;
             uninitsTry.andSet(uninits);
             final Bits initsEnd = new Bits(inits);
             final Bits uninitsEnd = new Bits(uninits);
@@ -2889,6 +2921,11 @@ public class Flow {
              */
             final Bits initsCatchPrev = new Bits(initsTry);
             final Bits uninitsCatchPrev = new Bits(uninitsTry);
+
+            // This is where the "try/catch DU exception" is applied
+            if (tryCatchDU != null)
+                uninitsCatchPrev.incl(tryCatchDU.adr);
+            tryCatchDU = tryCatchDUPrev;
 
             for (List<JCCatch> l = tree.catchers; l.nonEmpty(); l = l.tail) {
                 JCVariableDecl param = l.head.param;
@@ -3084,6 +3121,7 @@ public class Flow {
             final Bits prevInits = new Bits(inits);
             int returnadrPrev = returnadr;
             int nextadrPrev = nextadr;
+            VarSymbol tryCatchDUPrev = tryCatchDU;
             ListBuffer<PendingExit> prevPending = pendingExits;
             try {
                 // JLS 16.1.10: No rule allows V to be definitely unassigned before a lambda
@@ -3112,6 +3150,7 @@ public class Flow {
                 inits.assign(prevInits);
                 pendingExits = prevPending;
                 nextadr = nextadrPrev;
+                tryCatchDU = tryCatchDUPrev;
             }
         }
 

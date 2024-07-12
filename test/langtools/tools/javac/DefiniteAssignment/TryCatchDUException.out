@@ -1,0 +1,5 @@
+TryCatchDUException.java:39:13: compiler.err.var.might.already.be.assigned: hash
+TryCatchDUException.java:47:13: compiler.err.var.might.already.be.assigned: hash
+TryCatchDUException.java:49:13: compiler.err.var.might.already.be.assigned: hash
+TryCatchDUException.java:58:17: compiler.err.var.might.not.have.been.initialized: hash
+4 errors
