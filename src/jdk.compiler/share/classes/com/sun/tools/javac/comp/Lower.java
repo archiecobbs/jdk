@@ -4000,7 +4000,7 @@ public class Lower extends TreeTranslator {
                 if (receiverExpression != null) {
                     // use a let expression so that the receiver expression is evaluated eagerly
                     return make.at(tree.pos).LetExpr(
-                            make.VarDef(rcvr, translate(receiverExpression)), slam).setType(tree.type);
+                            make.VarDef(rcvr, receiverExpression), slam).setType(tree.type);
                 } else {
                     return slam;
                 }
