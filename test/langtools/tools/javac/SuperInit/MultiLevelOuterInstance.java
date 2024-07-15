@@ -70,4 +70,3 @@ public class MultiLevelOuterInstance {
         new MultiLevelOuterInstance().new Inner1();
     }
 }
->>>>>>> master
