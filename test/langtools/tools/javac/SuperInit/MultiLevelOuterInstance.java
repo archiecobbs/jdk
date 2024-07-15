@@ -23,7 +23,7 @@
 /*
  * @test
  * @bug 8334121
- * @summary Test complicated multi-level outer instance access
+ * @summary Anonymous class capturing two enclosing instances fails to compile
  * @enablePreview
  */
 
@@ -70,3 +70,4 @@ public class MultiLevelOuterInstance {
         new MultiLevelOuterInstance().new Inner1();
     }
 }
+>>>>>>> master
