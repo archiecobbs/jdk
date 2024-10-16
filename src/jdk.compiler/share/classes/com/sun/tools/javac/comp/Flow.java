@@ -226,10 +226,12 @@ public class Flow {
 
         private final DiagnosticPosition pos;
         private final VarSymbol sym;
+        private final String treeTag;
         private boolean referenced;
 
-        DummyVariable(DiagnosticPosition pos, VarSymbol sym) {
+        DummyVariable(DiagnosticPosition pos, String treeTag, VarSymbol sym) {
             this.pos = pos;
+            this.treeTag = treeTag;
             this.sym = sym;
         }
 
@@ -243,7 +245,7 @@ public class Flow {
         }
 
         public void logAbout() {
-            log.note(this.pos, Notes.EffectivelyFinalDummyVariable(this.sym));
+            log.note(this.pos, Notes.EffectivelyFinalDummyVariable(this.sym, this.treeTag));
         }
     }
 
@@ -258,9 +260,10 @@ public class Flow {
 
     public void analyzeTree(Env<AttrContext> env, TreeMaker make) {
         new AliveAnalyzer().analyzeTree(env, make);
+        new AssignAnalyzer().analyzeTree(env, make);
+        new FlowAnalyzer().analyzeTree(env, make);
         try {
-            new AssignAnalyzer().analyzeTree(env, make);
-            new FlowAnalyzer().analyzeTree(env, make);
+            new DummyVariableAnalyzer().analyzeTree(env, make);
             new CaptureAnalyzer().analyzeTree(env, make);
             dummyVariables.values().stream()
               .filter(DummyVariable::isReferenced)
@@ -2643,16 +2646,6 @@ public class Flow {
                         letInit(tree.pos(), tree.sym);
                     }
                 }
-
-                // Check for a possible "dummy variable" declaration
-                // of the form x = y where y is also a local variable
-                if (tree.sym.pos >= startPos &&
-                        (tree.sym.owner.kind == MTH || tree.sym.owner.kind == VAR) &&
-                        tree.init instanceof JCIdent init &&
-                        init.sym.kind == VAR &&
-                        (init.sym.owner.kind == MTH || init.sym.owner.kind == VAR)) {
-                    dummyVariables.put(tree.sym, new DummyVariable(tree.pos(), tree.sym));
-                }
             } finally {
                 lint = lintPrev;
             }
@@ -3313,6 +3306,107 @@ public class Flow {
                 pendingExits = null;
                 this.classDef = null;
                 unrefdResources = null;
+            }
+        }
+    }
+
+    class DummyVariableAnalyzer extends BaseAnalyzer {
+
+        private String treeTag;
+
+        @Override
+        void markDead() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void visitClassDef(JCClassDecl tree) {
+            final String treeTagPrev = this.treeTag;
+            try {
+
+                // process all the static initializers
+                this.treeTag = "STATIC_INIT";
+                forEachInitializer(tree, true, this::scan);
+
+                // process all the instance initializers
+                this.treeTag = "INSTANCE_INIT";
+                forEachInitializer(tree, false, this::scan);
+
+                // process all the methods
+                tree.defs.stream()
+                  .filter(def -> def.hasTag(METHODDEF))
+                  .forEach(this::scan);
+
+                // process all the nested classes
+                tree.defs.stream()
+                  .filter(def -> def.hasTag(CLASSDEF))
+                  .forEach(this::scan);
+            } finally {
+                this.treeTag = treeTagPrev;
+            }
+        }
+
+        @Override
+        public void scan(JCTree tree) {
+            if (tree != null) {
+                switch (tree.getTag()) {
+                case CLASSDEF:
+                case METHODDEF:
+                case DOLOOP:
+                case WHILELOOP:
+                case FORLOOP:
+                case FOREACHLOOP:
+                case SWITCH:
+                case CASE:
+                case SWITCH_EXPRESSION:
+                case TRY:
+                case CATCH:
+                case IF:
+                case LAMBDA:
+                case DEFAULTCASELABEL:
+                case CONSTANTCASELABEL:
+                case PATTERNCASELABEL:
+                    final String treeTagPrev = treeTag;
+                    this.treeTag = tree.getTag().name();
+                    try {
+                        super.scan(tree);
+                    } finally {
+                        this.treeTag = treeTagPrev;
+                    }
+                    return;
+                default:
+                    break;
+                }
+            }
+            super.scan(tree);
+        }
+
+        @Override
+        public void visitVarDef(JCVariableDecl tree) {
+            super.visitVarDef(tree);
+
+            // Check for a possible "dummy variable" declaration
+            // of the form x = y where y is also a local variable
+            if ((tree.sym.owner.kind == MTH || tree.sym.owner.kind == VAR) &&
+                    tree.init instanceof JCIdent init &&
+                    init.sym.kind == VAR &&
+                    (init.sym.owner.kind == MTH || init.sym.owner.kind == VAR)) {
+                dummyVariables.put(tree.sym, new DummyVariable(tree.pos(), this.treeTag, tree.sym));
+            }
+        }
+
+        public void analyzeTree(Env<AttrContext> env, TreeMaker make) {
+            this.analyzeTree(env, env.tree, make);
+        }
+
+        public void analyzeTree(Env<?> env, JCTree tree, TreeMaker make) {
+            Flow.this.make = make;
+            this.treeTag = tree.getTag().name();
+            try {
+                this.scan(tree);
+            } finally {
+                Flow.this.make = null;
+                this.treeTag = null;
             }
         }
     }
