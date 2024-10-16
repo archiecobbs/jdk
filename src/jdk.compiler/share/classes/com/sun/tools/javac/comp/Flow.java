@@ -2645,10 +2645,14 @@ public class Flow {
                 }
 
                 // Check for a possible "dummy variable" declaration
+                // of the form x = y where y is also a local variable
                 if (tree.sym.pos >= startPos &&
                         (tree.sym.owner.kind == MTH || tree.sym.owner.kind == VAR) &&
-                        tree.init instanceof JCIdent)
+                        tree.init instanceof JCIdent init &&
+                        init.sym.kind == VAR &&
+                        (init.sym.owner.kind == MTH || init.sym.owner.kind == VAR)) {
                     dummyVariables.put(tree.sym, new DummyVariable(tree.pos(), tree.sym));
+                }
             } finally {
                 lint = lintPrev;
             }
