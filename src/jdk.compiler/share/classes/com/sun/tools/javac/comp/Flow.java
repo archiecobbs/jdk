@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -39,6 +40,7 @@ import com.sun.source.tree.LambdaExpressionTree.BodyKind;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
+import com.sun.tools.javac.resources.CompilerProperties.Notes;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.util.*;
@@ -219,6 +221,34 @@ public class Flow {
     private       Lint lint;
     private final Infer infer;
 
+    // Represents a variable declared like "int x = y" that might be referenced in a lambda, etc.
+    private class DummyVariable {
+
+        private final DiagnosticPosition pos;
+        private final VarSymbol sym;
+        private boolean referenced;
+
+        DummyVariable(DiagnosticPosition pos, VarSymbol sym) {
+            this.pos = pos;
+            this.sym = sym;
+        }
+
+        // Confirm that variable is referenced from within a lambda
+        public void reference() {
+            this.referenced = true;
+        }
+
+        public boolean isReferenced() {
+            return this.referenced;
+        }
+
+        public void logAbout() {
+            log.note(this.pos, Notes.EffectivelyFinalDummyVariable(this.sym));
+        }
+    }
+
+    private HashMap<VarSymbol, DummyVariable> dummyVariables = new HashMap<>();
+
     public static Flow instance(Context context) {
         Flow instance = context.get(flowKey);
         if (instance == null)
@@ -228,9 +258,16 @@ public class Flow {
 
     public void analyzeTree(Env<AttrContext> env, TreeMaker make) {
         new AliveAnalyzer().analyzeTree(env, make);
-        new AssignAnalyzer().analyzeTree(env, make);
-        new FlowAnalyzer().analyzeTree(env, make);
-        new CaptureAnalyzer().analyzeTree(env, make);
+        try {
+            new AssignAnalyzer().analyzeTree(env, make);
+            new FlowAnalyzer().analyzeTree(env, make);
+            new CaptureAnalyzer().analyzeTree(env, make);
+            dummyVariables.values().stream()
+              .filter(DummyVariable::isReferenced)
+              .forEach(DummyVariable::logAbout);
+        } finally {
+            dummyVariables.clear();
+        }
         new ThisEscapeAnalyzer(names, syms, types, rs, log, lint).analyzeTree(env);
     }
 
@@ -2606,6 +2643,12 @@ public class Flow {
                         letInit(tree.pos(), tree.sym);
                     }
                 }
+
+                // Check for a possible "dummy variable" declaration
+                if (tree.sym.pos >= startPos &&
+                        (tree.sym.owner.kind == MTH || tree.sym.owner.kind == VAR) &&
+                        tree.init instanceof JCIdent)
+                    dummyVariables.put(tree.sym, new DummyVariable(tree.pos(), tree.sym));
             } finally {
                 lint = lintPrev;
             }
@@ -3301,6 +3344,9 @@ public class Flow {
                         if ((sym.flags() & (EFFECTIVELY_FINAL | FINAL)) == 0) {
                            reportEffectivelyFinalError(pos, sym);
                         }
+                        Optional.of(sym)
+                          .map(dummyVariables::get)
+                          .ifPresent(DummyVariable::reference);
                 }
             }
         }
