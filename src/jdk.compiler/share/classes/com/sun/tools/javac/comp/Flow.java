@@ -225,14 +225,20 @@ public class Flow {
     private class DummyVariable {
 
         private final DiagnosticPosition pos;
-        private final VarSymbol sym;
+        private final VarSymbol original;
+        private final VarSymbol dummy;
         private final String treeTag;
         private boolean referenced;
 
-        DummyVariable(DiagnosticPosition pos, String treeTag, VarSymbol sym) {
+        DummyVariable(DiagnosticPosition pos, String treeTag, VarSymbol original, VarSymbol dummy) {
+            Assert.check(pos != null);
+            Assert.check(treeTag != null);
+            Assert.check(original != null);
+            Assert.check(dummy != null);
             this.pos = pos;
             this.treeTag = treeTag;
-            this.sym = sym;
+            this.original = original;
+            this.dummy = dummy;
         }
 
         // Confirm that variable is referenced from within a lambda
@@ -245,7 +251,7 @@ public class Flow {
         }
 
         public void logAbout() {
-            log.note(this.pos, Notes.EffectivelyFinalDummyVariable(this.sym, this.treeTag));
+            log.note(this.pos, Notes.EffectivelyFinalDummyVariable(this.original, this.dummy, this.treeTag));
         }
     }
 
@@ -3312,6 +3318,8 @@ public class Flow {
 
     class DummyVariableAnalyzer extends BaseAnalyzer {
 
+        private final HashMap<VarSymbol, String> varTags = new HashMap<>();
+
         private String treeTag;
 
         @Override
@@ -3383,7 +3391,9 @@ public class Flow {
 
         @Override
         public void visitVarDef(JCVariableDecl tree) {
-            super.visitVarDef(tree);
+
+            // Remember the context of every variable declaration
+            this.varTags.put(tree.sym, this.treeTag);
 
             // Check for a possible "dummy variable" declaration
             // of the form x = y where y is also a local variable
@@ -3391,8 +3401,12 @@ public class Flow {
                     tree.init instanceof JCIdent init &&
                     init.sym.kind == VAR &&
                     (init.sym.owner.kind == MTH || init.sym.owner.kind == VAR)) {
-                dummyVariables.put(tree.sym, new DummyVariable(tree.pos(), this.treeTag, tree.sym));
+                dummyVariables.put(tree.sym,
+                  new DummyVariable(tree.pos(), varTags.get(init.sym), tree.sym, (VarSymbol)init.sym));
             }
+
+            // Proceed
+            super.visitVarDef(tree);
         }
 
         public void analyzeTree(Env<AttrContext> env, TreeMaker make) {
