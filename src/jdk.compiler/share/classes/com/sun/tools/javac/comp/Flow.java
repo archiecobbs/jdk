@@ -32,6 +32,7 @@ import java.util.Map.Entry;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -221,41 +222,64 @@ public class Flow {
     private       Lint lint;
     private final Infer infer;
 
-    // Represents a variable declared like "int x = y" that might be referenced in a lambda, etc.
+    // Represents a variable declared like "int x = y" that might be referenced in a lambda, i.e., a POTENTIAL dummy variable
+    // If the variable is never referenced in a lambda (see firstReferenced), then it's just a normal copy of some other variable.
     private class DummyVariable {
 
-        private final DiagnosticPosition pos;
-        private final VarSymbol original;
-        private final VarSymbol dummy;
-        private final String treeTag;
-        private boolean referenced;
+        private final JCVariableDecl decl;          // the declaration of the dummy variable
+        private final VarSymbol original;           // the original variable the dummy is a copy of
+        private final String treeTag;               // construct in which the original variable is declared
 
-        DummyVariable(DiagnosticPosition pos, String treeTag, VarSymbol original, VarSymbol dummy) {
-            Assert.check(pos != null);
+        private OptionalInt firstReferenced = OptionalInt.empty();      // lexically earliest reference from within a lambda
+        private OptionalInt lastModified = OptionalInt.empty();         // lexically latest assignment to the original variable
+
+        DummyVariable(JCVariableDecl decl, VarSymbol original, String treeTag) {
+            Assert.check(decl != null);
             Assert.check(treeTag != null);
             Assert.check(original != null);
-            Assert.check(dummy != null);
-            this.pos = pos;
+            this.decl = decl;
             this.treeTag = treeTag;
             this.original = original;
-            this.dummy = dummy;
         }
 
-        // Confirm that variable is referenced from within a lambda
-        public void reference() {
-            this.referenced = true;
+        // Note that the dummy variable is referenced from within a lambda
+        public void captureReferenceAt(DiagnosticPosition pos) {
+            final int startPos = pos.getStartPosition();
+            if (this.firstReferenced.isEmpty() || startPos < firstReferenced.getAsInt())
+                this.firstReferenced = OptionalInt.of(startPos);
         }
 
-        public boolean isReferenced() {
-            return this.referenced;
+        // Note that the original variable is modified (presumably outside any lambda)
+        public void modifiedAt(DiagnosticPosition pos) {
+            final int startPos = pos.getStartPosition();
+            if (this.lastModified.isEmpty() || startPos > lastModified.getAsInt())
+                this.lastModified = OptionalInt.of(startPos);
+        }
+
+        // True if the dummy variable is actually referenced from within some lambda
+        public boolean isActualDummy() {
+            return this.firstReferenced.isPresent();
         }
 
         public void logAbout() {
-            log.note(this.pos, Notes.EffectivelyFinalDummyVariable(this.original, this.dummy, this.treeTag));
+            final String details;
+            if (this.firstReferenced.isPresent() && this.lastModified.isPresent()) {
+                if (this.lastModified.getAsInt() > this.firstReferenced.getAsInt()) {
+                    details = "original modified after";
+                } else {
+                    details = "original modified before";
+                }
+            } else if (!this.firstReferenced.isPresent()) {
+                details = "dummy never referenced";             // should never happen
+            } else {
+                details = "original never modified";
+            }
+            log.note(this.decl, Notes.EffectivelyFinalDummyVariable(this.decl.sym, this.original, this.treeTag, details));
         }
     }
 
-    private HashMap<VarSymbol, DummyVariable> dummyVariables = new HashMap<>();
+    private HashMap<VarSymbol, DummyVariable> dummiesByDummy = new HashMap<>();
+    private HashMap<VarSymbol, HashSet<DummyVariable>> dummiesByOriginal = new HashMap<>();
 
     public static Flow instance(Context context) {
         Flow instance = context.get(flowKey);
@@ -271,11 +295,12 @@ public class Flow {
         try {
             new DummyVariableAnalyzer().analyzeTree(env, make);
             new CaptureAnalyzer().analyzeTree(env, make);
-            dummyVariables.values().stream()
-              .filter(DummyVariable::isReferenced)
+            dummiesByDummy.values().stream()
+              .filter(DummyVariable::isActualDummy)
               .forEach(DummyVariable::logAbout);
         } finally {
-            dummyVariables.clear();
+            dummiesByDummy.clear();
+            dummiesByOriginal.clear();
         }
         new ThisEscapeAnalyzer(names, syms, types, rs, log, lint).analyzeTree(env);
     }
@@ -3401,8 +3426,12 @@ public class Flow {
                     tree.init instanceof JCIdent init &&
                     init.sym.kind == VAR &&
                     (init.sym.owner.kind == MTH || init.sym.owner.kind == VAR)) {
-                dummyVariables.put(tree.sym,
-                  new DummyVariable(tree.pos(), varTags.get(init.sym), tree.sym, (VarSymbol)init.sym));
+
+                VarSymbol dummy = tree.sym;
+                VarSymbol original = (VarSymbol)init.sym;
+                DummyVariable dv = new DummyVariable(tree, original, varTags.get(original));
+                dummiesByDummy.put(dummy, dv);
+                dummiesByOriginal.computeIfAbsent(original, v -> new HashSet<>()).add(dv);
             }
 
             // Proceed
@@ -3457,8 +3486,8 @@ public class Flow {
                            reportEffectivelyFinalError(pos, sym);
                         }
                         Optional.of(sym)
-                          .map(dummyVariables::get)
-                          .ifPresent(DummyVariable::reference);
+                          .map(dummiesByDummy::get)
+                          .ifPresent(dv -> dv.captureReferenceAt(pos));
                 }
             }
         }
@@ -3488,6 +3517,11 @@ public class Flow {
                             }
                         }
                     }
+                }
+                HashSet<DummyVariable> dummies = dummiesByOriginal.get(sym);
+                if (dummies != null) {
+                    JCTree tree2 = tree;        // a dummy!
+                    dummies.forEach(dv -> dv.modifiedAt(tree2));
                 }
             }
         }
