@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -681,7 +681,7 @@ public class DocumentImpl
      *              method was invoked by an EventListener; otherwise false.
     */
     @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings("unchecked")
     protected boolean dispatchEvent(NodeImpl node, Event event) {
         if (event == null) return false;
 

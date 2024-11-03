@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ package com.sun.tools.javac.comp;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -48,6 +49,7 @@ import java.util.stream.Stream;
 import com.sun.tools.javac.code.Directive;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Lint;
+import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Symtab;
@@ -162,10 +164,6 @@ class ThisEscapeAnalyzer extends TreeScanner {
      */
     private final Map<Symbol, MethodInfo> methodMap = new LinkedHashMap<>();
 
-    /** Contains symbols of fields and constructors that have warnings suppressed.
-     */
-    private final Set<Symbol> suppressed = new HashSet<>();
-
     /** Contains classes whose outer instance (if any) is non-public.
      */
     private final Set<ClassSymbol> nonPublicOuters = new HashSet<>();
@@ -177,7 +175,7 @@ class ThisEscapeAnalyzer extends TreeScanner {
 
     /** Snapshots of {@link #callStack} where possible 'this' escapes occur.
      */
-    private final ArrayList<DiagnosticPosition[]> warningList = new ArrayList<>();
+    private final ArrayList<WarningInfo> warningList = new ArrayList<>();
 
 // These fields are scoped to the constructor being analyzed
 
@@ -234,8 +232,8 @@ class ThisEscapeAnalyzer extends TreeScanner {
         Assert.check(checkInvariants(false, false));
         Assert.check(methodMap.isEmpty());      // we are not prepared to be used more than once
 
-        // Short circuit if warnings are totally disabled
-        if (!lint.isEnabled(Lint.LintCategory.THIS_ESCAPE))
+        // Short circuit if "this-escape" warnings do not need to be calculated
+        if (!lint.isActive(LintCategory.THIS_ESCAPE))
             return;
 
         // Determine which packages are exported by the containing module, if any.
@@ -248,9 +246,13 @@ class ThisEscapeAnalyzer extends TreeScanner {
                             .collect(Collectors.toSet()))
             .orElse(null);
 
+        // This maps each class to some analyzable constructor, preferring ones with "this-escape" unsuppressed;
+        // this is used in the handling of non-static field initializers and initialization blocks below.
+        HashMap<JCClassDecl, MethodInfo> analyzableConstructorMap = new HashMap<>();
+
         // Build a mapping from symbols of methods to their declarations.
         // Classify all ctors and methods as analyzable and/or invokable.
-        // Track which constructors and fields have warnings suppressed.
+        // Track which constructors and fields don't need to be analyzed.
         // Record classes whose outer instance (if any) is non-public.
         new TreeScanner() {
 
@@ -287,12 +289,6 @@ class ThisEscapeAnalyzer extends TreeScanner {
                 Lint lintPrev = lint;
                 lint = lint.augment(tree.sym);
                 try {
-
-                    // Track warning suppression of fields
-                    if (tree.sym.owner.kind == TYP && !lint.isEnabled(Lint.LintCategory.THIS_ESCAPE))
-                        suppressed.add(tree.sym);
-
-                    // Recurse
                     super.visitVarDef(tree);
                 } finally {
                     lint = lintPrev;
@@ -305,24 +301,27 @@ class ThisEscapeAnalyzer extends TreeScanner {
                 lint = lint.augment(tree.sym);
                 try {
 
-                    // Track warning suppression of constructors
-                    if (TreeInfo.isConstructor(tree) && !lint.isEnabled(Lint.LintCategory.THIS_ESCAPE))
-                        suppressed.add(tree.sym);
+                    // Gather some useful info
+                    boolean constructor = TreeInfo.isConstructor(tree);
+                    boolean extendable = currentClassIsExternallyExtendable();
+                    boolean nonPrivate = (tree.sym.flags() & (Flags.PUBLIC | Flags.PROTECTED)) != 0;
+                    boolean finalish = (tree.mods.flags & (Flags.STATIC | Flags.PRIVATE | Flags.FINAL)) != 0;
 
                     // Determine if this is a constructor we should analyze
-                    boolean extendable = currentClassIsExternallyExtendable();
-                    boolean analyzable = extendable &&
-                        TreeInfo.isConstructor(tree) &&
-                        (tree.sym.flags() & (Flags.PUBLIC | Flags.PROTECTED)) != 0 &&
-                        !suppressed.contains(tree.sym);
+                    boolean analyzable = extendable && constructor && nonPrivate;
 
-                    // Determine if this method is "invokable" in an analysis (can't be overridden)
-                    boolean invokable = !extendable ||
-                        TreeInfo.isConstructor(tree) ||
-                        (tree.mods.flags & (Flags.STATIC | Flags.PRIVATE | Flags.FINAL)) != 0;
+                    // Determine if we can "invoke" the method in an analysis (code is valid because it can't be overridden)
+                    boolean invokable = !extendable || constructor || finalish;
 
                     // Add method or constructor to map
-                    methodMap.put(tree.sym, new MethodInfo(currentClass, tree, analyzable, invokable));
+                    MethodInfo methodInfo = new MethodInfo(currentClass, tree, lint, analyzable, invokable);
+                    methodMap.put(tree.sym, methodInfo);
+
+                    // For each class, remember an analyzable constructor, preferring ones that are unsuppressed
+                    if (analyzable) {
+                        analyzableConstructorMap.merge(currentClass, methodInfo,
+                          (info1, info2) -> !info1.lint().isSuppressed(LintCategory.THIS_ESCAPE) ? info1 : info2);
+                    }
 
                     // Recurse
                     super.visitMethodDef(tree);
@@ -342,31 +341,36 @@ class ThisEscapeAnalyzer extends TreeScanner {
             }
         }.scan(env.tree);
 
-        // Analyze non-static field initializers and initialization blocks,
-        // but only for classes having at least one analyzable constructor.
-        methodMap.values().stream()
-                .filter(MethodInfo::analyzable)
-                .map(MethodInfo::declaringClass)
-                .distinct()
-                .forEach(klass -> {
+        // Analyze non-static field initializers and initialization blocks.
+        //
+        // Note there is a subtlety here. Below we are analyzing initializers independently from constructors,
+        // but at runtime initializers execute implicitly from within each constructor (at super() time).
+        // We are doing to things to "fixup" this disconnect:
+        //  - Only scan initializers in classes that have at least one analyzable constructor
+        //  - Only suppress "this-escape" warnings if EVERY analyzable constructor suppresses them
+        analyzableConstructorMap.forEach((klass, methodInfo) -> {
             for (List<JCTree> defs = klass.defs; defs.nonEmpty(); defs = defs.tail) {
+                JCTree decl = defs.head;
 
                 // Ignore static stuff
-                if ((TreeInfo.flags(defs.head) & Flags.STATIC) != 0)
+                if ((TreeInfo.flags(decl) & Flags.STATIC) != 0)
                     continue;
 
+                // Patch in the lint context from a constructor (preferably one with THIS_ESCAPE unsuppressed)
+                Lint ctorLint = methodInfo.lint();
+
                 // Handle field initializers
-                if (defs.head instanceof JCVariableDecl vardef) {
-                    visitTopLevel(env, klass, () -> {
-                        scan(vardef);
+                if (decl instanceof JCVariableDecl varDecl) {
+                    visitTopLevel(env, klass, ctorLint.augment(varDecl.sym), () -> {
+                        scan(varDecl);
                         copyPendingWarning();
                     });
                     continue;
                 }
 
                 // Handle initialization blocks
-                if (defs.head instanceof JCBlock block) {
-                    visitTopLevel(env, klass, () -> analyzeStatements(block.stats));
+                if (decl instanceof JCBlock block) {
+                    visitTopLevel(env, klass, ctorLint, () -> analyzeStatements(block.stats));
                     continue;
                 }
             }
@@ -375,14 +379,14 @@ class ThisEscapeAnalyzer extends TreeScanner {
         // Analyze all of the analyzable constructors we found
         methodMap.values().stream()
                 .filter(MethodInfo::analyzable)
-                .forEach(methodInfo -> {
-            visitTopLevel(env, methodInfo.declaringClass(),
-                () -> analyzeStatements(methodInfo.declaration().body.stats));
+                .forEach(info -> {
+            visitTopLevel(env, info.declaringClass(), info.lint(),
+                () -> analyzeStatements(info.declaration().body.stats));
         });
 
-        // Eliminate duplicate warnings. Warning B duplicates warning A if the stack trace of A is a prefix
-        // of the stack trace of B. For example, if constructor Foo(int x) has a leak, and constructor
-        // Foo() invokes this(0), then emitting a warning for Foo() would be redundant.
+        // This is used to eliminate duplicate warnings. Warning B duplicates warning A if the stack trace
+        // of A is a prefix of the stack trace of B. For example, if constructor Foo(int x) has a leak, and
+        // constructor Foo() invokes this(0), then emitting a warning for Foo() would be redundant.
         BiPredicate<DiagnosticPosition[], DiagnosticPosition[]> extendsAsPrefix = (warning1, warning2) -> {
             if (warning2.length < warning1.length)
                 return false;
@@ -395,40 +399,26 @@ class ThisEscapeAnalyzer extends TreeScanner {
 
         // Stack traces are ordered top to bottom, and so duplicates always have the same first element(s).
         // Sort the stack traces lexicographically, so that duplicates immediately follow what they duplicate.
-        Comparator<DiagnosticPosition[]> ordering = (warning1, warning2) -> {
-            for (int index1 = 0, index2 = 0; true; index1++, index2++) {
-                boolean end1 = index1 >= warning1.length;
-                boolean end2 = index2 >= warning2.length;
-                if (end1 && end2)
-                    return 0;
-                if (end1)
-                    return -1;
-                if (end2)
-                    return 1;
-                int posn1 = warning1[index1].getPreferredPosition();
-                int posn2 = warning2[index2].getPreferredPosition();
-                int diff = Integer.compare(posn1, posn2);
-                if (diff != 0)
-                    return diff;
-            }
-        };
-        warningList.sort(ordering);
+        warningList.sort(WarningInfo::compareStacks);
 
         // Now emit the warnings, but skipping over duplicates as we go through the list
-        DiagnosticPosition[] previous = null;
-        for (DiagnosticPosition[] warning : warningList) {
+        WarningInfo previous = null;
+        for (WarningInfo warning : warningList) {
 
-            // Skip duplicates
-            if (previous != null && extendsAsPrefix.test(previous, warning))
+            // Skip duplicates, i.e., when the current stack extends the previous stack
+            if (previous != null && extendsAsPrefix.test(previous.stack(), warning.stack()))
                 continue;
             previous = warning;
 
             // Emit warnings showing the entire stack trace
             JCDiagnostic.Warning key = Warnings.PossibleThisEscape;
-            int remain = warning.length;
+            DiagnosticPosition[] stack = warning.stack();
+            int remain = stack.length;
             do {
-                DiagnosticPosition pos = warning[--remain];
-                log.warning(Lint.LintCategory.THIS_ESCAPE, pos, key);
+                DiagnosticPosition pos = stack[--remain];
+                if (warning.lint().shouldWarn(Lint.LintCategory.THIS_ESCAPE)) {
+                    log.warning(Lint.LintCategory.THIS_ESCAPE, pos, key);
+                }
                 key = Warnings.PossibleThisEscapeLocation;
             } while (remain > 0);
         }
@@ -507,10 +497,6 @@ class ThisEscapeAnalyzer extends TreeScanner {
 
     private void visitVarDef(VarSymbol sym, JCExpression expr) {
 
-        // Skip if ignoring warnings for this field
-        if (suppressed.contains(sym))
-            return;
-
         // Scan initializer, if any
         scan(expr);
         if (isParamOrVar(sym))
@@ -554,10 +540,6 @@ class ThisEscapeAnalyzer extends TreeScanner {
 
     private void invoke(JCTree site, Symbol sym, List<JCExpression> args, RefSet<ThisRef> receiverRefs) {
 
-        // Skip if ignoring warnings for a constructor invoked via 'this()'
-        if (suppressed.contains(sym))
-            return;
-
         // Ignore final methods in java.lang.Object (getClass(), notify(), etc.)
         if (sym != null &&
             sym.owner.kind == TYP &&
@@ -568,6 +550,13 @@ class ThisEscapeAnalyzer extends TreeScanner {
 
         // See if this method is known because it's declared somewhere in our file
         MethodInfo methodInfo = methodMap.get(sym);
+
+        // If the method is a constructor with "this-escape" suppressed, skip it
+        if (methodInfo != null &&
+            TreeInfo.isConstructor(methodInfo.declaration()) &&
+            methodInfo.lint().shouldNotWarn(LintCategory.THIS_ESCAPE)) {
+            return;
+        }
 
         // If the method is not matched exactly, look a little harder. This especially helps
         // with anonymous interface classes, where the method symbols won't match.
@@ -1208,7 +1197,7 @@ class ThisEscapeAnalyzer extends TreeScanner {
 
 // Helper methods
 
-    private void visitTopLevel(Env<AttrContext> env, JCClassDecl klass, Runnable action) {
+    private void visitTopLevel(Env<AttrContext> env, JCClassDecl klass, Lint newLint, Runnable action) {
         Assert.check(attrEnv == null);
         Assert.check(targetClass == null);
         Assert.check(methodClass == null);
@@ -1217,6 +1206,8 @@ class ThisEscapeAnalyzer extends TreeScanner {
         attrEnv = env;
         targetClass = klass;
         methodClass = klass;
+        Lint lintPrev = lint;
+        lint = newLint;
         try {
 
             // Add the initial 'this' reference
@@ -1224,9 +1215,10 @@ class ThisEscapeAnalyzer extends TreeScanner {
             refs.add(new ThisRef(targetClass.sym, EnumSet.of(Indirection.DIRECT)));
 
             // Perform action
-            this.visitScoped(false, action);
+            visitScoped(false, action);
         } finally {
             Assert.check(depth == -1);
+            lint = lintPrev;
             attrEnv = null;
             methodClass = null;
             targetClass = null;
@@ -1321,7 +1313,7 @@ class ThisEscapeAnalyzer extends TreeScanner {
     private boolean copyPendingWarning() {
         if (pendingWarning == null)
             return false;
-        warningList.add(pendingWarning);
+        warningList.add(new WarningInfo(lint, pendingWarning));
         pendingWarning = null;
         return true;
     }
@@ -1753,12 +1745,43 @@ class ThisEscapeAnalyzer extends TreeScanner {
         }
     }
 
+// WarningInfo
+
+    // Information about a warning we have generated
+    private record WarningInfo(
+        Lint lint,                          // lint configuration in effect
+        DiagnosticPosition[] stack) {       // "call stack" where the leak happens
+
+        // Sorts this instance and given instance lexicographically by stack trace.
+        // As a result, duplicates will immediately follow whatever they duplicate.
+        public int compareStacks(WarningInfo that) {
+            DiagnosticPosition[] stack1 = this.stack();
+            DiagnosticPosition[] stack2 = that.stack();
+            for (int index1 = 0, index2 = 0; true; index1++, index2++) {
+                boolean end1 = index1 >= stack1.length;
+                boolean end2 = index2 >= stack2.length;
+                if (end1 && end2)
+                    return 0;
+                if (end1)
+                    return -1;
+                if (end2)
+                    return 1;
+                int posn1 = stack1[index1].getPreferredPosition();
+                int posn2 = stack2[index2].getPreferredPosition();
+                int diff = Integer.compare(posn1, posn2);
+                if (diff != 0)
+                    return diff;
+            }
+        }
+    }
+
 // MethodInfo
 
     // Information about a constructor or method in the compilation unit
     private record MethodInfo(
         JCClassDecl declaringClass,     // the class declaring "declaration"
         JCMethodDecl declaration,       // the method or constructor itself
+        Lint lint,                      // lint configuration active at declaration
         boolean analyzable,             // it's a constructor that we should analyze
         boolean invokable) {            // it may be safely "invoked" during analysis
 
@@ -1768,6 +1791,7 @@ class ThisEscapeAnalyzer extends TreeScanner {
               + "[method=" + declaringClass.sym.flatname + "." + declaration.sym
               + ",analyzable=" + analyzable
               + ",invokable=" + invokable
+              + ",suppressed=" + lint().isSuppressed(LintCategory.THIS_ESCAPE)
               + "]";
         }
     }

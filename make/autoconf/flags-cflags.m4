@@ -337,9 +337,9 @@ AC_DEFUN([FLAGS_SETUP_OPTIMIZATION],
       C_O_FLAG_HIGHEST="-O3 -finline-functions"
       C_O_FLAG_HI="-O3 -finline-functions"
     else
-      C_O_FLAG_HIGHEST_JVM="-O3"
-      C_O_FLAG_HIGHEST="-O3"
-      C_O_FLAG_HI="-O3"
+      C_O_FLAG_HIGHEST_JVM="-O3 -mllvm -enable-constraint-elimination=0"
+      C_O_FLAG_HIGHEST="-O3 -mllvm -enable-constraint-elimination=0"
+      C_O_FLAG_HI="-O3 -mllvm -enable-constraint-elimination=0"
     fi
     C_O_FLAG_NORM="-O2"
     C_O_FLAG_DEBUG_JVM="-O0"

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -946,7 +946,6 @@ class WindowsFileSystemView extends FileSystemView {
         return super.createFileObject(path);
     }
 
-    @SuppressWarnings("serial") // anonymous class
     protected File createFileSystemRoot(File f) {
         // Problem: Removable drives on Windows return false on f.exists()
         // Workaround: Override exists() to always return true.

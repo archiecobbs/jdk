@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -161,7 +161,6 @@ final class ProviderConfig {
     /**
      * Get the provider object. Loads the provider if it is not already loaded.
      */
-    @SuppressWarnings("deprecation")
     Provider getProvider() {
         // volatile variable load
         Provider p = provider;

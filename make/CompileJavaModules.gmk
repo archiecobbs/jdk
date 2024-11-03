@@ -91,6 +91,12 @@ CreateHkTargets = \
 ################################################################################
 # Setup the main compilation
 
+# The "Xlint:-suppression-option" flag is mandatory here because, thanks to the
+# Depend plugin, we only compile the source files that need to be recompiled;
+# the "suppression-option" lint warning will generate a false positive if the
+# source file(s) that would generate an otherwise suppressed lint warning are
+# not included in the compliation. With a completely fresh build, it would be
+# safe to enable the "suppression-option" warning (TODO: automate that).
 $(eval $(call SetupJavaCompilation, $(MODULE), \
     SMALL_JAVA := false, \
     MODULE := $(MODULE), \
@@ -103,7 +109,7 @@ $(eval $(call SetupJavaCompilation, $(MODULE), \
     CLEAN := $(CLEAN), \
     CLEAN_FILES := $(CLEAN_FILES), \
     COPY := $(COPY), \
-    DISABLED_WARNINGS := $(DISABLED_WARNINGS_java), \
+    DISABLED_WARNINGS := suppression-option $(DISABLED_WARNINGS_java), \
     EXCLUDES := $(EXCLUDES), \
     EXCLUDE_FILES := $(EXCLUDE_FILES), \
     KEEP_ALL_TRANSLATIONS := $(KEEP_ALL_TRANSLATIONS), \

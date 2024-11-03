@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -319,6 +319,10 @@ public class JavaCompiler {
 
     protected DeferredCompletionFailureHandler dcfh;
 
+    /** The lint warning suppression tracker.
+     */
+    protected LintSuppressions lintSuppressions;
+
     /** The type eraser.
      */
     protected TransTypes transTypes;
@@ -426,6 +430,7 @@ public class JavaCompiler {
         modules = Modules.instance(context);
         moduleFinder = ModuleFinder.instance(context);
         diags = Factory.instance(context);
+        lintSuppressions = LintSuppressions.instance(context);
         dcfh = DeferredCompletionFailureHandler.instance(context);
 
         finder.sourceCompleter = sourceCompleter;
@@ -1802,6 +1807,7 @@ public class JavaCompiler {
         }
         chk.reportDeferredDiagnostics();
         preview.reportDeferredDiagnostics();
+        lintSuppressions.reportExtraneousLintSuppressions(log);
         if (log.compressedOutput) {
             log.mandatoryNote(null, Notes.CompressedDiags);
         }
@@ -1873,6 +1879,7 @@ public class JavaCompiler {
         source = null;
         attr = null;
         chk = null;
+        lintSuppressions = null;
         gen = null;
         flow = null;
         transTypes = null;

@@ -1938,7 +1938,7 @@ public class Attr extends JCTree.Visitor {
 
     public void visitSynchronized(JCSynchronized tree) {
         chk.checkRefType(tree.pos(), attribExpr(tree.lock, env));
-        if (env.info.lint.isEnabled(LintCategory.SYNCHRONIZATION) && isValueBased(tree.lock.type)) {
+        if (isValueBased(tree.lock.type) && env.info.lint.shouldWarn(LintCategory.SYNCHRONIZATION)) {
             log.warning(LintCategory.SYNCHRONIZATION, tree.pos(), Warnings.AttemptToSynchronizeOnInstanceOfValueBasedClass);
         }
         attribStat(tree.body, env);
@@ -2046,7 +2046,7 @@ public class Attr extends JCTree.Visitor {
             if (close.kind == MTH &&
                     close.overrides(syms.autoCloseableClose, resource.tsym, types, true) &&
                     chk.isHandled(syms.interruptedExceptionType, types.memberType(resource, close).getThrownTypes()) &&
-                    env.info.lint.isEnabled(LintCategory.TRY)) {
+                    env.info.lint.shouldWarn(LintCategory.TRY)) {
                 log.warning(LintCategory.TRY, pos, Warnings.TryResourceThrowsInterruptedExc(resource));
             }
         }
@@ -4432,7 +4432,7 @@ public class Attr extends JCTree.Visitor {
                 sym.kind == MTH &&
                 sym.name.equals(names.close) &&
                 sym.overrides(syms.autoCloseableClose, sitesym.type.tsym, types, true) &&
-                env.info.lint.isEnabled(LintCategory.TRY)) {
+                env.info.lint.shouldWarn(LintCategory.TRY)) {
             log.warning(LintCategory.TRY, tree, Warnings.TryExplicitCloseCall);
         }
 
@@ -5641,7 +5641,7 @@ public class Attr extends JCTree.Visitor {
 
         // Check for proper use of serialVersionUID and other
         // serialization-related fields and methods
-        if (env.info.lint.isEnabled(LintCategory.SERIAL)
+        if (env.info.lint.isActive(LintCategory.SERIAL)
                 && rs.isSerializable(c.type)
                 && !c.isAnonymous()) {
             chk.checkSerialStructure(tree, c);

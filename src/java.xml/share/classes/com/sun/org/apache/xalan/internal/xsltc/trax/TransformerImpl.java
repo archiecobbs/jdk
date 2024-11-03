@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2024, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -1354,7 +1354,6 @@ public final class TransformerImpl extends Transformer
                  * Performs the access check without any interface changes
                  * (e.g. Translet and DOMCache).
                  */
-                @SuppressWarnings("unchecked") //AbstractTranslet is the sole impl.
                 AbstractTranslet t = (AbstractTranslet)translet;
                 String systemId = SystemIDResolver.getAbsoluteURI(href, baseURI);
                 String errMsg = null;

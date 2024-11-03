@@ -159,7 +159,7 @@ public class Preview {
     public void warnPreview(DiagnosticPosition pos, Feature feature) {
         Assert.check(isEnabled());
         Assert.check(isPreview(feature));
-        if (!lint.isSuppressed(LintCategory.PREVIEW)) {
+        if (!lint.shouldNotWarn(LintCategory.PREVIEW)) {
             sourcesWithPreviewFeatures.add(log.currentSourceFile());
             previewHandler.report(pos, feature.isPlural() ?
                     Warnings.PreviewFeatureUsePlural(feature.nameFragment()) :
@@ -174,7 +174,7 @@ public class Preview {
      */
     public void warnPreview(JavaFileObject classfile, int majorVersion) {
         Assert.check(isEnabled());
-        if (lint.isEnabled(LintCategory.PREVIEW)) {
+        if (lint.shouldWarn(LintCategory.PREVIEW)) {
             log.mandatoryWarning(LintCategory.PREVIEW, null,
                     Warnings.PreviewFeatureUseClassfile(classfile, majorVersionToSource.get(majorVersion).name));
         }

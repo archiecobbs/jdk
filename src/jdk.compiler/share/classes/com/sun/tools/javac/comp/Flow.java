@@ -217,6 +217,7 @@ public class Flow {
     private final JCDiagnostic.Factory diags;
     private Env<AttrContext> attrEnv;
     private       Lint lint;
+    private       LintSuppressions lintSuppressions;
     private final Infer infer;
 
     public static Flow instance(Context context) {
@@ -231,7 +232,10 @@ public class Flow {
         new AssignAnalyzer().analyzeTree(env, make);
         new FlowAnalyzer().analyzeTree(env, make);
         new CaptureAnalyzer().analyzeTree(env, make);
+
+        // Additional warnings not directly related to dataflow but needing to be run at this point
         new ThisEscapeAnalyzer(names, syms, types, rs, log, lint).analyzeTree(env);
+        lintSuppressions.reportExtraneousSuppressWarnings(log, env.tree);
     }
 
     public void analyzeLambda(Env<AttrContext> env, JCLambda that, TreeMaker make, boolean speculative) {
@@ -341,6 +345,7 @@ public class Flow {
         types = Types.instance(context);
         chk = Check.instance(context);
         lint = Lint.instance(context);
+        lintSuppressions = LintSuppressions.instance(context);
         infer = Infer.instance(context);
         rs = Resolve.instance(context);
         diags = JCDiagnostic.Factory.instance(context);
@@ -726,8 +731,8 @@ public class Flow {
                 }
                 // Warn about fall-through if lint switch fallthrough enabled.
                 if (alive == Liveness.ALIVE &&
-                    lint.isEnabled(Lint.LintCategory.FALLTHROUGH) &&
-                    c.stats.nonEmpty() && l.tail.nonEmpty())
+                    c.stats.nonEmpty() && l.tail.nonEmpty() &&
+                    lint.shouldWarn(Lint.LintCategory.FALLTHROUGH))
                     log.warning(Lint.LintCategory.FALLTHROUGH,
                                 l.tail.head.pos(),
                                 Warnings.PossibleFallThroughIntoCase);
@@ -1237,7 +1242,7 @@ public class Flow {
                 scanStat(tree.finalizer);
                 tree.finallyCanCompleteNormally = alive != Liveness.DEAD;
                 if (alive == Liveness.DEAD) {
-                    if (lint.isEnabled(Lint.LintCategory.FINALLY)) {
+                    if (lint.shouldWarn(Lint.LintCategory.FINALLY)) {
                         log.warning(Lint.LintCategory.FINALLY,
                                 TreeInfo.diagEndPos(tree.finalizer),
                                 Warnings.FinallyCannotComplete);
@@ -2860,9 +2865,11 @@ public class Flow {
             int nextadrCatch = nextadr;
 
             if (!resourceVarDecls.isEmpty() &&
-                    lint.isEnabled(Lint.LintCategory.TRY)) {
+                    lint.isActive(Lint.LintCategory.TRY)) {
                 for (JCVariableDecl resVar : resourceVarDecls) {
-                    if (unrefdResources.includes(resVar.sym) && !resVar.sym.isUnnamedVariable()) {
+                    if (unrefdResources.includes(resVar.sym) &&
+                        !resVar.sym.isUnnamedVariable() &&
+                        lint.shouldWarn(Lint.LintCategory.TRY)) {
                         log.warning(Lint.LintCategory.TRY, resVar.pos(),
                                     Warnings.TryResourceNotReferenced(resVar.sym));
                         unrefdResources.remove(resVar.sym);
@@ -3289,7 +3296,6 @@ public class Flow {
             //do nothing
         }
 
-        @SuppressWarnings("fallthrough")
         void checkEffectivelyFinal(DiagnosticPosition pos, VarSymbol sym) {
             if (currentTree != null &&
                     sym.owner.kind == MTH &&
@@ -3310,7 +3316,6 @@ public class Flow {
                                                      : currentTree.getStartPosition();
         }
 
-        @SuppressWarnings("fallthrough")
         void letInit(JCTree tree) {
             tree = TreeInfo.skipParens(tree);
             if (tree.hasTag(IDENT) || tree.hasTag(SELECT)) {

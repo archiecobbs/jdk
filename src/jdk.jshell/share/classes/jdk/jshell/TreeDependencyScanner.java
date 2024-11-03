@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -66,7 +66,6 @@ class TreeDependencyScanner extends TreeScanner<Void, Set<String>> {
     // -- Differentiate declaration references from body references ---
 
     @Override
-    @SuppressWarnings("preview")
     public Void visitClass(ClassTree node, Set<String> p) {
         scan(node.getModifiers(), p);
         scan(node.getTypeParameters(), p);

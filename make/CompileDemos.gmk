@@ -134,7 +134,7 @@ define SetupBuildDemoBody
         EXTRA_MANIFEST_ATTR := $$($1_EXTRA_MANIFEST_ATTR), \
         SRCZIP := $(SUPPORT_OUTPUTDIR)/demos/image/$$($1_DEMO_SUBDIR)/$1/src.zip, \
         EXCLUDE_FILES := $$($1_EXCLUDE_FILES), \
-        DISABLED_WARNINGS := $$($1_DISABLED_WARNINGS), \
+        DISABLED_WARNINGS := suppression-option $$($1_DISABLED_WARNINGS), \
     ))
 
     $1 += $$(BUILD_DEMO_$1)
