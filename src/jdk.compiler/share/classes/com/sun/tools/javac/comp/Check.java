@@ -4580,7 +4580,7 @@ public class Check {
             public void visitIdent(JCIdent tree) {
                 Symbol sym = TreeInfo.symbol(tree);
                 if (sym.kind == TYP && !sym.type.hasTag(TYPEVAR)) {
-                    checkVisible(tree.pos(), sym, toplevel.packge, inSuperType);
+                    checkVisible(lint, tree.pos(), sym, toplevel.packge, inSuperType);
                 }
             }
 
@@ -4589,7 +4589,7 @@ public class Check {
                 Symbol sym = TreeInfo.symbol(tree);
                 Symbol sitesym = TreeInfo.symbol(tree.selected);
                 if (sym.kind == TYP && sitesym.kind == PCK) {
-                    checkVisible(tree.pos(), sym, toplevel.packge, inSuperType);
+                    checkVisible(lint, tree.pos(), sym, toplevel.packge, inSuperType);
                 } else {
                     super.visitSelect(tree);
                 }
@@ -4621,7 +4621,7 @@ public class Check {
             }
             return true;
         }
-        private void checkVisible(DiagnosticPosition pos, Symbol what, PackageSymbol inPackage, boolean inSuperType) {
+        private void checkVisible(Lint lint, DiagnosticPosition pos, Symbol what, PackageSymbol inPackage, boolean inSuperType) {
             if (!isAPISymbol(what) && !inSuperType) { //package private/private element
                 if (lint.shouldWarn(LintCategory.EXPORTS)) {
                     log.warning(LintCategory.EXPORTS, pos, Warnings.LeaksNotAccessible(kindName(what), what, what.packge().modle));
