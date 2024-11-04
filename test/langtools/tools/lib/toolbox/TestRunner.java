@@ -29,7 +29,11 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Iterator;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Utility class to manage and execute sub-tests within a test.
@@ -74,28 +78,45 @@ public abstract class TestRunner {
     }
 
     /**
-     * Invoke all methods annotated with @Test.
+     * Invoke all methods annotated with @Test one time each.
      * @param f a lambda expression to specify arguments for the test method
      * @throws java.lang.Exception if any errors occur
      */
     protected void runTests(Function<Method, Object[]> f) throws Exception {
+        runTestsMulti(f.andThen(Stream::<Object[]>of));
+    }
+
+    /**
+     * Invoke all methods annotated with @Test once for each set of parameters in the given iteration.
+     * @param f function returning an iteration of test method parameter sets
+     * @throws java.lang.Exception if any errors occur
+     */
+    protected void runTestsMulti(Function<Method, ? extends Stream<? extends Object[]>> f) throws Exception {
         String testQuery = System.getProperty("test.query");
         for (Method m : getClass().getDeclaredMethods()) {
             Annotation a = m.getAnnotation(Test.class);
             if (a != null) {
                 testName = m.getName();
                 if (testQuery == null || testQuery.equals(testName)) {
-                    try {
-                        testCount++;
-                        out.println("test: " + testName);
-                        m.invoke(this, f.apply(m));
-                    } catch (InvocationTargetException e) {
-                        errorCount++;
-                        Throwable cause = e.getCause();
-                        out.println("Exception running test " + testName + ": " + e.getCause());
-                        cause.printStackTrace(out);
+                    AtomicInteger iteration = new AtomicInteger();
+                    for (Iterator<? extends Object[]> i = f.apply(m).iterator(); i.hasNext(); ) {
+                        Object[] params = i.next();
+                        try {
+                            testCount++;
+                            out.println(String.format("test: %s#%d", testName, iteration.incrementAndGet()));
+                            m.invoke(this, params);
+                        } catch (InvocationTargetException e) {
+                            errorCount++;
+                            Throwable cause = e.getCause();
+                            String paramsDesc = Stream.of(params)
+                              .map(String::valueOf)
+                              .collect(Collectors.joining(", "));
+                            out.println(String.format(
+                                "Exception running test %s(%s): %s", testName, paramsDesc, e.getCause()));
+                            cause.printStackTrace(out);
+                        }
+                        out.println();
                     }
-                    out.println();
                 }
             }
         }
