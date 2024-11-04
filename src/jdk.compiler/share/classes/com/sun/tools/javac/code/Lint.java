@@ -80,6 +80,10 @@ public class Lint {
      * Obtain an instance with additional warning supression added from any
      * @SuppressWarnings and/or @Deprecated annotations on the given symbol.
      *
+     * <p>
+     * The returned instance will be different from this instance if and only if
+     * {@link LintSuppressions#suppressionsFrom} returns a non-empty set.
+     *
      * @param sym symbol
      * @return lint instance with new warning suppressions applied, or this instance if none
      */
