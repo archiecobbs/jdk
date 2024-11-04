@@ -2771,11 +2771,14 @@ public class Check {
             if (!potentiallyAmbiguousOverload(site, m1, m2) || !responsible.test(m1, m2))
                 return 0;
 
-            // Allow site's own declared methods (only) to apply @SuppressWarnings("overloads").
-            // Treat both methods equally so we don't create a preference for SUPPRESSION warnings.
-            boolean suppressWarning = false;
-            suppressWarning |= m1.owner == site.tsym && lint.augment(m1).shouldNotWarn(LintCategory.OVERLOADS);
-            suppressWarning |= m2.owner == site.tsym && lint.augment(m2).shouldNotWarn(LintCategory.OVERLOADS);
+            // Allow the site's own declared methods (only) to apply @SuppressWarnings("overloads"),
+            // but verify an annotation exists on a method before invoking shouldNotWarn() to avoid
+            // attributing the "utilization" of the suppression to an enclosing annotation.
+            Predicate<MethodSymbol> methodSuppresses = m -> m.owner == site.tsym &&
+              m.attribute(syms.suppressWarningsType.tsym) != null &&
+              lint.augment(m).shouldNotWarn(LintCategory.OVERLOADS);
+            if (methodSuppresses.test(m1) | methodSuppresses.test(m2))      // use "|" to avoid an artificial preference
+                return FIRST | SECOND;
 
             // Locate the warning at one of the methods, if possible
             DiagnosticPosition pos =
@@ -2784,7 +2787,7 @@ public class Check {
                 tree.pos();
 
             // Log the warning
-            if (!suppressWarning && lint.shouldWarn(LintCategory.OVERLOADS)) {
+            if (lint.shouldWarn(LintCategory.OVERLOADS)) {
                 log.warning(LintCategory.OVERLOADS, pos,
                     Warnings.PotentiallyAmbiguousOverload(
                         m1.asMemberOf(site, types), m1.location(),
