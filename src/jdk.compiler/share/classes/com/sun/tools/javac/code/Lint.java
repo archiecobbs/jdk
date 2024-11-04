@@ -159,8 +159,7 @@ public class Lint {
             if (options.isSet(Option.XLINT_CUSTOM, lc.option)) {
                 values.add(lc);
             } else if (options.isSet(Option.XLINT_CUSTOM, "-" + lc.option)) {
-                if (values.contains(lc))
-                    suppressedOptions.add(lc);
+                suppressedOptions.add(lc);
                 values.remove(lc);
             }
         }
