@@ -4622,8 +4622,10 @@ public class Check {
             return true;
         }
         private void checkVisible(DiagnosticPosition pos, Symbol what, PackageSymbol inPackage, boolean inSuperType) {
-            if (!isAPISymbol(what) && !inSuperType && lint.shouldWarn(LintCategory.EXPORTS)) { //package private/private element
-                log.warning(LintCategory.EXPORTS, pos, Warnings.LeaksNotAccessible(kindName(what), what, what.packge().modle));
+            if (!isAPISymbol(what) && !inSuperType) { //package private/private element
+                if (lint.shouldWarn(LintCategory.EXPORTS)) {
+                    log.warning(LintCategory.EXPORTS, pos, Warnings.LeaksNotAccessible(kindName(what), what, what.packge().modle));
+                }
                 return ;
             }
 
@@ -4631,8 +4633,10 @@ public class Check {
             ExportsDirective whatExport = findExport(whatPackage);
             ExportsDirective inExport = findExport(inPackage);
 
-            if (whatExport == null && lint.shouldWarn(LintCategory.EXPORTS)) { //package not exported:
-                log.warning(LintCategory.EXPORTS, pos, Warnings.LeaksNotAccessibleUnexported(kindName(what), what, what.packge().modle));
+            if (whatExport == null) { //package not exported:
+                if (lint.shouldWarn(LintCategory.EXPORTS)) {
+                    log.warning(LintCategory.EXPORTS, pos, Warnings.LeaksNotAccessibleUnexported(kindName(what), what, what.packge().modle));
+                }
                 return ;
             }
 
