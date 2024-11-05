@@ -30,6 +30,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Iterator;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -78,8 +79,15 @@ public abstract class TestRunner {
     }
 
     /**
-     * Invoke each method annotated with @Test once, using the parameters returned by the function.
-     * @param f a lambda expression to specify arguments for each test method
+     * Invoke each @Test method once using the parameters returned by the function.
+     *
+     * <p>
+     * If the function returns null for some method, that method is skipped.
+     *
+     * <p>
+     * If system property {@code test.query} is set, only that method is included.
+     *
+     * @param f function mapping method name to an array of method parameters
      * @throws java.lang.Exception if any errors occur
      */
     protected void runTests(Function<Method, Object[]> f) throws Exception {
@@ -87,8 +95,12 @@ public abstract class TestRunner {
     }
 
     /**
-     * Invoke each method annotated with @Test once for each parameter array returned by the iteration.
-     * @param f function returning an iteration of parameter arrays for each test method
+     * Invoke each @Test method once for each array of parameters returned by the iteration.
+     *
+     * <p>
+     * If the function returns null for some method, that method is skipped.
+     *
+     * @param f function mapping method name to an iteration of arrays of method parameters
      * @throws java.lang.Exception if any errors occur
      */
     protected void runTestsMulti(Function<Method, ? extends Stream<? extends Object[]>> f) throws Exception {
@@ -98,12 +110,14 @@ public abstract class TestRunner {
             if (a != null) {
                 testName = m.getName();
                 if (testQuery == null || testQuery.equals(testName)) {
-                    AtomicInteger iteration = new AtomicInteger();
-                    for (Iterator<? extends Object[]> i = f.apply(m).iterator(); i.hasNext(); ) {
-                        Object[] params = i.next();
+                    Iterator<? extends Object[]> iterator = Optional.of(m).map(f).map(Stream::iterator).orElse(null);
+                    if (iterator == null)
+                        return;
+                    for (int testNum = 1; iterator.hasNext(); testNum++) {
+                        Object[] params = iterator.next();
                         try {
                             testCount++;
-                            out.println(String.format("test: %s#%d", testName, iteration.incrementAndGet()));
+                            out.println(String.format("test: %s#%d", testName, testNum));
                             m.invoke(this, params);
                         } catch (InvocationTargetException e) {
                             errorCount++;
@@ -112,7 +126,8 @@ public abstract class TestRunner {
                               .map(String::valueOf)
                               .collect(Collectors.joining(", "));
                             out.println(String.format(
-                                "Exception running test %s(%s): %s", testName, paramsDesc, e.getCause()));
+                                "Exception running test %s#%d(%s): %s",
+                                testName, testNum, paramsDesc, e.getCause()));
                             cause.printStackTrace(out);
                         }
                         out.println();
