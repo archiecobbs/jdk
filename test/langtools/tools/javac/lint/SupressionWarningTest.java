@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @bug ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+ * @bug 9999999
  * @summary Test "suppressed" and "suppressed-option" lint warnings
  * @library /tools/lib
  * @modules
@@ -63,6 +63,7 @@ import static com.sun.tools.javac.code.Lint.LintCategory.*;
 
 public class SupressionWarningTest extends TestRunner {
 
+    // Test cases for testSuppressWarnings()
     public static final List<Object[]> SUPPRESS_WARNINGS_TEST_CASES = Stream.of(LintCategory.values())
       .filter(category -> category.suppressionTracking)
       .map(category -> {
@@ -502,13 +503,13 @@ public class SupressionWarningTest extends TestRunner {
         if (array == null)
             return null;
 
-        // Build parameter array for testSuppressWarnings()
+        // Build parameter array
         List<String> strings = List.of(array);
         String categoryWarning = strings.get(0);
         strings = strings.subList(1, strings.size());
         return new Object[] { category, categoryWarning, strings };
       })
-      .filter(Objects::nonNull)         // skip categories with no test case
+      .filter(Objects::nonNull)         // skip categories with no test case defined
       .collect(Collectors.toList());
 
     protected final ToolBox tb;
@@ -520,12 +521,23 @@ public class SupressionWarningTest extends TestRunner {
 
     public static void main(String... args) throws Exception {
         SupressionWarningTest test = new SupressionWarningTest();
+
+        // Run parameterized tests
         test.runTestsMulti(m -> switch (m.getName()) {
-          case "testSuppressWarnings" -> SUPPRESS_WARNINGS_TEST_CASES.stream();
-          default -> throw new AssertionError("unknown method");
+          case "testSuppressWarnings" ->        SUPPRESS_WARNINGS_TEST_CASES.stream();
+          case "testUselessAnnotation" ->       Stream.of(LintCategory.values())
+                                                  .filter(category -> category.suppressionTracking)
+                                                  .map(category -> new Object[] { category });
+          case "testUselessLintFlag" ->         Stream.of(LintCategory.values())
+                                                  .filter(category -> category.suppressionTracking)
+                                                  .map(category -> new Object[] { category });
+          case "testSelfSuppression" ->         Stream.of(RAW, SUPPRESSION)
+                                                  .map(category -> new Object[] { category });
+          default -> throw new AssertionError("missing params for " + m);
         });
     }
 
+    // We are testing all combinations of nested @SuppressWarning annotations and lint flags
     @Test
     public void testSuppressWarnings(LintCategory category,
       String categoryWarning, List<String> sourceTemplates) throws Exception {
@@ -605,29 +617,14 @@ public class SupressionWarningTest extends TestRunner {
                                 Stream.of(sources).forEach(out::println);
                             }
 
-                            // Compile sources
-                            ArrayList<String> options = new ArrayList<>();
-                            options.add("-XDrawDiagnostics");
-                            options.add("-Werror");
-                            options.add(lintOption);
-                            List<String> log;
-                            try {
-                                log = new JavacTask(tb, Mode.CMDLINE)
-                                  .options(options.toArray(new String[0]))
-                                  .outdir(classDir)
-                                  .files(tb.findJavaFiles(sourceDir))
-                                  .run(expectWarning ? Task.Expect.FAIL : Task.Expect.SUCCESS)
-                                  .writeAll()
-                                  .getOutputLines(Task.OutputKind.DIRECT);
-                            } catch (Task.TaskError e) {
-                                throw new AssertionError(String.format("%s: %s", description, e.getMessage()), e);
-                            }
+                            // Compile sources and get log output
+                            List<String> log = compile(sourceDir, classDir, lintOption,
+                              expectWarning ? Task.Expect.FAIL : Task.Expect.SUCCESS);
 
                             // Scrub insignificant log output
                             log.removeIf(line -> line.matches("[0-9]+ (error|warning)s?"));
                             log.removeIf(line -> line.contains("compiler.err.warnings.and.werror"));
                             log.removeIf(line -> line.matches("- compiler\\.note\\..*"));   // mandatory warning "recompile" etc.
-                            log.removeIf(line -> line.trim().isEmpty());
 
                             // Verify expected warning output
                             boolean foundSuppressionWarning = log.removeIf(
@@ -667,5 +664,97 @@ public class SupressionWarningTest extends TestRunner {
                 }
             }
         }
+    }
+
+    // Test a @SuppressWarning annotation that suppresses nothing
+    @Test
+    public void testUselessAnnotation(LintCategory category) throws Exception {
+        compileAndExpectWarning(
+          String.format("-Xlint:%s", SUPPRESSION.option),
+          String.format("@SuppressWarnings(\"%s\") public class Test { }", category.option),
+          "compiler.warn.unnecessary.warning.suppression");
+    }
+
+    // Test a -Xlint:-foo flag that suppresses no nothing
+    @Test
+    public void testUselessLintFlag(LintCategory category) throws Exception {
+        compileAndExpectWarning(
+          String.format("-Xlint:%s,%s,-%s", OPTIONS.option, SUPPRESSION_OPTION.option, category.option),
+          "public class Test { }",
+          "compiler.warn.unnecessary.lint.warning.suppression");
+    }
+
+    // Test the suppression of SUPPRESSION itself, which should always work,
+    // even when the same annotation uselessly suppresses some other category.
+    @Test
+    public void testSelfSuppression(LintCategory otherCategory) throws Exception {
+        compileAndExpectSuccess(
+          String.format("-Xlint:%s", SUPPRESSION.option),
+          String.format("@SuppressWarnings({ \"%s\", \"%s\" }) public class Test { }",
+            otherCategory.option,   // this is actually a useless suppression
+            SUPPRESSION.option));   // but this prevents us from reporting it
+    }
+
+    public void compileAndExpectWarning(String lintOption, String source, String errorKey) throws Exception {
+
+        // Setup source & destination diretories
+        Path base = Paths.get("compileAndExpectWarning");
+        Path sourceDir = base.resolve("sources");
+        Path classDir = base.resolve("classes");
+        Files.createDirectories(sourceDir);
+        Files.createDirectories(classDir);
+
+        // Write source file
+        tb.writeJavaFiles(sourceDir, source);
+
+        // Compile sources and verify we got the warning
+        List<String> log = compile(sourceDir, classDir, lintOption, Task.Expect.FAIL);
+        if (log.stream().noneMatch(line -> line.contains(errorKey))) {
+            throw new AssertionError(String.format(
+              "did not find \"%s\" in log output:%n  %s",
+              errorKey, log.stream().collect(Collectors.joining("\n  "))));
+        }
+    }
+
+    public void compileAndExpectSuccess(String lintOption, String source) throws Exception {
+
+        // Setup source & destination diretories
+        Path base = Paths.get("compileAndExpectSuccess");
+        Path sourceDir = base.resolve("sources");
+        Path classDir = base.resolve("classes");
+        Files.createDirectories(sourceDir);
+        Files.createDirectories(classDir);
+
+        // Write source file
+        tb.writeJavaFiles(sourceDir, source);
+
+        // Compile sources and verify there is no log output
+        List<String> log = compile(sourceDir, classDir, lintOption, Task.Expect.SUCCESS);
+        if (!log.isEmpty()) {
+            throw new AssertionError(String.format(
+              "non-empty log output:%n  %s", log.stream().collect(Collectors.joining("\n  "))));
+        }
+    }
+
+    private List<String> compile(Path sourceDir, Path classDir, String lintOption, Task.Expect expectation) throws Exception {
+        ArrayList<String> options = new ArrayList<>();
+        options.add("-XDrawDiagnostics");
+        options.add("-Werror");
+        if (lintOption != null)
+            options.add(lintOption);
+        List<String> log;
+        try {
+            log = new JavacTask(tb, Mode.CMDLINE)
+              .options(options.toArray(new String[0]))
+              .outdir(classDir)
+              .files(tb.findJavaFiles(sourceDir))
+              .run(expectation)
+              .writeAll()
+              .getOutputLines(Task.OutputKind.DIRECT);
+        } catch (Task.TaskError e) {
+            throw new AssertionError(String.format("compile in %s failed: %s", sourceDir, e.getMessage()), e);
+        }
+        log.removeIf(line -> line.trim().isEmpty());
+        return log;
     }
 }
