@@ -78,8 +78,8 @@ public abstract class TestRunner {
     }
 
     /**
-     * Invoke all methods annotated with @Test one time each.
-     * @param f a lambda expression to specify arguments for the test method
+     * Invoke each method annotated with @Test once, using the parameters returned by the function.
+     * @param f a lambda expression to specify arguments for each test method
      * @throws java.lang.Exception if any errors occur
      */
     protected void runTests(Function<Method, Object[]> f) throws Exception {
@@ -87,8 +87,8 @@ public abstract class TestRunner {
     }
 
     /**
-     * Invoke all methods annotated with @Test once for each set of parameters in the given iteration.
-     * @param f function returning an iteration of test method parameter sets
+     * Invoke each method annotated with @Test once for each parameter array returned by the iteration.
+     * @param f function returning an iteration of parameter arrays for each test method
      * @throws java.lang.Exception if any errors occur
      */
     protected void runTestsMulti(Function<Method, ? extends Stream<? extends Object[]>> f) throws Exception {
