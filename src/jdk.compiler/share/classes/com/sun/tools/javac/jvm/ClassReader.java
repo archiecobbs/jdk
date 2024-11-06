@@ -2072,9 +2072,9 @@ public class ClassReader {
             try {
                 if (lint.shouldWarn(LintCategory.CLASSFILE)) {
                     if (failure == null) {
-                        log.warning(LintCategory.CLASSFILE, Warnings.AnnotationMethodNotFound(container, name));
+                        log.warning(LintCategory.CLASSFILE, null, Warnings.AnnotationMethodNotFound(container, name));
                     } else {
-                        log.warning(LintCategory.CLASSFILE, Warnings.AnnotationMethodNotFoundReason(container,
+                        log.warning(LintCategory.CLASSFILE, null, Warnings.AnnotationMethodNotFoundReason(container,
                                                                             name,
                                                                             failure.getDetailValue()));//diagnostic, if present
                     }
