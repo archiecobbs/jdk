@@ -117,10 +117,13 @@ public class LintSuppressions {
     // Maps @SuppressWarnings-annotated symbols to the lint categories actually utilized in their scope
     private final HashMap<Symbol, EnumSet<LintCategory>> utilizationMap = new HashMap<>();
 
-    private final Symtab syms;
-    private final Names names;
-    private final Lint rootLint;
+    private final Context context;
     private final DeclTreeBuilder declTreeBuilder;
+
+    // These are initialized lazily to avoid dependency loops
+    private Lint rootLint;
+    private Symtab syms;
+    private Names names;
 
     private boolean completed;
 
@@ -133,10 +136,8 @@ public class LintSuppressions {
     }
 
     private LintSuppressions(Context context) {
+        this.context = context;
         context.put(lintSuppressionsKey, this);
-        syms = Symtab.instance(context);
-        names = Names.instance(context);
-        rootLint = Lint.instance(context);
         declTreeBuilder = new DeclTreeBuilder();
     }
 
@@ -196,6 +197,7 @@ public class LintSuppressions {
      */
     public void reportExtraneousSuppressWarnings(Log log, JCTree tree) {
         Assert.check(tree != null);
+        initializeIfNeeded();
 
         // Build a tree of the declarations that have a @SuppressWarnings annotation
         DeclNode rootNode = declTreeBuilder.build(tree);
@@ -234,10 +236,7 @@ public class LintSuppressions {
      * This step must be done last.
      */
     public void reportExtraneousLintSuppressions(Log log) {
-
-        // Mark this instance as completed
-        Assert.check(!completed);
-        completed = true;
+        initializeIfNeeded();
 
         // For some categories we don't get calls to reportExtraneousSuppressWarnings(), and
         // so for those categories there can be leftover utilizations in the utilizationMap.
@@ -285,6 +284,7 @@ public class LintSuppressions {
      * @return set of lint categories, possibly empty but never null
      */
     private EnumSet<LintCategory> suppressionsFrom(JCAnnotation annotation) {
+        initializeIfNeeded();
         if (annotation == null)
             return LintCategory.newEmptySet();
         Assert.check(annotation.attribute.type.tsym == syms.suppressWarningsType.tsym);
@@ -293,6 +293,7 @@ public class LintSuppressions {
 
     // Find the @SuppressWarnings annotation in the attriubte stream and extract the suppressions
     private EnumSet<LintCategory> suppressionsFrom(Stream<Attribute.Compound> attributes) {
+        initializeIfNeeded();
         return attributes
           .filter(attribute -> attribute.type.tsym == syms.suppressWarningsType.tsym)
           .map(attribute -> attribute.member(names.value))
@@ -303,6 +304,14 @@ public class LintSuppressions {
           .map(LintCategory::get)
           .filter(Objects::nonNull)
           .collect(Collectors.toCollection(LintCategory::newEmptySet));
+    }
+
+    private void initializeIfNeeded() {
+        if (syms == null) {
+            syms = Symtab.instance(context);
+            names = Names.instance(context);
+            rootLint = Lint.instance(context);
+        }
     }
 
 // DeclNode's
