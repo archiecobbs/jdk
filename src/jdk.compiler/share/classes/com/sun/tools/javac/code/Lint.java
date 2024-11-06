@@ -289,7 +289,7 @@ public class Lint {
         /**
          * Warn when any output file is written to more than once.
          */
-        OUTPUT_FILE_CLASH("output-file-clash", false),
+        OUTPUT_FILE_CLASH("output-file-clash"),
 
         /**
          * Warn about issues regarding method overloads.
@@ -306,7 +306,7 @@ public class Lint {
          * Such warnings cannot be suppressed with the SuppressWarnings
          * annotation.
          */
-        PATH("path", false),
+        PATH("path"),
 
         /**
          * Warn about issues regarding annotation processing.

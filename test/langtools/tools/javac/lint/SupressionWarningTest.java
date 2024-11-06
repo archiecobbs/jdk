@@ -281,6 +281,8 @@ public class SupressionWarningTest extends TestRunner {
             """
         };
 
+        case OUTPUT_FILE_CLASH -> null; // skip, too hard to simluate
+
         case OVERLOADS -> new String[] {
             "compiler.warn.potentially.ambiguous.overload",
             """
@@ -310,6 +312,8 @@ public class SupressionWarningTest extends TestRunner {
             }
             """
         };
+
+        case PATH -> null; // skip, too hard to simluate
 
         case PROCESSING -> null;    // skip for now
 
