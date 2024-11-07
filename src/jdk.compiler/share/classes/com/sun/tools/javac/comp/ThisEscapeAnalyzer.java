@@ -345,9 +345,9 @@ class ThisEscapeAnalyzer extends TreeScanner {
         //
         // Note there is a subtlety here. Below we are analyzing initializers independently from constructors,
         // but at runtime initializers execute implicitly from within each constructor (at super() time).
-        // We are doing to things to "fixup" this disconnect:
+        // We are doing two things to "fixup" this disconnect:
         //  - Only scan initializers in classes that have at least one analyzable constructor
-        //  - Only suppress "this-escape" warnings if EVERY analyzable constructor suppresses them
+        //  - Only suppress warnings in initializers if EVERY analyzable constructor suppresses them
         analyzableConstructorMap.forEach((klass, methodInfo) -> {
             for (List<JCTree> defs = klass.defs; defs.nonEmpty(); defs = defs.tail) {
                 JCTree decl = defs.head;

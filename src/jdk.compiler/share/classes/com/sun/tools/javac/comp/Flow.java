@@ -233,7 +233,7 @@ public class Flow {
         new FlowAnalyzer().analyzeTree(env, make);
         new CaptureAnalyzer().analyzeTree(env, make);
 
-        // Additional warnings not directly related to dataflow but needing to be run at this point
+        // Warnings not directly related to dataflow but applicable once it completes
         new ThisEscapeAnalyzer(names, syms, types, rs, log, lint).analyzeTree(env);
         lintSuppression.reportExtraneousSuppressWarnings(log, env.tree);
     }
