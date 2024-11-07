@@ -488,7 +488,7 @@ public class SuppressionWarningTest extends TestRunner {
             """
         };
 
-        case PREVIEW -> null;    // skip for now, too hard to test reliably
+        case PREVIEW -> null;    // skip, too hard to simluate reliably over time
 
         case RESTRICTED -> new String[] {
             "compiler.warn.restricted.method",
@@ -552,14 +552,12 @@ public class SuppressionWarningTest extends TestRunner {
     public void testSuppressWarnings(LintCategory category,
       String categoryWarning, List<String> sourceTemplates) throws Exception {
 
-        // Setup source & destination diretories
+        // Setup diretories
         Path base = Paths.get("testSuppressWarnings");
-        Path sourceDir = base.resolve("sources." + category.option);
-        Path classDir = base.resolve("classes." + category.option);
-        Files.createDirectories(sourceDir);
-        Files.createDirectories(classDir);
+        resetCompileDirectories(base);
 
         // Detect if a module is being compiled; if so we need to create an extra directory level
+        Path pkgRootDir = getSourcesDir(base);
         Pattern moduleDecl = Pattern.compile("module\\s+(\\S*).*");
         String[] moduleNames = sourceTemplates.stream()
           .flatMap(source -> Stream.of(source.split("\\n")))
@@ -567,9 +565,15 @@ public class SuppressionWarningTest extends TestRunner {
           .filter(Matcher::matches)
           .map(matcher -> matcher.group(1))
           .toArray(String[]::new);
-        if (moduleNames.length > 1)
+        switch (moduleNames.length) {
+        case 0:
+            break;
+        case 1:
+            pkgRootDir = pkgRootDir.resolve(moduleNames[0]);
+            break;
+        default:
             throw new AssertionError("invalid multi-module test case");
-        Path topDir = moduleNames.length > 0 ? sourceDir.resolve(moduleNames[0]) : sourceDir;
+        }
 
         // Create a @SuppressWarnings annotation
         String annotation = String.format("@SuppressWarnings(\"%s\")", category.option);
@@ -594,7 +598,7 @@ public class SuppressionWarningTest extends TestRunner {
                   .map(source -> source.replace("@INNER@",
                     String.format("%s@SuppressWarnings(\"%s\")", innerAnnotation ? "" : "//", category.option)))
                   .toArray(String[]::new);
-                tb.writeJavaFiles(topDir, sources);
+                tb.writeJavaFiles(pkgRootDir, sources);
 
                 // Try all combinations of lint flags
                 for (boolean enableCategory : booleans) {                       // category/-category
@@ -618,7 +622,7 @@ public class SuppressionWarningTest extends TestRunner {
                               enableSuppressionOption ? "" : "-", SUPPRESSION_OPTION.option);
 
                             String description = String.format(
-                              "[%s] outer %s inner %s %s", category, outerAnnotation, innerAnnotation, lintOption);
+                              "[%s] outer=%s inner=%s %s", category, outerAnnotation, innerAnnotation, lintOption);
                             out.println(String.format(">>> Test  START: %s", description));
                             if (false) {
                                 out.println(String.format("   expectCategoryWarning=%s", expectCategoryWarning));
@@ -628,8 +632,8 @@ public class SuppressionWarningTest extends TestRunner {
                             }
 
                             // Compile sources and get log output
-                            List<String> log = compile(sourceDir, classDir, lintOption,
-                              expectWarning ? Task.Expect.FAIL : Task.Expect.SUCCESS);
+                            Task.Expect expectation = expectWarning ? Task.Expect.FAIL : Task.Expect.SUCCESS;
+                            List<String> log = compile(base, expectation, lintOption);
 
                             // Scrub insignificant log output
                             log.removeIf(line -> line.matches("[0-9]+ (error|warning)s?"));
@@ -680,18 +684,27 @@ public class SuppressionWarningTest extends TestRunner {
     @Test
     public void testUselessAnnotation(LintCategory category) throws Exception {
         compileAndExpectWarning(
-          String.format("-Xlint:%s", SUPPRESSION.option),
-          String.format("@SuppressWarnings(\"%s\") public class Test { }", category.option),
-          "compiler.warn.unnecessary.warning.suppression");
+          "compiler.warn.unnecessary.warning.suppression",
+          String.format(
+            """
+                @SuppressWarnings(\"%s\")
+                public class Test { }
+            """, category.option),
+          String.format("-Xlint:%s", SUPPRESSION.option));
     }
 
     // Test a -Xlint:-foo flag that suppresses no nothing
     @Test
     public void testUselessLintFlag(LintCategory category) throws Exception {
         compileAndExpectWarning(
-          String.format("-Xlint:%s,%s,-%s", OPTIONS.option, SUPPRESSION_OPTION.option, category.option),
-          "public class Test { }",
-          "compiler.warn.unnecessary.lint.warning.suppression");
+          "compiler.warn.unnecessary.lint.warning.suppression",
+            """
+                public class Test {
+                }
+            """,
+            String.format("-Xlint:%s", OPTIONS.option),
+            String.format("-Xlint:%s", SUPPRESSION_OPTION.option),
+            String.format("-Xlint:-%s", category.option));
     }
 
     // Test the suppression of SUPPRESSION itself, which should always work,
@@ -701,14 +714,18 @@ public class SuppressionWarningTest extends TestRunner {
 
         // Test category and SUPPRESSION in the same annotation
         compileAndExpectSuccess(
-          String.format("-Xlint:%s", SUPPRESSION.option),
-          String.format("@SuppressWarnings({ \"%s\", \"%s\" }) public class Test { }",
+          String.format(
+            """
+                @SuppressWarnings({ \"%s\", \"%s\" })
+                public class Test {
+                }
+            """,
             category.option,        // this is actually a useless suppression
-            SUPPRESSION.option));   // but this prevents us from reporting it
+            SUPPRESSION.option),    // but this prevents us from reporting it
+          String.format("-Xlint:%s", SUPPRESSION.option));
 
         // Test category and SUPPRESSION in nested annotations
         compileAndExpectSuccess(
-          String.format("-Xlint:%s", SUPPRESSION.option),
           String.format(
             """
                 @SuppressWarnings(\"%s\")       // suppress useless suppression warnings
@@ -718,14 +735,14 @@ public class SuppressionWarningTest extends TestRunner {
                 }
             """,
             SUPPRESSION.option,     // this prevents us from reporting the nested useless suppression
-            category.option));      // this is a useless suppression
+            category.option),       // this is a useless suppression
+          String.format("-Xlint:%s", SUPPRESSION.option));
     }
 
     // Test OVERLOADS which has tricky "either-or" suppression
     @Test
     public void testOverloads() throws Exception {
         compileAndExpectSuccess(
-          String.format("-Xlint:%s,%s", OVERLOADS.option, SUPPRESSION.option),
           """
           import java.util.function.*;
           public class Super {
@@ -736,14 +753,15 @@ public class SuppressionWarningTest extends TestRunner {
               public void foo(Consumer<Integer> c) {
               }
           }
-          """);
+          """,
+          String.format("-Xlint:%s", OVERLOADS.option),
+          String.format("-Xlint:%s", SUPPRESSION.option));
     }
 
     // Test THIS_ESCAPE which has tricky control-flow based suppression
     @Test
     public void testThisEscape() throws Exception {
         compileAndExpectSuccess(
-          String.format("-Xlint:%s,%s", THIS_ESCAPE.option, SUPPRESSION.option),
           """
           public class Test {
               public Test() {
@@ -755,22 +773,22 @@ public class SuppressionWarningTest extends TestRunner {
               }
               protected void leak() { }
           }
-          """);
+          """,
+          String.format("-Xlint:%s", THIS_ESCAPE.option),
+          String.format("-Xlint:%s", SUPPRESSION.option));
     }
 
-    public void compileAndExpectWarning(String lintOption, String source, String errorKey) throws Exception {
+    public void compileAndExpectWarning(String errorKey, String source, String... flags) throws Exception {
 
         // Setup source & destination diretories
         Path base = Paths.get("compileAndExpectWarning");
-        Path sourceDir = base.resolve("sources");
-        Path classDir = base.resolve("classes");
-        resetDirectories(sourceDir, classDir);
+        resetCompileDirectories(base);
 
         // Write source file
-        tb.writeJavaFiles(sourceDir, source);
+        tb.writeJavaFiles(getSourcesDir(base), source);
 
         // Compile sources and verify we got the warning
-        List<String> log = compile(sourceDir, classDir, lintOption, Task.Expect.FAIL);
+        List<String> log = compile(base, Task.Expect.FAIL, flags);
         if (log.stream().noneMatch(line -> line.contains(errorKey))) {
             throw new AssertionError(String.format(
               "did not find \"%s\" in log output:%n  %s",
@@ -778,49 +796,55 @@ public class SuppressionWarningTest extends TestRunner {
         }
     }
 
-    public void compileAndExpectSuccess(String lintOption, String source) throws Exception {
+    public void compileAndExpectSuccess(String source, String... flags) throws Exception {
 
         // Setup source & destination diretories
         Path base = Paths.get("compileAndExpectSuccess");
-        Path sourceDir = base.resolve("sources");
-        Path classDir = base.resolve("classes");
-        resetDirectories(sourceDir, classDir);
+        resetCompileDirectories(base);
 
         // Write source file
-        tb.writeJavaFiles(sourceDir, source);
+        tb.writeJavaFiles(getSourcesDir(base), source);
 
         // Compile sources and verify there is no log output
-        List<String> log = compile(sourceDir, classDir, lintOption, Task.Expect.SUCCESS);
+        List<String> log = compile(base, Task.Expect.SUCCESS, flags);
         if (!log.isEmpty()) {
             throw new AssertionError(String.format(
               "non-empty log output:%n  %s", log.stream().collect(Collectors.joining("\n  "))));
         }
     }
 
-    private List<String> compile(Path sourceDir, Path classDir, String lintOption, Task.Expect expectation) throws Exception {
+    private List<String> compile(Path base, Task.Expect expectation, String... flags) throws Exception {
         ArrayList<String> options = new ArrayList<>();
         options.add("-XDrawDiagnostics");
         options.add("-Werror");
-        if (lintOption != null)
-            options.add(lintOption);
+        Stream.of(flags).forEach(options::add);
         List<String> log;
         try {
             log = new JavacTask(tb, Mode.CMDLINE)
               .options(options.toArray(new String[0]))
-              .outdir(classDir)
-              .files(tb.findJavaFiles(sourceDir))
+              .files(tb.findJavaFiles(getSourcesDir(base)))
+              .outdir(getClassesDir(base))
               .run(expectation)
               .writeAll()
               .getOutputLines(Task.OutputKind.DIRECT);
         } catch (Task.TaskError e) {
-            throw new AssertionError(String.format("compile in %s failed: %s", sourceDir, e.getMessage()), e);
+            throw new AssertionError(String.format(
+              "compile in %s failed: %s", getSourcesDir(base), e.getMessage()), e);
         }
         log.removeIf(line -> line.trim().isEmpty());
         return log;
     }
 
-    private void resetDirectories(Path... dirs) throws IOException {
-        for (Path dir : dirs) {
+    private Path getSourcesDir(Path base) {
+        return base.resolve("sources");
+    }
+
+    private Path getClassesDir(Path base) {
+        return base.resolve("classes");
+    }
+
+    private void resetCompileDirectories(Path base) throws IOException {
+        for (Path dir : List.of(getSourcesDir(base), getClassesDir(base))) {
             if (Files.exists(dir, LinkOption.NOFOLLOW_LINKS))
                 Files.walkFileTree(dir, new Deleter());
             Files.createDirectories(dir);
