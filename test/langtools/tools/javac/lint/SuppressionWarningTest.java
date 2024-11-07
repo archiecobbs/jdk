@@ -37,9 +37,13 @@
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumMap;
@@ -721,8 +725,7 @@ public class SuppressionWarningTest extends TestRunner {
         Path base = Paths.get("compileAndExpectWarning");
         Path sourceDir = base.resolve("sources");
         Path classDir = base.resolve("classes");
-        Files.createDirectories(sourceDir);
-        Files.createDirectories(classDir);
+        resetDirectories(sourceDir, classDir);
 
         // Write source file
         tb.writeJavaFiles(sourceDir, source);
@@ -742,8 +745,7 @@ public class SuppressionWarningTest extends TestRunner {
         Path base = Paths.get("compileAndExpectSuccess");
         Path sourceDir = base.resolve("sources");
         Path classDir = base.resolve("classes");
-        Files.createDirectories(sourceDir);
-        Files.createDirectories(classDir);
+        resetDirectories(sourceDir, classDir);
 
         // Write source file
         tb.writeJavaFiles(sourceDir, source);
@@ -776,5 +778,24 @@ public class SuppressionWarningTest extends TestRunner {
         }
         log.removeIf(line -> line.trim().isEmpty());
         return log;
+    }
+
+    private void resetDirectories(Path... dirs) throws IOException {
+        for (Path dir : dirs) {
+            if (Files.exists(dir, LinkOption.NOFOLLOW_LINKS))
+                Files.walkFileTree(dir, new Deleter());
+            Files.createDirectories(dir);
+        }
+    }
+
+// Deleter
+
+    private static class Deleter extends SimpleFileVisitor<Path> {
+
+        @Override
+        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+            Files.delete(file);
+            return FileVisitResult.CONTINUE;
+        }
     }
 }
