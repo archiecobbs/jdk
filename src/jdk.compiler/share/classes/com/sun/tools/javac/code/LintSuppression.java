@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -91,9 +91,11 @@ import static com.sun.tools.javac.code.Lint.LintCategory.SUPPRESSION_OPTION;
  *      (via @SuppressWarnings), or globally (via -Xlint:-key).
  *  <li>Consequently, an unnecessary suppression warning can only be emitted at one of those declarations,
  *      or globally at the end of compilation.
- *  <li>@SuppressWarnings("suppression") is valid and applies at that declaration: it means "suppression"
- *      warnings will never be reported for any lint category listed in that annotation or any other annotation
- *      in the scope of the declaration.
+ *  <li>Some categories (e.g., CLASSFILE) don't support suppression via @SuppressWarnings, so they can only
+ *      generate warnings at the global level. Any @SuppressWarnings annotation will be deemed unnecessary.
+ *  <li>@SuppressWarnings("suppression") is valid and applies at that declaration: it means unnecessary
+ *      suppression warnings will never be reported for any lint category listed in that annotation or any
+ *      other annotation within the scope of that declaration.
  *  <li>In particular, this applies to "suppression" category itself. That means the suppression of the
  *      "suppression" category can never be reported as unnecessary, even if it actually is. This is appropriate
  *      because (for example) warnings can vary between two different "--release" levels, and you may want code
