@@ -541,6 +541,8 @@ public class SuppressionWarningTest extends TestRunner {
                                                   .map(category -> new Object[] { category });
           case "testSelfSuppression" ->         Stream.of(RAW, SUPPRESSION)
                                                   .map(category -> new Object[] { category });
+          case "testOverloads" ->               Stream.<Object[]>of(new Object[0]);    // no parameters for this test
+          case "testThisEscape" ->              Stream.<Object[]>of(new Object[0]);    // no parameters for this test
           default -> throw new AssertionError("missing params for " + m);
         });
     }
@@ -717,6 +719,43 @@ public class SuppressionWarningTest extends TestRunner {
             """,
             SUPPRESSION.option,     // this prevents us from reporting the nested useless suppression
             category.option));      // this is a useless suppression
+    }
+
+    // Test OVERLOADS which has tricky "either-or" suppression
+    @Test
+    public void testOverloads() throws Exception {
+        compileAndExpectSuccess(
+          String.format("-Xlint:%s,%s", OVERLOADS.option, SUPPRESSION.option),
+          """
+          import java.util.function.*;
+          public class Super {
+              @SuppressWarnings("overloads")
+              public void foo(IntConsumer c) {
+              }
+              @SuppressWarnings("overloads")
+              public void foo(Consumer<Integer> c) {
+              }
+          }
+          """);
+    }
+
+    // Test THIS_ESCAPE which has tricky control-flow based suppression
+    @Test
+    public void testThisEscape() throws Exception {
+        compileAndExpectSuccess(
+          String.format("-Xlint:%s,%s", THIS_ESCAPE.option, SUPPRESSION.option),
+          """
+          public class Test {
+              public Test() {
+                  this(0);
+              }
+              @SuppressWarnings("this-escape")
+              private Test(int x) {
+                  this.leak();
+              }
+              protected void leak() { }
+          }
+          """);
     }
 
     public void compileAndExpectWarning(String lintOption, String source, String errorKey) throws Exception {
