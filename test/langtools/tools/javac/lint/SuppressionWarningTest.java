@@ -31,7 +31,7 @@
  *      jdk.compiler/com.sun.tools.javac.code
  *      jdk.compiler/com.sun.tools.javac.main
  * @build toolbox.ToolBox toolbox.JavacTask
- * @run main SupressionWarningTest
+ * @run main SuppressionWarningTest
  */
 
 import java.io.File;
@@ -61,7 +61,7 @@ import toolbox.ToolBox;
 
 import static com.sun.tools.javac.code.Lint.LintCategory.*;
 
-public class SupressionWarningTest extends TestRunner {
+public class SuppressionWarningTest extends TestRunner {
 
     // Test cases for testSuppressWarnings()
     public static final List<Object[]> SUPPRESS_WARNINGS_TEST_CASES = Stream.of(LintCategory.values())
@@ -518,13 +518,13 @@ public class SupressionWarningTest extends TestRunner {
 
     protected final ToolBox tb;
 
-    public SupressionWarningTest() {
+    public SuppressionWarningTest() {
         super(System.err);
         tb = new ToolBox();
     }
 
     public static void main(String... args) throws Exception {
-        SupressionWarningTest test = new SupressionWarningTest();
+        SuppressionWarningTest test = new SuppressionWarningTest();
 
         // Run parameterized tests
         test.runTestsMulti(m -> switch (m.getName()) {
