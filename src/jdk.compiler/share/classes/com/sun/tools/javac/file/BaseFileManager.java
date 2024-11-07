@@ -57,6 +57,7 @@ import javax.tools.JavaFileObject;
 import javax.tools.JavaFileObject.Kind;
 
 import com.sun.tools.javac.code.Lint.LintCategory;
+import com.sun.tools.javac.code.LintSuppression;
 import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.main.OptionHelper;
 import com.sun.tools.javac.main.OptionHelper.GrumpyHelper;
@@ -91,13 +92,18 @@ public abstract class BaseFileManager implements JavaFileManager {
     public void setContext(Context context) {
         log = Log.instance(context);
         options = Options.instance(context);
+        lintSuppression = LintSuppression.instance(context);
         classLoaderClass = options.get("procloader");
+        fileClashOption = options.isLintSet(LintCategory.OUTPUT_FILE_CLASH.option);
 
         // Detect Lint options, but use Options.isLintSet() to avoid initializing the Lint class
-        boolean warn = options.isLintSet("path");
+        boolean warn = options.isLintSet(LintCategory.PATH.option);
         locations.update(log, warn, FSInfo.instance(context));
+        boolean suppressionOption = options.isLintSet(LintCategory.SUPPRESSION_OPTION.option);
+
+        // Only track file clashes if enabled or being tracked for suppression
         synchronized (this) {
-            outputFilesWritten = options.isLintSet("output-file-clash") ? new HashSet<>() : null;
+            outputFilesWritten = fileClashOption || suppressionOption ? new HashSet<>() : null;
         }
 
         // Setting this option is an indication that close() should defer actually closing
@@ -138,11 +144,16 @@ public abstract class BaseFileManager implements JavaFileManager {
 
     protected Options options;
 
+    protected LintSuppression lintSuppression;
+
     protected String classLoaderClass;
 
     protected final Locations locations;
 
     // This is non-null when output file clash detection is enabled
+    private boolean fileClashOption;
+
+    // This is non-null when output file clash detection is enabled or being tracked for suppression
     private HashSet<Path> outputFilesWritten;
 
     /**
@@ -528,7 +539,11 @@ public abstract class BaseFileManager implements JavaFileManager {
         }
 
         // Check whether we've already opened this file for output
-        if (!outputFilesWritten.add(realPath))
-            log.warning(LintCategory.OUTPUT_FILE_CLASH, Warnings.OutputFileClash(path));
+        if (!outputFilesWritten.add(realPath)) {
+            lintSuppression.setUtilized(null, LintCategory.OUTPUT_FILE_CLASH);
+            if (fileClashOption) {
+                log.warning(LintCategory.OUTPUT_FILE_CLASH, Warnings.OutputFileClash(path));
+            }
+        }
     }
 }
