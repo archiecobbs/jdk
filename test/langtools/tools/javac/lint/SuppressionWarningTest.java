@@ -285,7 +285,21 @@ public class SuppressionWarningTest extends TestRunner {
             """
         };
 
-        case OUTPUT_FILE_CLASH -> null; // skip, too hard to simluate
+        // This test case only works on MacOS
+        case OUTPUT_FILE_CLASH ->
+            System.getProperty("os.name").startsWith("Mac") ?
+              new String[] {
+                "compiler.warn.output.file.clash",
+                """
+                public class Test {
+                    interface Cafe\u0301 {      // macos normalizes "e" + U0301 -> U00e9
+                    }
+                    interface Caf\u00e9 {
+                    }
+                }
+                """
+              } :
+              null;
 
         case OVERLOADS -> new String[] {
             "compiler.warn.potentially.ambiguous.overload",
