@@ -106,10 +106,10 @@ import static com.sun.tools.javac.code.Lint.LintCategory.SUPPRESSION_OPTION;
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  */
-public class LintSuppressions {
+public class LintSuppression {
 
-    /** The context key for the LintSuppressions object. */
-    protected static final Context.Key<LintSuppressions> lintSuppressionsKey = new Context.Key<>();
+    /** The context key for the LintSuppression object. */
+    protected static final Context.Key<LintSuppression> lintSuppressionsKey = new Context.Key<>();
 
     // Lint categories actually utilized outside of any class, method, or variable declaration
     private final EnumSet<LintCategory> globalUtilizations = LintCategory.newEmptySet();
@@ -125,15 +125,15 @@ public class LintSuppressions {
     private Symtab syms;
     private Names names;
 
-    /** Get the LintSuppressions instance. */
-    public static LintSuppressions instance(Context context) {
-        LintSuppressions instance = context.get(lintSuppressionsKey);
+    /** Get the LintSuppression instance. */
+    public static LintSuppression instance(Context context) {
+        LintSuppression instance = context.get(lintSuppressionsKey);
         if (instance == null)
-            instance = new LintSuppressions(context);
+            instance = new LintSuppression(context);
         return instance;
     }
 
-    private LintSuppressions(Context context) {
+    private LintSuppression(Context context) {
         this.context = context;
         context.put(lintSuppressionsKey, this);
         declTreeBuilder = new DeclTreeBuilder();
@@ -423,7 +423,7 @@ public class LintSuppressions {
             // "unnecessary". The annotation can be null here, which means the symbol has only @Deprecated.
             if (suppressed.contains(DEPRECATION)) {             // maybe came from @Deprecated, so need to rescan
                 suppressed = Optional.ofNullable(annotation)
-                                .map(LintSuppressions.this::suppressionsFrom)
+                                .map(LintSuppression.this::suppressionsFrom)
                                 .orElseGet(LintCategory::newEmptySet);
             }
 

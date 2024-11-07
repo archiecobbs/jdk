@@ -217,7 +217,7 @@ public class Flow {
     private final JCDiagnostic.Factory diags;
     private Env<AttrContext> attrEnv;
     private       Lint lint;
-    private       LintSuppressions lintSuppressions;
+    private       LintSuppression lintSuppression;
     private final Infer infer;
 
     public static Flow instance(Context context) {
@@ -235,7 +235,7 @@ public class Flow {
 
         // Additional warnings not directly related to dataflow but needing to be run at this point
         new ThisEscapeAnalyzer(names, syms, types, rs, log, lint).analyzeTree(env);
-        lintSuppressions.reportExtraneousSuppressWarnings(log, env.tree);
+        lintSuppression.reportExtraneousSuppressWarnings(log, env.tree);
     }
 
     public void analyzeLambda(Env<AttrContext> env, JCLambda that, TreeMaker make, boolean speculative) {
@@ -345,7 +345,7 @@ public class Flow {
         types = Types.instance(context);
         chk = Check.instance(context);
         lint = Lint.instance(context);
-        lintSuppressions = LintSuppressions.instance(context);
+        lintSuppression = LintSuppression.instance(context);
         infer = Infer.instance(context);
         rs = Resolve.instance(context);
         diags = JCDiagnostic.Factory.instance(context);

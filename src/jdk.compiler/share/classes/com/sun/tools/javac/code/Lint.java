@@ -82,13 +82,13 @@ public class Lint {
      *
      * <p>
      * The returned instance will be different from this instance if and only if
-     * {@link LintSuppressions#suppressionsFrom} returns a non-empty set.
+     * {@link LintSuppression#suppressionsFrom} returns a non-empty set.
      *
      * @param sym symbol
      * @return lint instance with new warning suppressions applied, or this instance if none
      */
     public Lint augment(Symbol sym) {
-        EnumSet<LintCategory> suppressions = lintSuppressions.suppressionsFrom(sym);
+        EnumSet<LintCategory> suppressions = lintSuppression.suppressionsFrom(sym);
         if (!suppressions.isEmpty()) {
             Lint lint = new Lint(this, sym);
             lint.values.removeAll(suppressions);
@@ -113,7 +113,7 @@ public class Lint {
     final EnumSet<LintCategory> suppressedOptions;
 
     // Used to track which warnings are actually being suppressed
-    private final LintSuppressions lintSuppressions;
+    private final LintSuppression lintSuppression;
 
     // The current @SuppressWarnings-annotated symbol in scope, or null for none (global scope)
     private final Symbol symbolInScope;
@@ -173,7 +173,7 @@ public class Lint {
 
         context.put(lintKey, this);
 
-        lintSuppressions = LintSuppressions.instance(context);
+        lintSuppression = LintSuppression.instance(context);
     }
 
     protected Lint(Lint other) {
@@ -182,7 +182,7 @@ public class Lint {
 
     protected Lint(Lint other, Symbol symbolInScope) {
         this.suppressedOptions = other.suppressedOptions;
-        this.lintSuppressions = other.lintSuppressions;
+        this.lintSuppression = other.lintSuppression;
         this.symbolInScope = symbolInScope;
         this.values = other.values.clone();
         this.suppressedValues = other.suppressedValues.clone();
@@ -440,7 +440,7 @@ public class Lint {
      */
     public boolean isActive(LintCategory lc) {
         return values.contains(lc) ||
-          (needsSuppressionTracking(lc) && !lintSuppressions.isUtilized(symbolInScope, lc));
+          (needsSuppressionTracking(lc) && !lintSuppression.isUtilized(symbolInScope, lc));
     }
 
     /**
@@ -486,7 +486,7 @@ public class Lint {
      */
     public boolean shouldWarn(LintCategory lc) {
         if (needsSuppressionTracking(lc))
-            lintSuppressions.setUtilized(symbolInScope, lc);
+            lintSuppression.setUtilized(symbolInScope, lc);
         return isEnabled(lc);
     }
 
@@ -503,7 +503,7 @@ public class Lint {
 
     public boolean shouldNotWarn(LintCategory lc) {
         if (needsSuppressionTracking(lc))
-            lintSuppressions.setUtilized(symbolInScope, lc);
+            lintSuppression.setUtilized(symbolInScope, lc);
         return suppressedValues.contains(lc);
     }
 
