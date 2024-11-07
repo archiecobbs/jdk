@@ -708,7 +708,7 @@ public class Log extends AbstractLog {
                 if (emitWarnings || diagnostic.isMandatory()) {
                     if (nwarnings < MaxWarnings) {
                         writeDiagnostic(diagnostic);
-                        //nwarnings++;
+                        nwarnings++;
                     } else {
                         nsuppressedwarns++;
                     }
