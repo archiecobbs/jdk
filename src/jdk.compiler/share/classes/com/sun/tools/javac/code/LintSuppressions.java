@@ -125,8 +125,6 @@ public class LintSuppressions {
     private Symtab syms;
     private Names names;
 
-    private boolean completed;
-
     /** Get the LintSuppressions instance. */
     public static LintSuppressions instance(Context context) {
         LintSuppressions instance = context.get(lintSuppressionsKey);
@@ -170,7 +168,6 @@ public class LintSuppressions {
      * @param category lint category that was utilized
      */
     public void setUtilized(Symbol symbol, LintCategory category) {
-        Assert.check(!completed);
         utilizationsOf(symbol).add(category);
     }
 
@@ -182,7 +179,6 @@ public class LintSuppressions {
      * @return true if {@link #setUtilized} has been called already
      */
     public boolean isUtilized(Symbol symbol, LintCategory category) {
-        Assert.check(!completed);
         return utilizationsOf(symbol).contains(category);
     }
 
