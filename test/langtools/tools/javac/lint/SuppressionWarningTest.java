@@ -691,12 +691,28 @@ public class SuppressionWarningTest extends TestRunner {
     // Test the suppression of SUPPRESSION itself, which should always work,
     // even when the same annotation uselessly suppresses some other category.
     @Test
-    public void testSelfSuppression(LintCategory otherCategory) throws Exception {
+    public void testSelfSuppression(LintCategory category) throws Exception {
+
+        // Test category and SUPPRESSION in the same annotation
         compileAndExpectSuccess(
           String.format("-Xlint:%s", SUPPRESSION.option),
           String.format("@SuppressWarnings({ \"%s\", \"%s\" }) public class Test { }",
-            otherCategory.option,   // this is actually a useless suppression
+            category.option,        // this is actually a useless suppression
             SUPPRESSION.option));   // but this prevents us from reporting it
+
+        // Test category and SUPPRESSION in nested annotations
+        compileAndExpectSuccess(
+          String.format("-Xlint:%s", SUPPRESSION.option),
+          String.format(
+            """
+                @SuppressWarnings(\"%s\")       // suppress useless suppression warnings
+                public class Test {
+                    @SuppressWarnings(\"%s\")   // a useless suppression
+                    public class Sub { }
+                }
+            """,
+            SUPPRESSION.option,     // this prevents us from reporting the nested useless suppression
+            category.option));      // this is a useless suppression
     }
 
     public void compileAndExpectWarning(String lintOption, String source, String errorKey) throws Exception {
