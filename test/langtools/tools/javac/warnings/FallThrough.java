@@ -1,9 +1,9 @@
 /**
  * @test  /nodynamiccopyright/
  * @bug 4986256
- * @compile/ref=FallThrough.noLint.out                                    -XDrawDiagnostics FallThrough.java
- * @compile/ref=FallThrough.lintAll.out         -Xlint:all,-path,-options -XDrawDiagnostics FallThrough.java
- * @compile/ref=FallThrough.lintFallThrough.out -Xlint:fallthrough        -XDrawDiagnostics FallThrough.java
+ * @compile/ref=FallThrough.noLint.out                             -XDrawDiagnostics FallThrough.java
+ * @compile/ref=FallThrough.lintAll.out         -Xlint:all         -XDrawDiagnostics FallThrough.java
+ * @compile/ref=FallThrough.lintFallThrough.out -Xlint:fallthrough -XDrawDiagnostics FallThrough.java
  */
 
 // control: this class should generate a warning
