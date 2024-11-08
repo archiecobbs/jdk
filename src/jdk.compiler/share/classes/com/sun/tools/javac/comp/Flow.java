@@ -235,7 +235,7 @@ public class Flow {
 
         // Warnings not directly related to dataflow but applicable once it completes
         new ThisEscapeAnalyzer(names, syms, types, rs, log, lint).analyzeTree(env);
-        lintSuppression.reportExtraneousSuppressWarnings(log, env.tree);
+        lintSuppression.reportUnnecessarySuppressions(log, env.tree);
     }
 
     public void analyzeLambda(Env<AttrContext> env, JCLambda that, TreeMaker make, boolean speculative) {

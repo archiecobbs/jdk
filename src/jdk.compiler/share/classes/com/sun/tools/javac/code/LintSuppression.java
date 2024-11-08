@@ -71,17 +71,17 @@ import static com.sun.tools.javac.code.Lint.LintCategory.SUPPRESSION_OPTION;
  * <p>
  * If a lint category is suppressed but the suppression is never validated, then the suppression is deemed
  * unnecessary and that can trigger a warning in the SUPPRESSION (for @SuppressWarnings) or SUPPRESSION_OPTION
- * (for -Xlint:-key) lint categories. Note that validation can happen in nested scopes, so each validation
- * must be "propagated" upward in the AST tree until it meets a corresponding suppression.
+ * (for -Xlint:-key) lint categories. Validation can happen within nested @SuppressWarning scopes, so each
+ * validation must be "propagated" upward in the AST tree until it meets a corresponding suppression.
  *
  * <p>
- * After a source file has been fully lint-checked, {@link #reportExtraneousSuppressWarnings} is invoked to
- * report any unnecessary @SuppressWarnings annotations in that file.
+ * After a source file has been fully lint-checked, {@link #reportUnnecessarySuppressions(Log, JCTree)} is
+ * invoked to report any unnecessary @SuppressWarnings annotations in that file.
  *
  * <p>
- * Similarly, after all files have been fully lint-checked and {@link #reportExtraneousSuppressWarnings} invoked,
- * {@link reportExtraneousLintSuppressions} is invoked to report on any unnecessary -Xlint:key suppressions.
- * These will be those categories for which zero validations "escaped" the per-file propagation process.
+ * Similarly, after all files have been fully lint-checked and {@link #reportUnnecessarySuppressions(Log, JCTree)}
+ * invoked, {@link reportUnnecessarySuppressions(Log)} is invoked to report on any unnecessary -Xlint:key flags.
+ * These will be the categories for which zero validations "escaped" the per-file propagation process.
  *
  * <p>
  * Additional observations and corner cases:
@@ -93,8 +93,8 @@ import static com.sun.tools.javac.code.Lint.LintCategory.SUPPRESSION_OPTION;
  *  <li>Some categories (e.g., CLASSFILE) don't support suppression via @SuppressWarnings, so they can only
  *      generate warnings at the global level; any @SuppressWarnings annotation will be deemed unnecessary.
  *  <li>@SuppressWarnings("suppression") is valid and applies at that declaration: it means unnecessary
- *      suppression warnings will never be reported for any lint category listed in that annotation or any
- *      nested annotations within the scope of that annotation.
+ *      suppression warnings will never be reported for any lint category suppressed by that annotation
+ *      or any nested annotation within the scope of that annotation.
  *  <li>A few lint categories are not tracked/ignored: options, path, suppression, and suppression-option.
  * </ul>
  *
@@ -106,7 +106,7 @@ import static com.sun.tools.javac.code.Lint.LintCategory.SUPPRESSION_OPTION;
 public class LintSuppression {
 
     /** The context key for the LintSuppression object. */
-    protected static final Context.Key<LintSuppression> lintSuppressionsKey = new Context.Key<>();
+    protected static final Context.Key<LintSuppression> lintSuppressionKey = new Context.Key<>();
 
     // Lint categories validated outside of any class, method, or variable declaration
     private final EnumSet<LintCategory> globalValidations = LintCategory.newEmptySet();
@@ -124,7 +124,7 @@ public class LintSuppression {
 
     /** Get the LintSuppression instance. */
     public static LintSuppression instance(Context context) {
-        LintSuppression instance = context.get(lintSuppressionsKey);
+        LintSuppression instance = context.get(lintSuppressionKey);
         if (instance == null)
             instance = new LintSuppression(context);
         return instance;
@@ -132,7 +132,7 @@ public class LintSuppression {
 
     private LintSuppression(Context context) {
         this.context = context;
-        context.put(lintSuppressionsKey, this);
+        context.put(lintSuppressionKey, this);
         declTreeBuilder = new DeclTreeBuilder();
     }
 
@@ -187,7 +187,7 @@ public class LintSuppression {
     /**
      * Report unnecessary @SuppressWarnings annotations within the given tree.
      */
-    public void reportExtraneousSuppressWarnings(Log log, JCTree tree) {
+    public void reportUnnecessarySuppressions(Log log, JCTree tree) {
         Assert.check(tree != null);
         initializeIfNeeded();
 
@@ -227,11 +227,11 @@ public class LintSuppression {
      * <p>
      * This step must be done last.
      */
-    public void reportExtraneousLintSuppressions(Log log) {
+    public void reportUnnecessarySuppressions(Log log) {
         initializeIfNeeded();
 
-        // For some categories we don't get calls to reportExtraneousSuppressWarnings(), and
-        // so for those categories there can be leftover validations in the validationMap.
+        // For some categories we don't get per-file calls to reportUnnecessarySuppressions(),
+        // and so for those categories there can be leftover validations in the validationMap.
         // An example is DANGLING_DOC_COMMENTS. To handle these, we promote any validations
         // that haven't already been picked up to the global level.
         validationMap.values().forEach(globalValidations::addAll);
