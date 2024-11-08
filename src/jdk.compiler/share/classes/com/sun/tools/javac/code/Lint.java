@@ -103,7 +103,7 @@ public class Lint {
      * @param lc one or more categories to be suppressed
      */
     public Lint suppress(LintCategory... lc) {
-        Lint l = new Lint(this);
+        Lint l = new Lint(this, symbolInScope);
         l.values.removeAll(Arrays.asList(lc));
         l.suppressedValues.addAll(Arrays.asList(lc));
         return l;
@@ -174,10 +174,6 @@ public class Lint {
         context.put(lintKey, this);
 
         lintSuppression = LintSuppression.instance(context);
-    }
-
-    protected Lint(Lint other) {
-        this(other, other.symbolInScope);
     }
 
     protected Lint(Lint other, Symbol symbolInScope) {
@@ -354,7 +350,7 @@ public class Lint {
         SUPPRESSION("suppression", false),
 
         /**
-         * Warn about -Xlint:-key options that don't actually suppress any warnings.
+         * Warn about -Xlint:-key options that don't actually suppress any warnings (requires OPTIONS).
          */
         SUPPRESSION_OPTION("suppression-option", false),
 
@@ -515,7 +511,7 @@ public class Lint {
      * We need to track the utilization of a suppressed category if:
      * <ul>
      *  <li>It's currently being suppressed
-     *  <li>It's subject to the SUPPRESSION and SUPPRESSION_OPTION warnings
+     *  <li>It's subject to SUPPRESSION and SUPPRESSION_OPTION tracking
      *  <li>Either SUPPRESSION or SUPPRESSION_OPTION is currently enabled
      * </ul>
      */

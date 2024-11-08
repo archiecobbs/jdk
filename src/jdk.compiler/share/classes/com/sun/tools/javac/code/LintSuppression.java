@@ -92,14 +92,10 @@ import static com.sun.tools.javac.code.Lint.LintCategory.SUPPRESSION_OPTION;
  *  <li>Consequently, an unnecessary suppression warning can only be emitted at one of those declarations,
  *      or globally at the end of compilation.
  *  <li>Some categories (e.g., CLASSFILE) don't support suppression via @SuppressWarnings, so they can only
- *      generate warnings at the global level. Any @SuppressWarnings annotation will be deemed unnecessary.
+ *      generate warnings at the global level; any @SuppressWarnings annotation will be deemed unnecessary.
  *  <li>@SuppressWarnings("suppression") is valid and applies at that declaration: it means unnecessary
  *      suppression warnings will never be reported for any lint category listed in that annotation or any
- *      other annotation within the scope of that declaration.
- *  <li>In particular, this applies to "suppression" category itself. That means the suppression of the
- *      "suppression" category can never be reported as unnecessary, even if it actually is. This is appropriate
- *      because (for example) warnings can vary between two different "--release" levels, and you may want code
- *      to compile without any warnings under both of them.
+ *      nested annotation within the scope of that declaration.
  *  <li>@SuppressWarnings("suppression-option") is useless and ignored (just like e.g. @SuppressWarnings("option")).
  * </ul>
  *
