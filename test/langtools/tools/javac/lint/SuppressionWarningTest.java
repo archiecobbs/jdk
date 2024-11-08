@@ -335,8 +335,6 @@ public class SuppressionWarningTest extends TestRunner {
             """
         };
 
-        case PATH -> null; // skip, too hard to simluate
-
         case PROCESSING -> null;    // skip for now
 
         case RAW -> new String[] {

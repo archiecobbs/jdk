@@ -306,7 +306,7 @@ public class Lint {
          * Such warnings cannot be suppressed with the SuppressWarnings
          * annotation.
          */
-        PATH("path"),
+        PATH("path", false),
 
         /**
          * Warn about issues regarding annotation processing.
