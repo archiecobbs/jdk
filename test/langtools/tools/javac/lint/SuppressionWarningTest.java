@@ -30,7 +30,7 @@
  *      jdk.compiler/com.sun.tools.javac.api
  *      jdk.compiler/com.sun.tools.javac.code
  *      jdk.compiler/com.sun.tools.javac.main
- * @build toolbox.ToolBox toolbox.JavacTask
+ * @build toolbox.ToolBox toolbox.JavacTask toolbox.JarTask
  * @run main SuppressionWarningTest
  */
 
@@ -49,6 +49,7 @@ import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -57,6 +58,7 @@ import java.util.stream.Stream;
 
 import com.sun.tools.javac.code.Lint.LintCategory;
 
+import toolbox.JarTask;
 import toolbox.JavacTask;
 import toolbox.Task.Mode;
 import toolbox.Task;
@@ -181,6 +183,7 @@ public class SuppressionWarningTest extends TestRunner {
             }
             """,
             """
+            // @MODULE@:mod
             package pkg1;
             @OUTER@
             public class Class1 {
@@ -189,6 +192,7 @@ public class SuppressionWarningTest extends TestRunner {
             }
             """,
             """
+            // @MODULE@:mod
             package pkg2;
             public class Class2 {
             }
@@ -366,9 +370,27 @@ public class SuppressionWarningTest extends TestRunner {
             """
         };
 
-        case REQUIRES_AUTOMATIC -> null;    // skip for now, too complicated
+        // This test case requires special support; see testSuppressWarnings()
+        case REQUIRES_AUTOMATIC -> new String[] {
+            "compiler.warn.requires.automatic",
+            """
+            @OUTER@
+            module m1x {
+                requires randomjar;
+            }
+            """
+        };
 
-        case REQUIRES_TRANSITIVE_AUTOMATIC -> null; // skip for now, too complicated
+        // This test case requires special support; see testSuppressWarnings()
+        case REQUIRES_TRANSITIVE_AUTOMATIC -> new String[] {
+            "compiler.warn.requires.transitive.automatic",
+            """
+            @OUTER@
+            module m1x {
+                requires transitive randomjar;
+            }
+            """
+        };
 
         case SERIAL -> new String[] {
             "compiler.warn.missing.SVUID",
@@ -570,24 +592,43 @@ public class SuppressionWarningTest extends TestRunner {
         Path base = Paths.get("testSuppressWarnings");
         resetCompileDirectories(base);
 
-        // Detect if a module is being compiled; if so we need to create an extra directory level
-        Path pkgRootDir = getSourcesDir(base);
+        // Detect if any modules are being compiled; if so we need to create an extra source directory level
         Pattern moduleDecl = Pattern.compile("module\\s+(\\S*).*");
-        String[] moduleNames = sourceTemplates.stream()
+        Set<String> moduleNames = sourceTemplates.stream()
           .flatMap(source -> Stream.of(source.split("\\n")))
           .map(moduleDecl::matcher)
           .filter(Matcher::matches)
           .map(matcher -> matcher.group(1))
-          .toArray(String[]::new);
-        switch (moduleNames.length) {
-        case 0:
+          .collect(Collectors.toSet());
+
+        // Special JAR file support for REQUIRES_AUTOMATIC and REQUIRES_TRANSITIVE_AUTOMATIC
+        Path modulePath = base.resolve("modules");
+        resetDirectory(modulePath);
+        switch (category) {
+        case REQUIRES_AUTOMATIC:
+        case REQUIRES_TRANSITIVE_AUTOMATIC:
+
+            // Compile a simple automatic module (randomjar-1.0)
+            Path randomJarBase = base.resolve("randomjar");
+            tb.writeJavaFiles(getSourcesDir(randomJarBase), "package api; public class Api {}");
+            List<String> log = compile(randomJarBase, Task.Expect.SUCCESS);
+            if (!log.isEmpty()) {
+                throw new AssertionError(String.format(
+                  "non-empty log output:%n  %s", log.stream().collect(Collectors.joining("\n  "))));
+            }
+
+            // JAR it up
+            Path automaticJar = modulePath.resolve("randomjar-1.0.jar");
+            new JarTask(tb, automaticJar)
+              .baseDir(getClassesDir(randomJarBase))
+              .files("api/Api.class")
+              .run();
             break;
-        case 1:
-            pkgRootDir = pkgRootDir.resolve(moduleNames[0]);
-            break;
+
         default:
-            throw new AssertionError("invalid multi-module test case");
-        }
+            modulePath = null;
+            break;
+        };
 
         // Create a @SuppressWarnings annotation
         String annotation = String.format("@SuppressWarnings(\"%s\")", category.option);
@@ -612,7 +653,21 @@ public class SuppressionWarningTest extends TestRunner {
                   .map(source -> source.replace("@INNER@",
                     String.format("%s@SuppressWarnings(\"%s\")", innerAnnotation ? "" : "//", category.option)))
                   .toArray(String[]::new);
-                tb.writeJavaFiles(pkgRootDir, sources);
+                for (String source : sources) {
+                    Path pkgRoot = getSourcesDir(base);
+                    String moduleName = Optional.of("@MODULE@:(\\S+)")
+                                        .map(Pattern::compile)
+                                        .map(p -> p.matcher(source))
+                                        .filter(Matcher::find)
+                                        .map(m -> m.group(1))
+                                        .orElse(null);
+                    if (moduleName != null) {
+                        if (!moduleNames.contains(moduleName))
+                            throw new AssertionError(String.format("unknown module \"%s\" in %s", moduleName, category));
+                        pkgRoot = pkgRoot.resolve(moduleName);
+                    }
+                    tb.writeJavaFiles(pkgRoot, source);
+                }
 
                 // Try all combinations of lint flags
                 for (boolean enableCategory : booleans) {                       // category/-category
@@ -646,8 +701,14 @@ public class SuppressionWarningTest extends TestRunner {
                             }
 
                             // Compile sources and get log output
+                            ArrayList<String> flags = new ArrayList<>();
+                            if (modulePath != null) {
+                                flags.add("--module-path");
+                                flags.add(modulePath.toString());
+                            }
+                            flags.add(lintOption);
                             Task.Expect expectation = expectWarning ? Task.Expect.FAIL : Task.Expect.SUCCESS;
-                            List<String> log = compile(base, expectation, lintOption);
+                            List<String> log = compile(base, expectation, flags.toArray(new String[0]));
 
                             // Scrub insignificant log output
                             log.removeIf(line -> line.matches("[0-9]+ (error|warning)s?"));
@@ -858,11 +919,14 @@ public class SuppressionWarningTest extends TestRunner {
     }
 
     private void resetCompileDirectories(Path base) throws IOException {
-        for (Path dir : List.of(getSourcesDir(base), getClassesDir(base))) {
-            if (Files.exists(dir, LinkOption.NOFOLLOW_LINKS))
-                Files.walkFileTree(dir, new Deleter());
-            Files.createDirectories(dir);
-        }
+        for (Path dir : List.of(getSourcesDir(base), getClassesDir(base)))
+            resetDirectory(dir);
+    }
+
+    private void resetDirectory(Path dir) throws IOException {
+        if (Files.exists(dir, LinkOption.NOFOLLOW_LINKS))
+            Files.walkFileTree(dir, new Deleter());
+        Files.createDirectories(dir);
     }
 
 // Deleter
