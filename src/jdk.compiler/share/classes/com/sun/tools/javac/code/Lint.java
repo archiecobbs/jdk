@@ -30,19 +30,10 @@ import java.util.EnumSet;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.sun.tools.javac.code.Lint.LintCategory;
-import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.main.Option;
-import com.sun.tools.javac.tree.JCTree;
-import com.sun.tools.javac.tree.JCTree.*;
-import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.Context;
-import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
-import com.sun.tools.javac.util.JCDiagnostic.Warning;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Options;
-
-import static com.sun.tools.javac.tree.JCTree.Tag.*;
 
 /**
  * A class for handling -Xlint suboptions and @SuppressWarnings.
@@ -58,8 +49,8 @@ import static com.sun.tools.javac.tree.JCTree.Tag.*;
  *      {@link Lint} and {@link LintCategory} parameters; if the warning should be suppressed,
  *      it won't actually be logged, but it will be automatically validated as required
  *      for the SUPPRESSION and SUPPRESSION_OPTION categories.
- *  <li>Experts can also validate suppressions manually if needed via {@link #validate validate()}
- *      or {@link LintSuppression#validate}.
+ *  <li>You can also validate suppressions manually if needed via {@link #validate} or
+ *      {@link LintSuppression#validate}.
  * </ul>
  *
  *  <p><b>This is NOT part of any supported API.
@@ -81,7 +72,7 @@ public class Lint {
     }
 
     /**
-     * Obtain an instance with additional warning supression added from any
+     * Obtain an instance with additional warning supression applied from any
      * @SuppressWarnings and/or @Deprecated annotations on the given symbol.
      *
      * <p>
@@ -116,10 +107,10 @@ public class Lint {
     /** Contains the categories suppressed via "-Xlint:-foo" command line flags. */
     final EnumSet<LintCategory> suppressedOptions;
 
-    // Used to track which warnings are actually being suppressed
+    // Used to track the validation of suppressed warnings
     private final LintSuppression lintSuppression;
 
-    // The current @SuppressWarnings-annotated symbol in scope, or null for none (global scope)
+    // The current symbol in scope (having @SuppressWarnings or @Deprecated), or null for global scope
     private final Symbol symbolInScope;
 
     // Invariant: it's never the case that a category is in both "values" and "suppressedValues"
@@ -422,15 +413,11 @@ public class Lint {
 
     /**
      * Determine whether warnings in the given category should be calculated, either because
-     * the category is enabled, or because the category is currently suppressed, one of
-     * SUPPRESSION or SUPPRESSION_OPTION is enabled, and that suppression has not yet been
-     * validated for the current symbol in scope (if any).
+     * the category is enabled, or because one of SUPPRESSION or SUPPRESSION_OPTION is enabled,
+     * the category is currently suppressed, and that suppression has not yet been validated.
      *
      * <p>
      * Use of this method is never required; it simply helps avoid potentially useless work.
-     *
-     * <p>
-     * Once a suppressed category has been validated for some scope, this method returns false.
      */
     public boolean isActive(LintCategory lc) {
         return values.contains(lc) ||
@@ -474,7 +461,7 @@ public class Lint {
      * Record that any suppression of the given category currently in scope is valid.
      *
      * <p>
-     * Any such suppression will therefore <b>not</b> be declared as unnecessary by the
+     * Such a suppression will therefore <b>not</b> be declared as unnecessary by the
      * SUPPRESSION or SUPPRESSION_OPTION warnings.
      *
      * @param lc the lint category to be validated
@@ -487,19 +474,19 @@ public class Lint {
     }
 
     /**
-     * Determine if we should be tracking the validation of the given lint category.
+     * Determine whether we should bother tracking validation for the given lint category.
      *
      * <p>
      * We need to track the validation of a lint category if:
      * <ul>
-     *  <li>It's currently being suppressed
      *  <li>It's subject to SUPPRESSION and SUPPRESSION_OPTION tracking
-     *  <li>Either SUPPRESSION or SUPPRESSION_OPTION is currently enabled
+     *  <li>It's currently being suppressed by @SuppressWarnings or -Xlint:-foo
+     *  <li>Either of SUPPRESSION or SUPPRESSION_OPTION is currently enabled
      * </ul>
      */
     private boolean needsSuppressionTracking(LintCategory lc) {
-        return (isSuppressed(lc) || suppressedOptions.contains(lc)) &&
-            lc.suppressionTracking &&
+        return lc.suppressionTracking &&
+            (isSuppressed(lc) || suppressedOptions.contains(lc)) &&
             (isEnabled(LintCategory.SUPPRESSION) || isEnabled(LintCategory.SUPPRESSION_OPTION));
     }
 }
