@@ -59,30 +59,29 @@ import static com.sun.tools.javac.code.Lint.LintCategory.SUPPRESSION_OPTION;
  * This tracking is used to implement the SUPPRESSION and SUPPRESSION_OPTION lint warning categories.
  *
  * <p>
- * Lint instances are "augmented" via Lint.augment() when a module, package, class, method, or variable
+ * Lint instances are "augmented" via {@link Lint#augment} when a module, package, class, method, or variable
  * declaration is encountered, and any new warning suppressions gleaned from @SuppressWarnings and/or
  * @Deprecation annotations on the declared symbol are put into effect for the scope of that declaration.
  *
  * <p>
- * In order to know whether the suppression of a lint category is actually suppressing anything, we need
- * to be notified if a warning that is currently suppressed would have been reported. This is termed
- * the "utilization" of the lint category, and the notification happens via setUtilized().
+ * In order to know whether the suppression of a lint category actually suppresses any warnings, we need
+ * to be notified if a warning that is currently suppressed would have been reported. This is termed the
+ * "validation" of the suppression, and that notification happens via {@link #validate}.
  *
  * <p>
- * If a lint category is suppressed but never utilized within the scope of that suppression, then the
- * suppression is unnecessary and that can generate a warning in the SUPPRESSION (for @SuppressWarnings)
- * or SUPPRESSION_OPTION (for -Xlint:-key) lint categories. Note that utilization can happen in nested
- * scopes, so each utilization must be "propagated" upward in the AST tree until it meets a corresponding
- * suppression.
+ * If a lint category is suppressed but the suppression is never validated, then the suppression is deemed
+ * unnecessary and that can trigger a warning in the SUPPRESSION (for @SuppressWarnings) or SUPPRESSION_OPTION
+ * (for -Xlint:-key) lint categories. Note that validation can happen in nested scopes, so each validation
+ * must be "propagated" upward in the AST tree until it meets a corresponding suppression.
  *
  * <p>
- * After a source file has been fully lint-checked, reportExtraneousSuppressWarnings() is invoked to report
- * any unnecessary @SuppressWarnings annotations in that file.
+ * After a source file has been fully lint-checked, {@link #reportExtraneousSuppressWarnings} is invoked to
+ * report any unnecessary @SuppressWarnings annotations in that file.
  *
  * <p>
- * Similarly, after all files have been fully lint-checked and reportExtraneousSuppressWarnings() invoked,
- * reportExtraneousLintSuppressions() is invoked to report on any unnecessary -Xlint:key suppressions: these
- * will be those categories for which no corresponding utilization "escaped" the per-file propagation process.
+ * Similarly, after all files have been fully lint-checked and {@link #reportExtraneousSuppressWarnings} invoked,
+ * {@link reportExtraneousLintSuppressions} is invoked to report on any unnecessary -Xlint:key suppressions.
+ * These will be those categories for which zero validations "escaped" the per-file propagation process.
  *
  * <p>
  * Additional observations and corner cases:
@@ -95,8 +94,8 @@ import static com.sun.tools.javac.code.Lint.LintCategory.SUPPRESSION_OPTION;
  *      generate warnings at the global level; any @SuppressWarnings annotation will be deemed unnecessary.
  *  <li>@SuppressWarnings("suppression") is valid and applies at that declaration: it means unnecessary
  *      suppression warnings will never be reported for any lint category listed in that annotation or any
- *      nested annotation within the scope of that declaration.
- *  <li>@SuppressWarnings("suppression-option") is useless and ignored (just like e.g. @SuppressWarnings("option")).
+ *      nested annotations within the scope of that annotation.
+ *  <li>A few lint categories are not tracked/ignored: options, path, suppression, and suppression-option.
  * </ul>
  *
  *  <p><b>This is NOT part of any supported API.
@@ -109,11 +108,11 @@ public class LintSuppression {
     /** The context key for the LintSuppression object. */
     protected static final Context.Key<LintSuppression> lintSuppressionsKey = new Context.Key<>();
 
-    // Lint categories actually utilized outside of any class, method, or variable declaration
-    private final EnumSet<LintCategory> globalUtilizations = LintCategory.newEmptySet();
+    // Lint categories validated outside of any class, method, or variable declaration
+    private final EnumSet<LintCategory> globalValidations = LintCategory.newEmptySet();
 
-    // Maps @SuppressWarnings-annotated symbols to the lint categories actually utilized in their scope
-    private final HashMap<Symbol, EnumSet<LintCategory>> utilizationMap = new HashMap<>();
+    // Maps @SuppressWarnings-annotated symbols to the lint categories validated in their scope
+    private final HashMap<Symbol, EnumSet<LintCategory>> validationMap = new HashMap<>();
 
     private final Context context;
     private final DeclTreeBuilder declTreeBuilder;
@@ -155,35 +154,34 @@ public class LintSuppression {
     }
 
     /**
-     * Note that the given lint category has been utilized within the scope of the given symbol's declaration
+     * Note that the given lint category has been validated within the scope of the given symbol's declaration
      * (or globally if symbol is null).
      *
      * <p>
-     * This means that either a warning has been generated, or it would have been generated were it not being
-     * suppressed. The latter case is needed to implement the SUPPRESSION and SUPPRESSION_OPTION lint categories.
+     * This means that a warning would have been generated were the category not being suppressed.
      *
      * @param symbol innermost @SuppressWarnings-annotated symbol in scope, or null for global scope
-     * @param category lint category that was utilized
+     * @param category lint category to validate
      */
-    public void setUtilized(Symbol symbol, LintCategory category) {
-        utilizationsOf(symbol).add(category);
+    public void validate(Symbol symbol, LintCategory category) {
+        validationsOf(symbol).add(category);
     }
 
     /**
-     * Determine whether the given lint category has been utilized within the scope of the given symbol's declaration.
+     * Determine whether the given lint category has been validated within the scope of the given symbol's declaration.
      *
      * @param symbol innermost @SuppressWarnings-annotated symbol in scope, or null for global scope
-     * @param category lint category that was utilized
-     * @return true if {@link #setUtilized} has been called already
+     * @param category lint category
+     * @return true if suppression scoped at the given symbol has been validated
      */
-    public boolean isUtilized(Symbol symbol, LintCategory category) {
-        return utilizationsOf(symbol).contains(category);
+    public boolean isValid(Symbol symbol, LintCategory category) {
+        return validationsOf(symbol).contains(category);
     }
 
-    private EnumSet<LintCategory> utilizationsOf(Symbol symbol) {
+    private EnumSet<LintCategory> validationsOf(Symbol symbol) {
         return Optional.ofNullable(symbol)
-          .map(sym -> utilizationMap.computeIfAbsent(sym, sym2 -> LintCategory.newEmptySet()))
-          .orElse(globalUtilizations);
+          .map(sym -> validationMap.computeIfAbsent(sym, sym2 -> LintCategory.newEmptySet()))
+          .orElse(globalValidations);
     }
 
     /**
@@ -198,29 +196,29 @@ public class LintSuppression {
         if (rootNode == null)
             return;
 
-        // Copy over the utilizations we have observed to the corresponding tree nodes
+        // Copy over the validations we have observed to the corresponding tree nodes
         rootNode.stream().forEach(
           node -> Optional.of(node)
             .map(DeclNode::symbol)          // this step will omit the root node
-            .map(utilizationMap::get)
-            .ifPresent(node.utilized()::addAll));
+            .map(validationMap::get)
+            .ifPresent(node.valid()::addAll));
 
-        // Propagate unsuppressed utilizations upward, with any leftovers going to the global set
-        globalUtilizations.addAll(rootNode.propagateUnsuppressedUtilizations());
+        // Propagate unsuppressed validations upward, with any leftovers going to the global set
+        globalValidations.addAll(rootNode.propagateValidations());
 
         // Report unnecessary suppressions at each node where "suppression" itself is not suppressed
         if (rootLint.isActive(SUPPRESSION)) {
             rootNode.stream()
               .filter(DeclNode::shouldReport)
-              .forEach(node -> reportUnnecessary(node.suppressed(), node.utilized(), name -> "\"" + name + "\"",
+              .forEach(node -> reportUnnecessary(node.suppressed(), node.valid(), name -> "\"" + name + "\"",
                 names -> log.warning(SUPPRESSION, node.pos(), Warnings.UnnecessaryWarningSuppression(names))));
         }
 
-        // Discard the declarations we just reported on from the utilizations map (no longer needed)
+        // Discard the declarations we just reported on from the validation map (no longer needed)
         rootNode.stream()
           .skip(1)                          // skip the root node
           .map(DeclNode::symbol)
-          .forEach(utilizationMap::remove);
+          .forEach(validationMap::remove);
     }
 
     /**
@@ -233,31 +231,31 @@ public class LintSuppression {
         initializeIfNeeded();
 
         // For some categories we don't get calls to reportExtraneousSuppressWarnings(), and
-        // so for those categories there can be leftover utilizations in the utilizationMap.
-        // An example is DANGLING_DOC_COMMENTS. To handle these, we promote any utilizations
+        // so for those categories there can be leftover validations in the validationMap.
+        // An example is DANGLING_DOC_COMMENTS. To handle these, we promote any validations
         // that haven't already been picked up to the global level.
-        utilizationMap.values().forEach(globalUtilizations::addAll);
+        validationMap.values().forEach(globalValidations::addAll);
 
-        // Clean up per-file utilizations
-        utilizationMap.clear();
+        // Clean up per-file validations
+        validationMap.clear();
 
-        // Report -Xlint:-key suppressions that were never utilized
+        // Report -Xlint:-key suppressions that were never validated
         if (rootLint.isActive(OPTIONS) && rootLint.isActive(SUPPRESSION_OPTION)) {
-            reportUnnecessary(rootLint.suppressedOptions, globalUtilizations, name -> "-" + name,
+            reportUnnecessary(rootLint.suppressedOptions, globalValidations, name -> "-" + name,
               names -> log.warning(SUPPRESSION_OPTION, Warnings.UnnecessaryLintWarningSuppression(names)));
         }
 
-        // Clean up global utilizations
-        globalUtilizations.clear();
+        // Clean up global validations
+        globalValidations.clear();
     }
 
     private void reportUnnecessary(EnumSet<LintCategory> suppressed,
-      EnumSet<LintCategory> utilized, Function<String, String> formatter, Consumer<String> logger) {
+      EnumSet<LintCategory> valid, Function<String, String> formatter, Consumer<String> logger) {
 
-        // The unnecessary suppressions are the ones that are not utilized
+        // The unnecessary suppressions are the ones that are not validated
         EnumSet<LintCategory> unnecessary = EnumSet.copyOf(suppressed);
-        if (utilized != null)
-            unnecessary.removeAll(utilized);
+        if (valid != null)
+            unnecessary.removeAll(valid);
 
         // Remove categories excluded from suppression checks
         unnecessary.removeIf(lc -> !lc.suppressionTracking);
@@ -315,7 +313,7 @@ public class LintSuppression {
         Symbol symbol,                          // the symbol for the thing declared by the declaration
         DiagnosticPosition pos,                 // location of the declaration's @SuppressWarnings annotation
         EnumSet<LintCategory> suppressed,       // categories suppressed by declaration's @SuppressWarnings
-        EnumSet<LintCategory> utilized,         // categories utilized within the scope of the @SuppressWarnings
+        EnumSet<LintCategory> valid,            // categories validated within the scope of the @SuppressWarnings
         DeclNode parent,                        // this node's parent node
         List<DeclNode> children)                // this node's child nodes
     {
@@ -329,8 +327,8 @@ public class LintSuppression {
 
         // Construct a non-root node
         public DeclNode(Symbol symbol, DiagnosticPosition pos,
-          EnumSet<LintCategory> suppressed, EnumSet<LintCategory> utilized, DeclNode parent) {
-            this(symbol, pos, suppressed, utilized, parent, new ArrayList<>());
+          EnumSet<LintCategory> suppressed, EnumSet<LintCategory> valid, DeclNode parent) {
+            this(symbol, pos, suppressed, valid, parent, new ArrayList<>());
             Assert.check(pos != null || suppressed.isEmpty());
             if (parent != null)
                 parent.children().add(this);
@@ -343,17 +341,17 @@ public class LintSuppression {
             return !suppressed().contains(SUPPRESSION) && (parent() == null || parent().shouldReport());
         }
 
-        // Propagate the utilizations at each subtree node upward until they hit a matching suppression.
-        // Return any utilizations that make it out of this node's subtree without hitting any.
-        public EnumSet<LintCategory> propagateUnsuppressedUtilizations() {
+        // Propagate the validations at each subtree node upward until they hit a matching suppression.
+        // Return any validations that make it out of this node's subtree without hitting a suppression.
+        public EnumSet<LintCategory> propagateValidations() {
 
             // Recurse on subtrees first
             children().stream()
-              .map(DeclNode::propagateUnsuppressedUtilizations)
-              .forEach(utilized()::addAll);
+              .map(DeclNode::propagateValidations)
+              .forEach(valid()::addAll);
 
-            // Process unsuppressed utilizations through this node
-            EnumSet<LintCategory> unsuppressed = EnumSet.copyOf(utilized());
+            // Process unsuppressed validations through this node
+            EnumSet<LintCategory> unsuppressed = EnumSet.copyOf(valid());
             unsuppressed.removeAll(suppressed());
             return unsuppressed;
         }
@@ -367,7 +365,7 @@ public class LintSuppression {
     // Builds a tree of DeclNodes
     class DeclTreeBuilder extends TreeScanner {
 
-        private final HashMap<JCAnnotation, EnumSet<LintCategory>> utilizedMap = new HashMap<>();
+        private final HashMap<JCAnnotation, EnumSet<LintCategory>> validMap = new HashMap<>();
         private DeclNode parent;
 
         DeclNode build(JCTree treeRoot) {
@@ -425,16 +423,16 @@ public class LintSuppression {
                                 .orElseGet(LintCategory::newEmptySet);
             }
 
-            // Initialize a set of utilized categories for the suppressions that are defined at the symbol.
-            // Symbols declared together (separated by commas) share annotations, so they must share the set
-            // of utilized categories: i.e., a category is utilized if *either* variable utilizes it.
-            EnumSet<LintCategory> utilized = Optional.ofNullable(annotation)
-                                                .map(a -> utilizedMap.computeIfAbsent(a, a2 -> LintCategory.newEmptySet()))
+            // Initialize a set of validated categories for the suppressions that are defined at the symbol.
+            // Symbols declared together (separated by commas) share annotations, so they must also share the
+            // set of valid categories: i.e., a category is valid if *any* annotated variable validates it.
+            EnumSet<LintCategory> valid = Optional.ofNullable(annotation)
+                                                .map(a -> validMap.computeIfAbsent(a, a2 -> LintCategory.newEmptySet()))
                                                 .orElseGet(LintCategory::newEmptySet);
 
             // Attach a new child node to the current parent node and recurse
             final DeclNode parentPrev = parent;
-            parent = new DeclNode(symbol, annotation, suppressed, utilized, parent);
+            parent = new DeclNode(symbol, annotation, suppressed, valid, parent);
             try {
                 recursion.accept(tree);
             } finally {

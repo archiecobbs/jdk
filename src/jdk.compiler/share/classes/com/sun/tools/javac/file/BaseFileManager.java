@@ -540,7 +540,7 @@ public abstract class BaseFileManager implements JavaFileManager {
 
         // Check whether we've already opened this file for output
         if (!outputFilesWritten.add(realPath)) {
-            lintSuppression.setUtilized(null, LintCategory.OUTPUT_FILE_CLASH);
+            lintSuppression.validate(null, LintCategory.OUTPUT_FILE_CLASH);
             if (fileClashOption) {
                 log.warning(LintCategory.OUTPUT_FILE_CLASH, Warnings.OutputFileClash(path));
             }

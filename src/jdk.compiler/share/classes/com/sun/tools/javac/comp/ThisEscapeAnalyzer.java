@@ -552,7 +552,7 @@ class ThisEscapeAnalyzer extends TreeScanner {
         // If the method is a constructor with "this-escape" suppressed, skip it
         if (methodInfo != null &&
             TreeInfo.isConstructor(methodInfo.declaration()) &&
-            methodInfo.lint().utilize(LintCategory.THIS_ESCAPE).isSuppressed(LintCategory.THIS_ESCAPE)) {
+            methodInfo.lint().validate(LintCategory.THIS_ESCAPE).isSuppressed(LintCategory.THIS_ESCAPE)) {
             return;
         }
 

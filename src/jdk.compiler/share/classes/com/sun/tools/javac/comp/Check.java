@@ -249,14 +249,14 @@ public class Check {
      */
     void warnDeprecated(DiagnosticPosition pos, Symbol sym) {
         if (sym.isDeprecatedForRemoval()) {
-            if (!lint.utilize(LintCategory.REMOVAL).isSuppressed(LintCategory.REMOVAL)) {
+            if (!lint.validate(LintCategory.REMOVAL).isSuppressed(LintCategory.REMOVAL)) {
                 if (sym.kind == MDL) {
                     removalHandler.report(pos, Warnings.HasBeenDeprecatedForRemovalModule(sym));
                 } else {
                     removalHandler.report(pos, Warnings.HasBeenDeprecatedForRemoval(sym, sym.location()));
                 }
             }
-        } else if (!lint.utilize(LintCategory.DEPRECATION).isSuppressed(LintCategory.DEPRECATION)) {
+        } else if (!lint.validate(LintCategory.DEPRECATION).isSuppressed(LintCategory.DEPRECATION)) {
             if (sym.kind == MDL) {
                 deprecationHandler.report(pos, Warnings.HasBeenDeprecatedModule(sym));
             } else {
@@ -270,7 +270,7 @@ public class Check {
      *  @param msg        A Warning describing the problem.
      */
     public void warnPreviewAPI(DiagnosticPosition pos, Warning warnKey) {
-        if (!lint.utilize(LintCategory.PREVIEW).isSuppressed(LintCategory.PREVIEW))
+        if (!lint.validate(LintCategory.PREVIEW).isSuppressed(LintCategory.PREVIEW))
             preview.reportPreviewWarning(pos, warnKey);
     }
 
@@ -279,7 +279,7 @@ public class Check {
      *  @param msg        A Warning describing the problem.
      */
     public void warnDeclaredUsingPreview(DiagnosticPosition pos, Symbol sym) {
-        if (!lint.utilize(LintCategory.PREVIEW).isSuppressed(LintCategory.PREVIEW))
+        if (!lint.validate(LintCategory.PREVIEW).isSuppressed(LintCategory.PREVIEW))
             preview.reportPreviewWarning(pos, Warnings.DeclaredUsingPreview(kindName(sym), sym));
     }
 
@@ -296,7 +296,7 @@ public class Check {
      *  @param msg        A string describing the problem.
      */
     public void warnUnchecked(DiagnosticPosition pos, Warning warnKey) {
-        if (!lint.utilize(LintCategory.UNCHECKED).isSuppressed(LintCategory.UNCHECKED))
+        if (!lint.validate(LintCategory.UNCHECKED).isSuppressed(LintCategory.UNCHECKED))
             uncheckedHandler.report(pos, warnKey);
     }
 
@@ -2761,12 +2761,12 @@ public class Check {
             if (!potentiallyAmbiguousOverload(site, m1, m2) || !responsible.test(m1, m2))
                 return 0;
 
-            // Allow the site's own declared methods (only) to apply @SuppressWarnings("overloads"),
-            // but verify an annotation exists on a method before invoking Lint.utilize() to avoid
-            // attributing the "utilization" of the suppression to an enclosing annotation.
+            // Allow the site's own declared methods (only) to apply @SuppressWarnings("overloads").
+            // Treat both methods equally so they "share" the validation of the warning suppression,
+            // but also verify an annotation actually exists on a method before validating it.
             Predicate<MethodSymbol> methodSuppresses = m -> m.owner == site.tsym &&
               m.attribute(syms.suppressWarningsType.tsym) != null &&
-              lint.augment(m).utilize(LintCategory.OVERLOADS).isSuppressed(LintCategory.OVERLOADS);
+              lint.augment(m).validate(LintCategory.OVERLOADS).isSuppressed(LintCategory.OVERLOADS);
             if (methodSuppresses.test(m1) | methodSuppresses.test(m2))      // use "|" to avoid an artificial preference
                 return FIRST | SECOND;
 
@@ -4669,7 +4669,7 @@ public class Check {
         if ((rd.module.flags() & Flags.AUTOMATIC_MODULE) != 0) {
             deferredLintHandler.report(_l -> {
                 if (rd.isTransitive() &&
-                    lint.utilize(LintCategory.REQUIRES_TRANSITIVE_AUTOMATIC).isEnabled(LintCategory.REQUIRES_TRANSITIVE_AUTOMATIC)) {
+                    lint.validate(LintCategory.REQUIRES_TRANSITIVE_AUTOMATIC).isEnabled(LintCategory.REQUIRES_TRANSITIVE_AUTOMATIC)) {
                     log.warning(lint, LintCategory.REQUIRES_TRANSITIVE_AUTOMATIC, pos, Warnings.RequiresTransitiveAutomatic);
                 } else {
                     log.warning(lint, LintCategory.REQUIRES_AUTOMATIC, pos, Warnings.RequiresAutomatic);
