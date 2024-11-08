@@ -1361,8 +1361,8 @@ public class Modules extends JCTree.Visitor {
                     .map(msym -> msym.name.toString()))
                     .collect(Collectors.joining(","));
 
-            if (!incubatingModules.isEmpty() && lint.shouldWarn(Lint.LintCategory.INCUBATING)) {
-                log.warning(Lint.LintCategory.INCUBATING, Warnings.IncubatingModules(incubatingModules));
+            if (!incubatingModules.isEmpty()) {
+                log.warning(lint, Lint.LintCategory.INCUBATING, Warnings.IncubatingModules(incubatingModules));
             }
         }
 
@@ -1751,7 +1751,7 @@ public class Modules extends JCTree.Visitor {
             ModuleSymbol msym = syms.enterModule(names.fromString(sourceName));
             if (!allModules.contains(msym)) {
                 if (lintOptions) {
-                    log.warning(Warnings.ModuleForOptionNotFound(Option.ADD_READS, msym));
+                    log.warning(LintCategory.OPTIONS, Warnings.ModuleForOptionNotFound(Option.ADD_READS, msym));
                 }
                 continue;
             }

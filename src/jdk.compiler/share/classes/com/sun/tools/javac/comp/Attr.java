@@ -1938,8 +1938,8 @@ public class Attr extends JCTree.Visitor {
 
     public void visitSynchronized(JCSynchronized tree) {
         chk.checkRefType(tree.pos(), attribExpr(tree.lock, env));
-        if (isValueBased(tree.lock.type) && env.info.lint.shouldWarn(LintCategory.SYNCHRONIZATION)) {
-            log.warning(LintCategory.SYNCHRONIZATION, tree.pos(), Warnings.AttemptToSynchronizeOnInstanceOfValueBasedClass);
+        if (isValueBased(tree.lock.type)) {
+            log.warning(env.info.lint, LintCategory.SYNCHRONIZATION, tree.pos(), Warnings.AttemptToSynchronizeOnInstanceOfValueBasedClass);
         }
         attribStat(tree.body, env);
         result = null;
@@ -2045,9 +2045,8 @@ public class Attr extends JCTree.Visitor {
             }
             if (close.kind == MTH &&
                     close.overrides(syms.autoCloseableClose, resource.tsym, types, true) &&
-                    chk.isHandled(syms.interruptedExceptionType, types.memberType(resource, close).getThrownTypes()) &&
-                    env.info.lint.shouldWarn(LintCategory.TRY)) {
-                log.warning(LintCategory.TRY, pos, Warnings.TryResourceThrowsInterruptedExc(resource));
+                    chk.isHandled(syms.interruptedExceptionType, types.memberType(resource, close).getThrownTypes())) {
+                log.warning(env.info.lint, LintCategory.TRY, pos, Warnings.TryResourceThrowsInterruptedExc(resource));
             }
         }
     }
@@ -4431,9 +4430,8 @@ public class Attr extends JCTree.Visitor {
                 ((VarSymbol)sitesym).isResourceVariable() &&
                 sym.kind == MTH &&
                 sym.name.equals(names.close) &&
-                sym.overrides(syms.autoCloseableClose, sitesym.type.tsym, types, true) &&
-                env.info.lint.shouldWarn(LintCategory.TRY)) {
-            log.warning(LintCategory.TRY, tree, Warnings.TryExplicitCloseCall);
+                sym.overrides(syms.autoCloseableClose, sitesym.type.tsym, types, true)) {
+            log.warning(env.info.lint, LintCategory.TRY, tree, Warnings.TryExplicitCloseCall);
         }
 
         // Disallow selecting a type from an expression

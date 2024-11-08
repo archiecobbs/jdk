@@ -713,8 +713,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                     supportedAnnotationPatterns.
                         add(importStringToPattern(allowModules, annotationPattern,
                                                   processor, log, lint));
-                    if (!patternAdded && lint.shouldWarn(PROCESSING)) {
-                        log.warning(PROCESSING, Warnings.ProcDuplicateSupportedAnnotation(annotationPattern,
+                    if (!patternAdded) {
+                        log.warning(lint, PROCESSING, Warnings.ProcDuplicateSupportedAnnotation(annotationPattern,
                                                                               p.getClass().getName()));
                     }
                 }
@@ -726,17 +726,16 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 // with each other in other cases, for example "foo.*"
                 // and "foo.bar.*".
                 if (supportedAnnotationPatterns.contains(MatchingUtils.validImportStringToPattern("*")) &&
-                    supportedAnnotationPatterns.size() > 1 &&
-                    lint.shouldWarn(PROCESSING)) {
-                    log.warning(PROCESSING, Warnings.ProcRedundantTypesWithWildcard(p.getClass().getName()));
+                    supportedAnnotationPatterns.size() > 1) {
+                    log.warning(lint, PROCESSING, Warnings.ProcRedundantTypesWithWildcard(p.getClass().getName()));
                 }
 
                 supportedOptionNames = new LinkedHashSet<>();
                 for (String optionName : processor.getSupportedOptions() ) {
                     if (checkOptionName(optionName, log)) {
                         boolean optionAdded = supportedOptionNames.add(optionName);
-                        if (!optionAdded && lint.shouldWarn(PROCESSING)) {
-                            log.warning(PROCESSING, Warnings.ProcDuplicateOptionName(optionName,
+                        if (!optionAdded) {
+                            log.warning(lint, PROCESSING, Warnings.ProcDuplicateOptionName(optionName,
                                                                          p.getClass().getName()));
                         }
                     }
@@ -956,8 +955,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         if (lint.isActive(PROCESSING) && unmatchedAnnotations.size() > 0) {
             // Remove annotations processed by javac
             unmatchedAnnotations.keySet().removeAll(platformAnnotations);
-            if (unmatchedAnnotations.size() > 0 && lint.shouldWarn(PROCESSING)) {
-                log.warning(PROCESSING, Warnings.ProcAnnotationsWithoutProcessors(unmatchedAnnotations.keySet()));
+            if (unmatchedAnnotations.size() > 0) {
+                log.warning(lint, PROCESSING, Warnings.ProcAnnotationsWithoutProcessors(unmatchedAnnotations.keySet()));
             }
         }
 
@@ -1779,9 +1778,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
     }
 
     private static Pattern warnAndNoMatches(String s, Processor p, Log log, Lint lint) {
-        if (lint.shouldWarn(PROCESSING)) {
-            log.warning(PROCESSING, Warnings.ProcMalformedSupportedString(s, p.getClass().getName()));
-        }
+        log.warning(lint, PROCESSING, Warnings.ProcMalformedSupportedString(s, p.getClass().getName()));
         return noMatches; // won't match any valid identifier
     }
 

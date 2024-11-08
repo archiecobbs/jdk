@@ -731,9 +731,8 @@ public class Flow {
                 }
                 // Warn about fall-through if lint switch fallthrough enabled.
                 if (alive == Liveness.ALIVE &&
-                    c.stats.nonEmpty() && l.tail.nonEmpty() &&
-                    lint.shouldWarn(Lint.LintCategory.FALLTHROUGH))
-                    log.warning(Lint.LintCategory.FALLTHROUGH,
+                    c.stats.nonEmpty() && l.tail.nonEmpty())
+                    log.warning(lint, Lint.LintCategory.FALLTHROUGH,
                                 l.tail.head.pos(),
                                 Warnings.PossibleFallThroughIntoCase);
             }
@@ -1242,11 +1241,9 @@ public class Flow {
                 scanStat(tree.finalizer);
                 tree.finallyCanCompleteNormally = alive != Liveness.DEAD;
                 if (alive == Liveness.DEAD) {
-                    if (lint.shouldWarn(Lint.LintCategory.FINALLY)) {
-                        log.warning(Lint.LintCategory.FINALLY,
-                                TreeInfo.diagEndPos(tree.finalizer),
-                                Warnings.FinallyCannotComplete);
-                    }
+                    log.warning(lint, Lint.LintCategory.FINALLY,
+                            TreeInfo.diagEndPos(tree.finalizer),
+                            Warnings.FinallyCannotComplete);
                 } else {
                     while (exits.nonEmpty()) {
                         pendingExits.append(exits.next());
@@ -2867,10 +2864,8 @@ public class Flow {
             if (!resourceVarDecls.isEmpty() &&
                     lint.isActive(Lint.LintCategory.TRY)) {
                 for (JCVariableDecl resVar : resourceVarDecls) {
-                    if (unrefdResources.includes(resVar.sym) &&
-                        !resVar.sym.isUnnamedVariable() &&
-                        lint.shouldWarn(Lint.LintCategory.TRY)) {
-                        log.warning(Lint.LintCategory.TRY, resVar.pos(),
+                    if (unrefdResources.includes(resVar.sym) && !resVar.sym.isUnnamedVariable()) {
+                        log.warning(lint, Lint.LintCategory.TRY, resVar.pos(),
                                     Warnings.TryResourceNotReferenced(resVar.sym));
                         unrefdResources.remove(resVar.sym);
                     }

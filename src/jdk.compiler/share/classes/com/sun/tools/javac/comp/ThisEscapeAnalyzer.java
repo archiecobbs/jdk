@@ -416,9 +416,7 @@ class ThisEscapeAnalyzer extends TreeScanner {
             int remain = stack.length;
             do {
                 DiagnosticPosition pos = stack[--remain];
-                if (warning.lint().shouldWarn(Lint.LintCategory.THIS_ESCAPE)) {
-                    log.warning(Lint.LintCategory.THIS_ESCAPE, pos, key);
-                }
+                log.warning(warning.lint(), Lint.LintCategory.THIS_ESCAPE, pos, key);
                 key = Warnings.PossibleThisEscapeLocation;
             } while (remain > 0);
         }
@@ -554,7 +552,7 @@ class ThisEscapeAnalyzer extends TreeScanner {
         // If the method is a constructor with "this-escape" suppressed, skip it
         if (methodInfo != null &&
             TreeInfo.isConstructor(methodInfo.declaration()) &&
-            methodInfo.lint().shouldNotWarn(LintCategory.THIS_ESCAPE)) {
+            methodInfo.lint().utilize(LintCategory.THIS_ESCAPE).isSuppressed(LintCategory.THIS_ESCAPE)) {
             return;
         }
 

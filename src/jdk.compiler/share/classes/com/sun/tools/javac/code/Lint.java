@@ -50,12 +50,14 @@ import static com.sun.tools.javac.tree.JCTree.Tag.*;
  * <p>
  * Simple instructions:
  * <ul>
- *  <li>To determine whether to bother calculating a warning at all, use isActive().
- *  <li>To build an instance with any new suppressions from @SuppressWarnings and
- *      @Deprecated annotations applied, use augment()
- *  <li>Just before reporting a warning, always invoke shouldWarn() (or shouldNotWarn());
- *      this ensures that suppressed warnings that would otheriwse be generated are
- *      propertly tracked for the benefit of SUPPRESSION and SUPPRESSION_OPTION.
+ *  <li>Any category for which {@link #isActive} returns true must be checked; this is
+ *      true even if {@link #isEnabled} returns false or {@link #isSuppressed} returns true.
+ *  <li>To actually log a warning, invoke one of the {@link Log} methods accepting a
+ *      {@link Lint} and a {@link LintCategory}; if the warning should be suppressed,
+ *      it won't actually be logged, but it will be properly tracked as {@link #utilize}d
+ *      as required by the SUPPRESSION and SUPPRESSION_OPTION categories.
+ *  <li>To build an instance augmented with any new suppressions from @SuppressWarnings and/or
+ *      @Deprecated annotations, use {@link #augment}.
  * </ul>
  *
  *  <p><b>This is NOT part of any supported API.
@@ -417,22 +419,17 @@ public class Lint {
     }
 
     /**
-     * Determine whether warnings in the given lint category need to be calculated, either
-     * because the category is currently enabled, or because the category is currently
-     * suppressed, one of SUPPRESSION or SUPPRESSION_OPTION is enabled, and the category
-     * have not yet been marked as utilized for the current symbol in scope (if any).
+     * Determine whether warnings in the given category should be calculated, either
+     * because the category is enabled or because the category is currently suppressed,
+     * one of SUPPRESSION or SUPPRESSION_OPTION is enabled, and the category has not yet
+     * been marked as {@link #utilize}d for the current symbol in scope (if any).
      *
      * <p>
-     * Use of this method is never required; it simply allows avoiding useless work.
+     * Use of this method is never required; it simply helps avoid potentially useless work.
      *
      * <p>
-     * Invoke this method to determine whether it's worth bothering to do a bunch of extra
-     * work that may or may not result in actual warnings being generated; you must still
-     * invoke shouldWarn() or shouldNotWarn() immediately before generating any warning.
-     *
-     * <p>
-     * Once utilization of a suppressed category has been detected in a particular scope,
-     * this method will no longer return true.
+     * Once a suppressed category has been recorded as {@link #utilize}d in a particular scope,
+     * this method no longer returns true.
      */
     public boolean isActive(LintCategory lc) {
         return values.contains(lc) ||
@@ -445,8 +442,8 @@ public class Lint {
      * the SuppressWarnings annotation.
      *
      * <p>
-     * This method simply reflects the configuration of this instance; it should <b>not</b>
-     * be used to decide whether to generate a warning; instead, use shouldWarn() for that.
+     * This method simply reflects the configuration of this instance; it should <b>not</b> be used
+     * to control whether a warning is logged without also marking the category as {@link #utilize}d.
      *
      * @param lc lint category
      */
@@ -461,8 +458,8 @@ public class Lint {
      * current entity being itself deprecated.
      *
      * <p>
-     * This method simply reflects the configuration of this instance; it should <b>not</b>
-     * be used to decide whether to suppress a warning; instead, use shouldNotWarn() for that.
+     * This method simply reflects the configuration of this instance; it should <b>not</b> be used
+     * to control whether a warning is logged without also marking the category as {@link #utilize}d.
      *
      * @param lc lint category
      */
@@ -471,36 +468,19 @@ public class Lint {
     }
 
     /**
-     * Determine whether a warning that has been found should be reported.
+     * Record that the given category has been utilized within the scope of the current symbol
+     * in scope (or globally if none).
      *
      * <p>
-     * Either this method or shouldNotWarn() <b>must</b> be invoked immediately prior to logging
-     * any warnings which are subject to the SUPPRESSION and SUPPRESSION_OPTION lint flags.
+     * Any suppression of the category currently in effect will therefore NOT be deemed unnecessary.
      *
-     * @param lc lint category
-     * @return whether the warning should be reported
+     * @param lc the lint category that was utilized
+     * @return this instance
      */
-    public boolean shouldWarn(LintCategory lc) {
+    public Lint utilize(LintCategory lc) {
         if (needsSuppressionTracking(lc))
             lintSuppression.setUtilized(symbolInScope, lc);
-        return isEnabled(lc);
-    }
-
-    /**
-     * Determine whether a warning that has been found should be suppressed.
-     *
-     * <p>
-     * Either this method or shouldWarn() <b>must</b> be invoked immediately prior to logging
-     * any warnings which are subject to the SUPPRESSION and SUPPRESSION_OPTION lint flags.
-     *
-     * @param lc lint category
-     * @return whether the warning should be suppressed
-     */
-
-    public boolean shouldNotWarn(LintCategory lc) {
-        if (needsSuppressionTracking(lc))
-            lintSuppression.setUtilized(symbolInScope, lc);
-        return suppressedValues.contains(lc);
+        return this;
     }
 
     /**

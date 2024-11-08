@@ -490,8 +490,8 @@ public class JavacFiler implements Filer, Closeable {
             if (periodIndex != -1) {
                 String base = name.substring(periodIndex);
                 String extn = (isSourceFile ? ".java" : ".class");
-                if (base.equals(extn) && lint.shouldWarn(PROCESSING))
-                    log.warning(PROCESSING, Warnings.ProcSuspiciousClassName(name, extn));
+                if (base.equals(extn))
+                    log.warning(lint, PROCESSING, Warnings.ProcSuspiciousClassName(name, extn));
             }
         }
         checkNameAndExistence(mod, name, isSourceFile);
@@ -706,8 +706,7 @@ public class JavacFiler implements Filer, Closeable {
 
     private void checkName(String name, boolean allowUnnamedPackageInfo) throws FilerException {
         if (!SourceVersion.isName(name) && !isPackageInfo(name, allowUnnamedPackageInfo)) {
-            if (lint.shouldWarn(PROCESSING))
-                log.warning(PROCESSING, Warnings.ProcIllegalFileName(name));
+            log.warning(lint, PROCESSING, Warnings.ProcIllegalFileName(name));
             throw new FilerException("Illegal name " + name);
         }
     }
@@ -735,12 +734,11 @@ public class JavacFiler implements Filer, Closeable {
                               initialClassNames.contains(typename) ||
                               containedInInitialInputs(typename);
         if (alreadySeen) {
-            if (lint.shouldWarn(PROCESSING))
-                log.warning(PROCESSING, Warnings.ProcTypeRecreate(typename));
+            log.warning(lint, PROCESSING, Warnings.ProcTypeRecreate(typename));
             throw new FilerException("Attempt to recreate a file for type " + typename);
         }
-        if (existing != null && lint.shouldWarn(PROCESSING)) {
-            log.warning(PROCESSING, Warnings.ProcTypeAlreadyExists(typename));
+        if (existing != null) {
+            log.warning(lint, PROCESSING, Warnings.ProcTypeAlreadyExists(typename));
         }
         if (!mod.isUnnamed() && !typename.contains(".")) {
             throw new FilerException("Attempt to create a type in unnamed package of a named module: " + typename);
@@ -769,8 +767,7 @@ public class JavacFiler implements Filer, Closeable {
      */
     private void checkFileReopening(FileObject fileObject, boolean forWriting) throws FilerException {
         if (isInFileObjectHistory(fileObject, forWriting)) {
-            if (lint.shouldWarn(PROCESSING))
-                log.warning(PROCESSING, Warnings.ProcFileReopening(fileObject.getName()));
+            log.warning(lint, PROCESSING, Warnings.ProcFileReopening(fileObject.getName()));
             throw new FilerException("Attempt to reopen a file for path " + fileObject.getName());
         }
         if (forWriting)
