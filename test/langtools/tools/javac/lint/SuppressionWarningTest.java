@@ -57,6 +57,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.sun.tools.javac.code.Lint.LintCategory;
+import com.sun.tools.javac.code.Source;
 
 import toolbox.JarTask;
 import toolbox.JavacTask;
@@ -522,6 +523,20 @@ public class SuppressionWarningTest extends TestRunner {
             """
         };
 
+/*
+        // Does not support @SupppressWarnings
+        case PREVIEW -> new String[] {
+            "compiler.warn.preview.feature.use",
+            """
+            public class Test {
+                public Test() {
+                    System.out.println();
+                    super();
+                }
+            }
+            """
+        };
+*/
         case PREVIEW -> null;    // skip, too hard to simluate reliably over time
 
         case RESTRICTED -> new String[] {
@@ -704,6 +719,9 @@ public class SuppressionWarningTest extends TestRunner {
                                 flags.add("--module-path");
                                 flags.add(modulePath.toString());
                             }
+                            flags.add("--enable-preview");
+                            flags.add("--release");
+                            flags.add(Source.DEFAULT.name);
                             flags.add(lintOption);
                             Task.Expect expectation = expectWarning ? Task.Expect.FAIL : Task.Expect.SUCCESS;
                             List<String> log = compile(base, expectation, flags.toArray(new String[0]));
