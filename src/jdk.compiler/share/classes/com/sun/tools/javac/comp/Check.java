@@ -1347,7 +1347,7 @@ public class Check {
         try {
             deferredLintHandler.report(_l -> {
                                            log.warning(lint, LintCategory.STRICTFP,
-                                                           pos, Warnings.Strictfp);
+                                                       pos, Warnings.Strictfp);
                                        });
         } finally {
             deferredLintHandler.setPos(prevLintPos);
@@ -2763,7 +2763,8 @@ public class Check {
 
             // Allow the site's own declared methods (only) to apply @SuppressWarnings("overloads").
             // Treat both methods equally so they "share" the validation of the warning suppression,
-            // but also verify an annotation actually exists on a method before validating it.
+            // but also verify an annotation actually exists on a method before doing that, because
+            // otherwise we could incorrectly validate an outer annotation.
             Predicate<MethodSymbol> methodSuppresses = m -> m.owner == site.tsym &&
               m.attribute(syms.suppressWarningsType.tsym) != null &&
               lint.augment(m).validate(LintCategory.OVERLOADS).isSuppressed(LintCategory.OVERLOADS);
@@ -4621,7 +4622,7 @@ public class Check {
             }
 
             if (whatExport.modules != null) {
-                if ((inExport.modules == null || !whatExport.modules.containsAll(inExport.modules))) {
+                if (inExport.modules == null || !whatExport.modules.containsAll(inExport.modules)) {
                     log.warning(lint, LintCategory.EXPORTS, pos, Warnings.LeaksNotAccessibleUnexportedQualified(kindName(what), what, what.packge().modle));
                 }
             }
@@ -4670,7 +4671,7 @@ public class Check {
             deferredLintHandler.report(_l -> {
                 if (rd.isTransitive() &&
                     lint.validate(LintCategory.REQUIRES_TRANSITIVE_AUTOMATIC).isEnabled(LintCategory.REQUIRES_TRANSITIVE_AUTOMATIC)) {
-                    log.warning(lint, LintCategory.REQUIRES_TRANSITIVE_AUTOMATIC, pos, Warnings.RequiresTransitiveAutomatic);
+                    log.warning(LintCategory.REQUIRES_TRANSITIVE_AUTOMATIC, pos, Warnings.RequiresTransitiveAutomatic);
                 } else {
                     log.warning(lint, LintCategory.REQUIRES_AUTOMATIC, pos, Warnings.RequiresAutomatic);
                 }

@@ -180,7 +180,7 @@ public abstract class AbstractLog {
     }
 
     /** Report a lint warning, unless suppressed or the maximum number of warnings has been reached.
-     *  If the warning is currently suppressed, mark that suppression as valid.
+     *  If the warning is currently suppressed, mark that suppression as valid instead.
      *  @param lint   Current lint configuration; must not be null
      *  @param lc     The lint category for the diagnostic; must not be null
      *  @param warningKey    The key for the localized warning message.
@@ -217,7 +217,7 @@ public abstract class AbstractLog {
     }
 
     /** Report a lint warning, unless suppressed or the maximum number of warnings has been reached.
-     *  If the warning is currently suppressed, mark that suppression as valid.
+     *  If the warning is currently suppressed, mark that suppression as valid instead.
      *  @param lint   Current lint configuration; must not be null
      *  @param lc     The lint category for the diagnostic; must not be null
      *  @param pos    The source position at which to report the warning.
