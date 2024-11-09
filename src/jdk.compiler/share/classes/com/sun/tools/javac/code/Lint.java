@@ -203,7 +203,7 @@ public class Lint {
         /**
          * Warn about issues related to classfile contents
          */
-        CLASSFILE("classfile"),
+        CLASSFILE("classfile", false),
 
         /**
          * Warn about"dangling" documentation comments,
@@ -275,12 +275,12 @@ public class Lint {
         /**
          * Warn about issues relating to use of command line options
          */
-        OPTIONS("options", false),
+        OPTIONS("options", false, false),
 
         /**
          * Warn when any output file is written to more than once.
          */
-        OUTPUT_FILE_CLASH("output-file-clash"),
+        OUTPUT_FILE_CLASH("output-file-clash", false),
 
         /**
          * Warn about issues regarding method overloads.
@@ -297,7 +297,7 @@ public class Lint {
          * Such warnings cannot be suppressed with the SuppressWarnings
          * annotation.
          */
-        PATH("path", false),
+        PATH("path", false, false),
 
         /**
          * Warn about issues regarding annotation processing.
@@ -342,12 +342,12 @@ public class Lint {
         /**
          * Warn about @SuppressWarnings values that don't actually suppress any warnings.
          */
-        SUPPRESSION("suppression", false),
+        SUPPRESSION("suppression", true, false),
 
         /**
          * Warn about -Xlint:-key options that don't actually suppress any warnings (requires OPTIONS).
          */
-        SUPPRESSION_OPTION("suppression-option", false),
+        SUPPRESSION_OPTION("suppression-option", false, false),
 
         /**
          * Warn about synchronization attempts on instances of @ValueBased classes.
@@ -357,7 +357,7 @@ public class Lint {
         /**
          * Warn about issues relating to use of text blocks
          */
-        TEXT_BLOCKS("text-blocks"),
+        TEXT_BLOCKS("text-blocks", false),
 
         /**
          * Warn about possible 'this' escapes before subclass instance is fully initialized.
@@ -382,7 +382,7 @@ public class Lint {
         /**
          * Warn about use of preview features.
          */
-        PREVIEW("preview"),
+        PREVIEW("preview", false),
 
         /**
          * Warn about use of restricted methods.
@@ -393,8 +393,13 @@ public class Lint {
             this(option, true);
         }
 
-        LintCategory(String option, boolean suppressionTracking) {
+        LintCategory(String option, boolean annotationSuppression) {
+            this(option, annotationSuppression, true);
+        }
+
+        LintCategory(String option, boolean annotationSuppression, boolean suppressionTracking) {
             this.option = option;
+            this.annotationSuppression = annotationSuppression;
             this.suppressionTracking = suppressionTracking;
             map.put(option, this);
         }
@@ -407,8 +412,14 @@ public class Lint {
             return EnumSet.noneOf(LintCategory.class);
         }
 
+        /** Get the string representing this category in @SuppressAnnotations and -Xlint options. */
         public final String option;
-        public final boolean suppressionTracking;   // is this category subject to SUPPRESSION and SUPPRESSION_OPTION?
+
+        /** Does this category support suppression via @SuppressAnnotations annotations, or only via -Xlint? */
+        public final boolean annotationSuppression;
+
+        /** Do the SUPPRESSION and SUPPRESSION_OPTION categories generate warnings about this category? */
+        public final boolean suppressionTracking;
     }
 
     /**
