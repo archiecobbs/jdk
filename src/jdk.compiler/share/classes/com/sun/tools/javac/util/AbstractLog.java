@@ -29,7 +29,6 @@ import java.util.HashMap;
 import java.util.Map;
 import javax.tools.JavaFileObject;
 
-import com.sun.tools.javac.code.Lint;
 import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag;
 import com.sun.tools.javac.util.JCDiagnostic.Error;
@@ -167,28 +166,15 @@ public abstract class AbstractLog {
     /** Report a lint warning, unless suppressed by the  -nowarn option or the
      *  maximum number of warnings has been reached.
      *
-     *  <b>Note:</b> Use of this method requires you to also handle validation of suppressed
-     *  lint categories via {@link Lint#validate} or {@link LintSuppression#validate} as needed.
-     *  Usually you should invoke {@link #warning(Lint, LintCategory, Warning)}
-     *  instead of this method.
+     *  <b>Note:</b> Use of this method requires you to also handle validation of
+     *  suppressed lint categories via Lint.validate() or LintSuppression.validate().
+     *  In most cases you should invoke Lint.emit() instead of this method.
      *
      *  @param lc     The lint category for the diagnostic
      *  @param warningKey    The key for the localized warning message.
      */
     public void warning(LintCategory lc, Warning warningKey) {
         report(diags.warning(lc, null, null, warningKey));
-    }
-
-    /** Report a lint warning, unless suppressed or the maximum number of warnings has been reached.
-     *  If the warning is currently suppressed, mark that suppression as valid instead.
-     *  @param lint   Current lint configuration; must not be null
-     *  @param lc     The lint category for the diagnostic; must not be null
-     *  @param warningKey    The key for the localized warning message.
-     */
-    public void warning(Lint lint, LintCategory lc, Warning warningKey) {
-        if (lint.validate(lc).isEnabled(lc)) {
-            report(diags.warning(lc, null, null, warningKey));
-        }
     }
 
     /** Report a warning, unless suppressed by the  -nowarn option or the
@@ -203,10 +189,9 @@ public abstract class AbstractLog {
     /** Report a lint warning, unless suppressed by the  -nowarn option or the
      *  maximum number of warnings has been reached.
      *
-     *  <b>Note:</b> Use of this method requires you to also handle validation of suppressed
-     *  lint categories via {@link Lint#validate} or {@link LintSuppression#validate} as needed.
-     *  Usually you should invoke {@link #warning(Lint, LintCategory, DiagnosticPosition, Warning)}
-     *  instead of this method.
+     *  <b>Note:</b> Use of this method requires you to also handle validation of
+     *  suppressed lint categories via Lint.validate() or LintSuppression.validate().
+     *  In most cases you should invoke Lint.emit() instead of this method.
      *
      *  @param lc     The lint category for the diagnostic
      *  @param pos    The source position at which to report the warning.
@@ -214,19 +199,6 @@ public abstract class AbstractLog {
      */
     public void warning(LintCategory lc, DiagnosticPosition pos, Warning warningKey) {
         report(diags.warning(lc, source, pos, warningKey));
-    }
-
-    /** Report a lint warning, unless suppressed or the maximum number of warnings has been reached.
-     *  If the warning is currently suppressed, mark that suppression as valid instead.
-     *  @param lint   Current lint configuration; must not be null
-     *  @param lc     The lint category for the diagnostic; must not be null
-     *  @param pos    The source position at which to report the warning.
-     *  @param warningKey    The key for the localized warning message.
-     */
-    public void warning(Lint lint, LintCategory lc, DiagnosticPosition pos, Warning warningKey) {
-        if (lint.validate(lc).isEnabled(lc)) {
-            report(diags.warning(lc, source, pos, warningKey));
-        }
     }
 
     /** Report a warning, unless suppressed by the  -nowarn option or the

@@ -851,7 +851,7 @@ public class ClassReader {
                 if (!warnedAttrs.contains(name)) {
                     JavaFileObject prev = log.useSource(currentClassFile);
                     try {
-                        log.warning(lint, LintCategory.CLASSFILE, null,
+                        lint.emit(log, LintCategory.CLASSFILE, null,
                                     Warnings.FutureAttr(name, version.major, version.minor, majorVersion, minorVersion));
                     } finally {
                         log.useSource(prev);
@@ -1603,7 +1603,7 @@ public class ClassReader {
         } else if (parameterAnnotations.length != numParameters) {
             //the RuntimeVisibleParameterAnnotations and RuntimeInvisibleParameterAnnotations
             //provide annotations for a different number of parameters, ignore:
-            log.warning(lint, LintCategory.CLASSFILE, Warnings.RuntimeVisibleInvisibleParamAnnotationsMismatch(currentClassFile));
+            lint.emit(log, LintCategory.CLASSFILE, Warnings.RuntimeVisibleInvisibleParamAnnotationsMismatch(currentClassFile));
             for (int pnum = 0; pnum < numParameters; pnum++) {
                 readAnnotations();
             }
@@ -2070,9 +2070,9 @@ public class ClassReader {
             try {
                 if (lint.isActive(LintCategory.CLASSFILE)) {
                     if (failure == null) {
-                        log.warning(lint, LintCategory.CLASSFILE, null, Warnings.AnnotationMethodNotFound(container, name));
+                        lint.emit(log, LintCategory.CLASSFILE, null, Warnings.AnnotationMethodNotFound(container, name));
                     } else {
-                        log.warning(lint, LintCategory.CLASSFILE, null, Warnings.AnnotationMethodNotFoundReason(container,
+                        lint.emit(log, LintCategory.CLASSFILE, null, Warnings.AnnotationMethodNotFoundReason(container,
                                                                             name,
                                                                             failure.getDetailValue()));//diagnostic, if present
                     }
@@ -2951,7 +2951,7 @@ public class ClassReader {
 
     private void dropParameterAnnotations() {
         parameterAnnotations = null;
-        log.warning(lint, LintCategory.CLASSFILE, Warnings.RuntimeInvisibleParameterAnnotations(currentClassFile));
+        lint.emit(log, LintCategory.CLASSFILE, Warnings.RuntimeInvisibleParameterAnnotations(currentClassFile));
     }
     /**
      * Creates the parameter at the position {@code mpIndex} in the parameter list of the owning method.

@@ -1939,7 +1939,7 @@ public class Attr extends JCTree.Visitor {
     public void visitSynchronized(JCSynchronized tree) {
         chk.checkRefType(tree.pos(), attribExpr(tree.lock, env));
         if (isValueBased(tree.lock.type)) {
-            log.warning(env.info.lint, LintCategory.SYNCHRONIZATION, tree.pos(), Warnings.AttemptToSynchronizeOnInstanceOfValueBasedClass);
+            env.info.lint.emit(log, LintCategory.SYNCHRONIZATION, tree.pos(), Warnings.AttemptToSynchronizeOnInstanceOfValueBasedClass);
         }
         attribStat(tree.body, env);
         result = null;
@@ -2046,7 +2046,7 @@ public class Attr extends JCTree.Visitor {
             if (close.kind == MTH &&
                     close.overrides(syms.autoCloseableClose, resource.tsym, types, true) &&
                     chk.isHandled(syms.interruptedExceptionType, types.memberType(resource, close).getThrownTypes())) {
-                log.warning(env.info.lint, LintCategory.TRY, pos, Warnings.TryResourceThrowsInterruptedExc(resource));
+                env.info.lint.emit(log, LintCategory.TRY, pos, Warnings.TryResourceThrowsInterruptedExc(resource));
             }
         }
     }
@@ -4431,7 +4431,7 @@ public class Attr extends JCTree.Visitor {
                 sym.kind == MTH &&
                 sym.name.equals(names.close) &&
                 sym.overrides(syms.autoCloseableClose, sitesym.type.tsym, types, true)) {
-            log.warning(env.info.lint, LintCategory.TRY, tree, Warnings.TryExplicitCloseCall);
+            env.info.lint.emit(log, LintCategory.TRY, tree, Warnings.TryExplicitCloseCall);
         }
 
         // Disallow selecting a type from an expression

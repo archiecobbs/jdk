@@ -31,7 +31,10 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.sun.tools.javac.main.Option;
+import com.sun.tools.javac.util.AbstractLog;
 import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.JCDiagnostic.Warning;
+import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Options;
 
@@ -482,6 +485,33 @@ public class Lint {
         if (needsSuppressionTracking(lc))
             lintSuppression.validate(symbolInScope, lc);
         return this;
+    }
+
+    /**
+     * Report a lint warning, or if the category is suppressed, just validate the suppression.
+     *
+     * @param log warning destination
+     * @param lc lint category for the diagnostic; must not be null
+     * @param warningKey key for the localized warning message.
+     */
+    public void emit(AbstractLog log, LintCategory lc, Warning warningKey) {
+        if (validate(lc).isEnabled(lc)) {
+            log.warning(lc, warningKey);
+        }
+    }
+
+    /**
+     * Report a lint warning, or if the category is suppressed, just validate the suppression.
+     *
+     * @param log warning destination
+     * @param lc lint category for the diagnostic; must not be null
+     * @param pos source position at which to report the warning.
+     * @param warningKey key for the localized warning message.
+     */
+    public void emit(AbstractLog log, LintCategory lc, DiagnosticPosition pos, Warning warningKey) {
+        if (validate(lc).isEnabled(lc)) {
+            log.warning(lc, pos, warningKey);
+        }
     }
 
     /**

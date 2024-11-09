@@ -732,7 +732,7 @@ public class Flow {
                 // Warn about fall-through if lint switch fallthrough enabled.
                 if (alive == Liveness.ALIVE &&
                     c.stats.nonEmpty() && l.tail.nonEmpty())
-                    log.warning(lint, Lint.LintCategory.FALLTHROUGH,
+                    lint.emit(log, Lint.LintCategory.FALLTHROUGH,
                                 l.tail.head.pos(),
                                 Warnings.PossibleFallThroughIntoCase);
             }
@@ -1241,7 +1241,7 @@ public class Flow {
                 scanStat(tree.finalizer);
                 tree.finallyCanCompleteNormally = alive != Liveness.DEAD;
                 if (alive == Liveness.DEAD) {
-                    log.warning(lint, Lint.LintCategory.FINALLY,
+                    lint.emit(log, Lint.LintCategory.FINALLY,
                             TreeInfo.diagEndPos(tree.finalizer),
                             Warnings.FinallyCannotComplete);
                 } else {
@@ -2865,7 +2865,7 @@ public class Flow {
                     lint.isActive(Lint.LintCategory.TRY)) {
                 for (JCVariableDecl resVar : resourceVarDecls) {
                     if (unrefdResources.includes(resVar.sym) && !resVar.sym.isUnnamedVariable()) {
-                        log.warning(lint, Lint.LintCategory.TRY, resVar.pos(),
+                        lint.emit(log, Lint.LintCategory.TRY, resVar.pos(),
                                     Warnings.TryResourceNotReferenced(resVar.sym));
                         unrefdResources.remove(resVar.sym);
                     }

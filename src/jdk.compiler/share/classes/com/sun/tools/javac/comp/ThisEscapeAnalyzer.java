@@ -416,7 +416,7 @@ class ThisEscapeAnalyzer extends TreeScanner {
             int remain = stack.length;
             do {
                 DiagnosticPosition pos = stack[--remain];
-                log.warning(warning.lint(), Lint.LintCategory.THIS_ESCAPE, pos, key);
+                warning.lint().emit(log, Lint.LintCategory.THIS_ESCAPE, pos, key);
                 key = Warnings.PossibleThisEscapeLocation;
             } while (remain > 0);
         }

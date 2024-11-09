@@ -1362,7 +1362,7 @@ public class Modules extends JCTree.Visitor {
                     .collect(Collectors.joining(","));
 
             if (!incubatingModules.isEmpty()) {
-                log.warning(lint, Lint.LintCategory.INCUBATING, Warnings.IncubatingModules(incubatingModules));
+                lint.emit(log, Lint.LintCategory.INCUBATING, Warnings.IncubatingModules(incubatingModules));
             }
         }
 
