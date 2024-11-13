@@ -698,7 +698,6 @@ public abstract class Monitor
     /**
      * Starts the monitor.
      */
-    @SuppressWarnings("removal")
     void doStart() {
             MONITOR_LOGGER.log(Level.TRACE, "start the monitor");
 
