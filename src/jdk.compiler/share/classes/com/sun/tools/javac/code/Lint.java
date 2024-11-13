@@ -48,10 +48,9 @@ import com.sun.tools.javac.util.Options;
  *      true even if {@link #isEnabled} returns false or {@link #isSuppressed} returns true.
  *  <li>To build an instance augmented with any new suppressions from @SuppressWarnings and/or
  *      @Deprecated annotations, use {@link #augment}.
- *  <li>To actually log a warning, invoke one of the {@link Log} methods accepting both
- *      {@link Lint} and {@link LintCategory} parameters; if the warning should be suppressed,
- *      it won't actually be logged, but it will be automatically validated as required
- *      for the SUPPRESSION and SUPPRESSION_OPTION categories.
+ *  <li>When a warnable condition is found, invoke emit(). If the warning should be suppressed,
+ *      it won't actually be logged, but it will be automatically validated as required for the
+ *      SUPPRESSION and SUPPRESSION_OPTION categories.
  *  <li>You can also validate suppressions manually if needed via {@link #validate} or
  *      {@link LintSuppression#validate}.
  * </ul>
