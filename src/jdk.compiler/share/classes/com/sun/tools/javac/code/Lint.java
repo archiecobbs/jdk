@@ -208,7 +208,7 @@ public class Lint {
         CLASSFILE("classfile", false),
 
         /**
-         * Warn about"dangling" documentation comments,
+         * Warn about "dangling" documentation comments,
          * not attached to any declaration.
          */
         DANGLING_DOC_COMMENTS("dangling-doc-comments"),
