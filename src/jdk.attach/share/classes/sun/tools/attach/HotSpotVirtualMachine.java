@@ -51,7 +51,6 @@ public abstract class HotSpotVirtualMachine extends VirtualMachine {
 
     private static final long CURRENT_PID = pid();
 
-    @SuppressWarnings("removal")
     private static long pid() {
         return ProcessHandle.current().pid();
     }
