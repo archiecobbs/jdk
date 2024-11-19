@@ -369,7 +369,6 @@ public class RegistryImpl extends java.rmi.server.RemoteServer
      *          {@link ObjectInputFilter.Status#REJECTED} if rejected,
      *          otherwise {@link ObjectInputFilter.Status#UNDECIDED}
      */
-    @SuppressWarnings("removal")
     private static ObjectInputFilter.Status registryFilter(ObjectInputFilter.FilterInfo filterInfo) {
         if (registryFilter != null) {
             ObjectInputFilter.Status status = registryFilter.checkInput(filterInfo);
