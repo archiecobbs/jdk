@@ -71,7 +71,6 @@ public interface RuntimeMXBean extends PlatformManagedObject {
      *
      * @since 10
      */
-    @SuppressWarnings("removal")
     public default long getPid() {
         return ProcessHandle.current().pid();
     }

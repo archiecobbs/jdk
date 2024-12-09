@@ -734,7 +734,6 @@ class SubRegistry {
         this.category = category;
     }
 
-    @SuppressWarnings("removal")
     public synchronized boolean registerServiceProvider(Object provider) {
         Object oprovider = map.get(provider.getClass());
         boolean present =  oprovider != null;

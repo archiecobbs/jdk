@@ -35,7 +35,7 @@ import com.sun.management.VMOption.Origin;
  * corresponds to one VMOption.
  *
  */
-@SuppressWarnings({"removal", "restricted"})
+@SuppressWarnings("restricted")
 class Flag {
     private String name;
     private Object value;

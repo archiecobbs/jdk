@@ -201,7 +201,6 @@ public abstract class OpenType<T> implements Serializable {
         }
     }
 
-    @SuppressWarnings("removal")
     private static boolean overridesGetClassName(final Class<?> c) {
         try {
             return (c.getMethod("getClassName").getDeclaringClass() != OpenType.class);

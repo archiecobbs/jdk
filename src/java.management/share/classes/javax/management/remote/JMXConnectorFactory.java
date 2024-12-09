@@ -374,7 +374,6 @@ public class JMXConnectorFactory {
         return provider.newJMXConnector(serviceURL, fixedenv);
     }
 
-    @SuppressWarnings("removal")
     private static String resolvePkgs(Map<String, ?> env)
             throws JMXProviderException {
 
