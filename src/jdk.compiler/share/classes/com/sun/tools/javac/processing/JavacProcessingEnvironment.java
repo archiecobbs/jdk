@@ -66,6 +66,7 @@ import com.sun.tools.javac.model.JavacTypes;
 import com.sun.tools.javac.platform.PlatformDescription;
 import com.sun.tools.javac.platform.PlatformDescription.PluginInfo;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
+import com.sun.tools.javac.resources.CompilerProperties.LintWarnings;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.tree.JCTree.*;
@@ -648,7 +649,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                         add(importStringToPattern(allowModules, annotationPattern,
                                                   processor, log, lint));
                     if (!patternAdded) {
-                        lint.emit(log, PROCESSING, Warnings.ProcDuplicateSupportedAnnotation(annotationPattern,
+                        lint.logIfEnabled(log, LintWarnings.ProcDuplicateSupportedAnnotation(annotationPattern,
                                                                               p.getClass().getName()));
                     }
                 }
@@ -661,7 +662,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 // and "foo.bar.*".
                 if (supportedAnnotationPatterns.contains(MatchingUtils.validImportStringToPattern("*")) &&
                     supportedAnnotationPatterns.size() > 1) {
-                    lint.emit(log, PROCESSING, Warnings.ProcRedundantTypesWithWildcard(p.getClass().getName()));
+                    lint.logIfEnabled(log, LintWarnings.ProcRedundantTypesWithWildcard(p.getClass().getName()));
                 }
 
                 supportedOptionNames = new LinkedHashSet<>();
@@ -669,7 +670,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                     if (checkOptionName(optionName, log)) {
                         boolean optionAdded = supportedOptionNames.add(optionName);
                         if (!optionAdded) {
-                            lint.emit(log, PROCESSING, Warnings.ProcDuplicateOptionName(optionName,
+                            lint.logIfEnabled(log, LintWarnings.ProcDuplicateOptionName(optionName,
                                                                          p.getClass().getName()));
                         }
                     }
@@ -890,7 +891,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             // Remove annotations processed by javac
             unmatchedAnnotations.keySet().removeAll(platformAnnotations);
             if (unmatchedAnnotations.size() > 0) {
-                lint.emit(log, PROCESSING, Warnings.ProcAnnotationsWithoutProcessors(unmatchedAnnotations.keySet()));
+                lint.logIfEnabled(log, LintWarnings.ProcAnnotationsWithoutProcessors(unmatchedAnnotations.keySet()));
             }
         }
 
@@ -1686,7 +1687,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
     }
 
     private static Pattern warnAndNoMatches(String s, Processor p, Log log, Lint lint) {
-        lint.emit(log, PROCESSING, Warnings.ProcMalformedSupportedString(s, p.getClass().getName()));
+        lint.logIfEnabled(log, LintWarnings.ProcMalformedSupportedString(s, p.getClass().getName()));
         return noMatches; // won't match any valid identifier
     }
 

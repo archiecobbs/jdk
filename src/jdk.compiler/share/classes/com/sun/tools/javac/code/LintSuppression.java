@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.sun.tools.javac.code.Lint.LintCategory;
-import com.sun.tools.javac.resources.CompilerProperties.Warnings;
+import com.sun.tools.javac.resources.CompilerProperties.LintWarnings;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.tree.TreeScanner;
@@ -211,7 +211,7 @@ public class LintSuppression {
             rootNode.stream()
               .filter(DeclNode::shouldReport)
               .forEach(node -> reportUnnecessary(node.suppressed(), node.valid(), name -> "\"" + name + "\"",
-                names -> log.warning(SUPPRESSION, node.pos(), Warnings.UnnecessaryWarningSuppression(names))));
+                names -> log.warning(node.pos(), LintWarnings.UnnecessaryWarningSuppression(names))));
         }
 
         // Discard the declarations we just reported on from the validation map (no longer needed)
@@ -242,7 +242,7 @@ public class LintSuppression {
         // Report -Xlint:-key suppressions that were never validated
         if (rootLint.isActive(OPTIONS) && rootLint.isActive(SUPPRESSION_OPTION)) {
             reportUnnecessary(rootLint.suppressedOptions, globalValidations, name -> "-" + name,
-              names -> log.warning(SUPPRESSION_OPTION, Warnings.UnnecessaryLintWarningSuppression(names)));
+              names -> log.warning(LintWarnings.UnnecessaryLintWarningSuppression(names)));
         }
 
         // Clean up global validations

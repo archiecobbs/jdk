@@ -28,13 +28,14 @@ package com.sun.tools.javac.code;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.util.AbstractLog;
 import com.sun.tools.javac.util.Context;
-import com.sun.tools.javac.util.JCDiagnostic.Warning;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
+import com.sun.tools.javac.util.JCDiagnostic.LintWarning;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Options;
 
@@ -406,8 +407,26 @@ public class Lint {
             map.put(option, this);
         }
 
-        static LintCategory get(String option) {
+        /**
+         * Get the {@link LintCategory} having the given command line option, if any.
+         *
+         * @param option lint category option string
+         * @return corresponding {@link LintCategory}, or null if none
+         */
+        public static LintCategory get(String option) {
             return map.get(option);
+        }
+
+        /**
+         * Get the {@link LintCategory} having the given command line option.
+         *
+         * @param option lint category option string
+         * @return corresponding {@link LintCategory}
+         * @throws IllegalArgumentException if no such lint category exists
+         */
+        public static LintCategory forOption(String option) {
+            return Optional.ofNullable(get(option))
+              .orElseThrow(() -> new IllegalArgumentException(option));
         }
 
         public static EnumSet<LintCategory> newEmptySet() {
@@ -471,6 +490,52 @@ public class Lint {
     }
 
     /**
+     * Helper method. Validate a lint warning and log it if its lint category is enabled.
+     *
+     * @param log warning destination
+     * @param warning key for the localized warning message
+     */
+    public void logIfEnabled(Log log, LintWarning warning) {
+        logIfEnabled(log, null, warning);
+    }
+
+    /**
+     * Helper method. Validate a lint warning and log it if its lint category is enabled.
+     *
+     * @param log warning destination
+     * @param pos source position at which to report the warning
+     * @param warning key for the localized warning message
+     */
+    public void logIfEnabled(Log log, DiagnosticPosition pos, LintWarning warning) {
+        LintCategory lc = warning.getLintCategory();
+        if (validate(lc).isEnabled(lc)) {
+            log.warning(pos, warning);
+        }
+    }
+
+    /**
+     * Helper method. Validate and log a lint warning.
+     *
+     * @param log warning destination
+     * @param warning key for the localized warning message
+     */
+    public void log(Log log, LintWarning warning) {
+        log(log, null, warning);
+    }
+
+    /**
+     * Helper method. Validate and log a lint warning.
+     *
+     * @param log warning destination
+     * @param pos source position at which to report the warning
+     * @param warning key for the localized warning message
+     */
+    public void log(Log log, DiagnosticPosition pos, LintWarning warning) {
+        validate(warning.getLintCategory());
+        log.warning(pos, warning);
+    }
+
+    /**
      * Record that any suppression of the given category currently in scope is valid.
      *
      * <p>
@@ -484,33 +549,6 @@ public class Lint {
         if (needsSuppressionTracking(lc))
             lintSuppression.validate(symbolInScope, lc);
         return this;
-    }
-
-    /**
-     * Report a lint warning, or if the category is suppressed, just validate the suppression.
-     *
-     * @param log warning destination
-     * @param lc lint category for the diagnostic; must not be null
-     * @param warningKey key for the localized warning message.
-     */
-    public void emit(AbstractLog log, LintCategory lc, Warning warningKey) {
-        if (validate(lc).isEnabled(lc)) {
-            log.warning(lc, warningKey);
-        }
-    }
-
-    /**
-     * Report a lint warning, or if the category is suppressed, just validate the suppression.
-     *
-     * @param log warning destination
-     * @param lc lint category for the diagnostic; must not be null
-     * @param pos source position at which to report the warning.
-     * @param warningKey key for the localized warning message.
-     */
-    public void emit(AbstractLog log, LintCategory lc, DiagnosticPosition pos, Warning warningKey) {
-        if (validate(lc).isEnabled(lc)) {
-            log.warning(lc, pos, warningKey);
-        }
     }
 
     /**

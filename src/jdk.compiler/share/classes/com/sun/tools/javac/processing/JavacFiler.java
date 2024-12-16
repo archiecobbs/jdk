@@ -57,6 +57,7 @@ import com.sun.tools.javac.code.Symbol.ModuleSymbol;
 import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.comp.Modules;
 import com.sun.tools.javac.model.JavacElements;
+import com.sun.tools.javac.resources.CompilerProperties.LintWarnings;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.DefinedBy.Api;
@@ -491,7 +492,7 @@ public class JavacFiler implements Filer, Closeable {
                 String base = name.substring(periodIndex);
                 String extn = (isSourceFile ? ".java" : ".class");
                 if (base.equals(extn))
-                    lint.emit(log, PROCESSING, Warnings.ProcSuspiciousClassName(name, extn));
+                    lint.logIfEnabled(log, LintWarnings.ProcSuspiciousClassName(name, extn));
             }
         }
         checkNameAndExistence(mod, name, isSourceFile);
@@ -706,7 +707,7 @@ public class JavacFiler implements Filer, Closeable {
 
     private void checkName(String name, boolean allowUnnamedPackageInfo) throws FilerException {
         if (!SourceVersion.isName(name) && !isPackageInfo(name, allowUnnamedPackageInfo)) {
-            lint.emit(log, PROCESSING, Warnings.ProcIllegalFileName(name));
+            lint.logIfEnabled(log, LintWarnings.ProcIllegalFileName(name));
             throw new FilerException("Illegal name " + name);
         }
     }
@@ -734,11 +735,11 @@ public class JavacFiler implements Filer, Closeable {
                               initialClassNames.contains(typename) ||
                               containedInInitialInputs(typename);
         if (alreadySeen) {
-            lint.emit(log, PROCESSING, Warnings.ProcTypeRecreate(typename));
+            lint.logIfEnabled(log, LintWarnings.ProcTypeRecreate(typename));
             throw new FilerException("Attempt to recreate a file for type " + typename);
         }
         if (existing != null) {
-            lint.emit(log, PROCESSING, Warnings.ProcTypeAlreadyExists(typename));
+            lint.logIfEnabled(log, LintWarnings.ProcTypeAlreadyExists(typename));
         }
         if (!mod.isUnnamed() && !typename.contains(".")) {
             throw new FilerException("Attempt to create a type in unnamed package of a named module: " + typename);
@@ -767,7 +768,7 @@ public class JavacFiler implements Filer, Closeable {
      */
     private void checkFileReopening(FileObject fileObject, boolean forWriting) throws FilerException {
         if (isInFileObjectHistory(fileObject, forWriting)) {
-            lint.emit(log, PROCESSING, Warnings.ProcFileReopening(fileObject.getName()));
+            lint.logIfEnabled(log, LintWarnings.ProcFileReopening(fileObject.getName()));
             throw new FilerException("Attempt to reopen a file for path " + fileObject.getName());
         }
         if (forWriting)

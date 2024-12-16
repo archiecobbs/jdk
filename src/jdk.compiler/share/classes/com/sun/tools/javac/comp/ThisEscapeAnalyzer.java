@@ -32,12 +32,10 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.EnumSet;
 import java.util.HashSet;
-import java.util.Map.Entry;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -55,6 +53,7 @@ import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Types;
+import com.sun.tools.javac.resources.CompilerProperties.LintWarnings;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.*;
@@ -65,7 +64,6 @@ import com.sun.tools.javac.util.JCDiagnostic;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Log;
-import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Names;
 import com.sun.tools.javac.util.Pair;
 
@@ -411,13 +409,13 @@ class ThisEscapeAnalyzer extends TreeScanner {
             previous = warning;
 
             // Emit warnings showing the entire stack trace
-            JCDiagnostic.Warning key = Warnings.PossibleThisEscape;
+            JCDiagnostic.LintWarning key = LintWarnings.PossibleThisEscape;
             DiagnosticPosition[] stack = warning.stack();
             int remain = stack.length;
             do {
                 DiagnosticPosition pos = stack[--remain];
-                warning.lint().emit(log, Lint.LintCategory.THIS_ESCAPE, pos, key);
-                key = Warnings.PossibleThisEscapeLocation;
+                warning.lint().logIfEnabled(log, pos, key);
+                key = LintWarnings.PossibleThisEscapeLocation;
             } while (remain > 0);
         }
         warningList.clear();
