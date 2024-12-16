@@ -1815,7 +1815,7 @@ public class JavaCompiler {
         }
         chk.reportDeferredDiagnostics();
         preview.reportDeferredDiagnostics();
-        lintSuppression.reportUnnecessarySuppressions(log);
+        lintSuppression.reportUnnecessarySuppressOptions(log);
         if (log.compressedOutput) {
             log.mandatoryNote(null, Notes.CompressedDiags);
         }

@@ -45,14 +45,20 @@ import com.sun.tools.javac.util.Options;
  * <p>
  * Simple instructions:
  * <ul>
+ *  <li>To build an instance augmented with any new suppressions from @SuppressWarnings and/or
+ *      @Deprecated annotations, use {@link #augment}. This creates a new symbol "scope".
  *  <li>Any category for which {@link #isActive} returns true must be checked; this is
  *      true even if {@link #isEnabled} returns false or {@link #isSuppressed} returns true.
- *  <li>To build an instance augmented with any new suppressions from @SuppressWarnings and/or
- *      @Deprecated annotations, use {@link #augment}.
- *  <li>When a warnable condition is found, invoke emit(). If the warning should be suppressed,
- *      it won't actually be logged, but it will be automatically validated as required for the
- *      SUPPRESSION and SUPPRESSION_OPTION categories.
- *  <li>You can also validate suppressions manually if needed via {@link #validate} or
+ *      Use of {@link #isActive} is optional; it simply allows you to skip unnecessary work.
+ *  <li>When a warnable condition is found, invoke {@link #logIfEnabled}. If the warning should
+ *      be suppressed, it won't actually be logged, but the category will be validated as
+ *      required for the SUPPRESSION and SUPPRESSION_OPTION categories. NOTE: All warnings that
+ *      can possibly be generated must validate the corresponding category even if the warning
+ *      is being suppressed.
+ *  <li>You can also manually check whether a category {@link #isEnabled} or {@link #isSuppressed}.
+ *      These methods allow you to validate any current suppression of the category as well;
+ *      do that if a warning will actually be generated based on the method's return value.
+ *  <li>You can also validate suppressions manually if needed via {@link #validateSuppression} or
  *      {@link LintSuppression#validate}.
  * </ul>
  *
@@ -94,6 +100,17 @@ public class Lint {
             return lint;
         }
         return this;
+    }
+
+    /**
+     * Returns a new Lint that has the given LintCategorys enabled.
+     * @param lc one or more categories to be enabled
+     */
+    public Lint enable(LintCategory... lc) {
+        Lint l = new Lint(this, symbolInScope);
+        l.values.addAll(Arrays.asList(lc));
+        l.suppressedValues.removeAll(Arrays.asList(lc));
+        return l;
     }
 
     /**
@@ -450,13 +467,18 @@ public class Lint {
      * the SuppressWarnings annotation.
      *
      * <p>
-     * This method simply reflects the configuration of this instance; it should <b>not</b>
-     * be used to control whether a warning is logged without also marking any suppression
-     * in scope as valid for the given category via {@link #validate}.
+     * This method also optionally validates any warning suppressions currently in scope.
+     * If you just want to know the configuration of this instance, set validate to false.
+     * If you are using the result of this method to control whether a warning is actually
+     * generated, then set validate to true to ensure any any suppression of the category
+     * in scope is validated (i.e., determined to actually be suppressing something).
      *
      * @param lc lint category
+     * @param validateSuppression true to also validate any suppression of the category
      */
-    public boolean isEnabled(LintCategory lc) {
+    public boolean isEnabled(LintCategory lc, boolean validateSuppression) {
+        if (validateSuppression)
+            validateSuppression(lc);
         return values.contains(lc);
     }
 
@@ -467,13 +489,18 @@ public class Lint {
      * current entity being itself deprecated.
      *
      * <p>
-     * This method simply reflects the configuration of this instance; it should <b>not</b>
-     * be used to control whether a warning is logged without also marking any suppression
-     * in scope as valid for the given category via {@link #validate}.
+     * This method also optionally validates any warning suppressions currently in scope.
+     * If you just want to know the configuration of this instance, set validate to false.
+     * If you are using the result of this method to control whether a warning is actually
+     * generated, then set validate to true to ensure any any suppression of the category
+     * in scope is validated (i.e., determined to actually be suppressing something).
      *
      * @param lc lint category
+     * @param validateSuppression true to also validate any suppression of the category
      */
-    public boolean isSuppressed(LintCategory lc) {
+    public boolean isSuppressed(LintCategory lc, boolean validateSuppression) {
+        if (validateSuppression)
+            validateSuppression(lc);
         return suppressedValues.contains(lc);
     }
 
@@ -496,31 +523,9 @@ public class Lint {
      */
     public void logIfEnabled(Log log, DiagnosticPosition pos, LintWarning warning) {
         LintCategory lc = warning.getLintCategory();
-        if (validate(lc).isEnabled(lc)) {
+        if (isEnabled(lc, true)) {
             log.warning(pos, warning);
         }
-    }
-
-    /**
-     * Helper method. Validate and log a lint warning.
-     *
-     * @param log warning destination
-     * @param warning key for the localized warning message
-     */
-    public void log(Log log, LintWarning warning) {
-        log(log, null, warning);
-    }
-
-    /**
-     * Helper method. Validate and log a lint warning.
-     *
-     * @param log warning destination
-     * @param pos source position at which to report the warning
-     * @param warning key for the localized warning message
-     */
-    public void log(Log log, DiagnosticPosition pos, LintWarning warning) {
-        validate(warning.getLintCategory());
-        log.warning(pos, warning);
     }
 
     /**
@@ -533,7 +538,7 @@ public class Lint {
      * @param lc the lint category to be validated
      * @return this instance
      */
-    public Lint validate(LintCategory lc) {
+    public Lint validateSuppression(LintCategory lc) {
         if (needsSuppressionTracking(lc))
             lintSuppression.validate(symbolInScope, lc);
         return this;
@@ -552,7 +557,7 @@ public class Lint {
      */
     private boolean needsSuppressionTracking(LintCategory lc) {
         return lc.suppressionTracking &&
-            (isSuppressed(lc) || suppressedOptions.contains(lc)) &&
-            (isEnabled(LintCategory.SUPPRESSION) || isEnabled(LintCategory.SUPPRESSION_OPTION));
+            (suppressedValues.contains(lc) || suppressedOptions.contains(lc)) &&
+            (values.contains(LintCategory.SUPPRESSION) || values.contains(LintCategory.SUPPRESSION_OPTION));
     }
 }

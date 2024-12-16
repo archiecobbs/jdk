@@ -72,15 +72,16 @@ import static com.sun.tools.javac.code.Lint.LintCategory.SUPPRESSION_OPTION;
  * If a lint category is suppressed but the suppression is never validated, then the suppression is deemed
  * unnecessary and that can trigger a warning in the SUPPRESSION (for @SuppressWarnings) or SUPPRESSION_OPTION
  * (for -Xlint:-key) lint categories. Validation can happen within nested @SuppressWarning scopes, so each
- * validation must be "propagated" upward in the AST tree until it meets a corresponding suppression.
+ * validation is "propagated" upward in the AST tree until it hits the first corresponding suppression.
  *
  * <p>
- * After a source file has been fully lint-checked, {@link #reportUnnecessarySuppressions(Log, JCTree)} is
- * invoked to report any unnecessary @SuppressWarnings annotations in that file.
+ * After a source file has been fully lint-checked, {@link #reportUnnecessarySuppressWarnings} is
+ * invoked to report any unnecessary @SuppressWarnings annotations in that file; these will be the annotations
+ * that were never "hit" by any validation.
  *
  * <p>
- * Similarly, after all files have been fully lint-checked and {@link #reportUnnecessarySuppressions(Log, JCTree)}
- * invoked, {@link reportUnnecessarySuppressions(Log)} is invoked to report on any unnecessary -Xlint:key flags.
+ * Similarly, after all files have been fully lint-checked and {@link #reportUnnecessarySuppressWarnings}
+ * invoked, {@link #reportUnnecessarySuppressOptions} is invoked to report on any unnecessary -Xlint:key flags.
  * These will be the categories for which zero validations "escaped" the per-file propagation process.
  *
  * <p>
@@ -187,7 +188,7 @@ public class LintSuppression {
     /**
      * Report unnecessary @SuppressWarnings annotations within the given tree.
      */
-    public void reportUnnecessarySuppressions(Log log, JCTree tree) {
+    public void reportUnnecessarySuppressWarnings(Log log, JCTree tree) {
         Assert.check(tree != null);
         initializeIfNeeded();
 
@@ -227,10 +228,10 @@ public class LintSuppression {
      * <p>
      * This step must be done last.
      */
-    public void reportUnnecessarySuppressions(Log log) {
+    public void reportUnnecessarySuppressOptions(Log log) {
         initializeIfNeeded();
 
-        // For some categories we don't get per-file calls to reportUnnecessarySuppressions(),
+        // For some categories we don't get per-file calls to reportUnnecessarySuppressWarnings(),
         // and so for those categories there can be leftover validations in the validationMap.
         // An example is DANGLING_DOC_COMMENTS. To handle these, we promote any validations
         // that haven't already been picked up to the global level.

@@ -318,7 +318,7 @@ class ThisEscapeAnalyzer extends TreeScanner {
                     // For each class, remember an analyzable constructor, preferring ones that are unsuppressed
                     if (analyzable) {
                         analyzableConstructorMap.merge(currentClass, methodInfo,
-                          (info1, info2) -> !info1.lint().isSuppressed(LintCategory.THIS_ESCAPE) ? info1 : info2);
+                          (info1, info2) -> !info1.lint().isSuppressed(LintCategory.THIS_ESCAPE, false) ? info1 : info2);
                     }
 
                     // Recurse
@@ -550,7 +550,7 @@ class ThisEscapeAnalyzer extends TreeScanner {
         // If the method is a constructor with "this-escape" suppressed, skip it
         if (methodInfo != null &&
             TreeInfo.isConstructor(methodInfo.declaration()) &&
-            methodInfo.lint().validate(LintCategory.THIS_ESCAPE).isSuppressed(LintCategory.THIS_ESCAPE)) {
+            methodInfo.lint().isSuppressed(LintCategory.THIS_ESCAPE, true)) {
             return;
         }
 
@@ -1787,7 +1787,7 @@ class ThisEscapeAnalyzer extends TreeScanner {
               + "[method=" + declaringClass.sym.flatname + "." + declaration.sym
               + ",analyzable=" + analyzable
               + ",invokable=" + invokable
-              + ",suppressed=" + lint().isSuppressed(LintCategory.THIS_ESCAPE)
+              + ",suppressed=" + lint().isSuppressed(LintCategory.THIS_ESCAPE, false)
               + "]";
         }
     }

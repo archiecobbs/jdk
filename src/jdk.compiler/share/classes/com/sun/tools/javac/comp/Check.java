@@ -162,9 +162,9 @@ public class Check {
         profile = Profile.instance(context);
         preview = Preview.instance(context);
 
-        boolean verboseDeprecated = lint.isEnabled(LintCategory.DEPRECATION);
-        boolean verboseRemoval = lint.isEnabled(LintCategory.REMOVAL);
-        boolean verboseUnchecked = lint.isEnabled(LintCategory.UNCHECKED);
+        boolean verboseDeprecated = lint.isEnabled(LintCategory.DEPRECATION, false);
+        boolean verboseRemoval = lint.isEnabled(LintCategory.REMOVAL, false);
+        boolean verboseUnchecked = lint.isEnabled(LintCategory.UNCHECKED, false);
         boolean enforceMandatoryWarnings = true;
 
         deprecationHandler = new MandatoryWarningHandler(log, null, verboseDeprecated,
@@ -246,14 +246,14 @@ public class Check {
      */
     void warnDeprecated(DiagnosticPosition pos, Symbol sym) {
         if (sym.isDeprecatedForRemoval()) {
-            if (!lint.validate(LintCategory.REMOVAL).isSuppressed(LintCategory.REMOVAL)) {
+            if (!lint.isSuppressed(LintCategory.REMOVAL, true)) {
                 if (sym.kind == MDL) {
                     removalHandler.report(pos, LintWarnings.HasBeenDeprecatedForRemovalModule(sym));
                 } else {
                     removalHandler.report(pos, LintWarnings.HasBeenDeprecatedForRemoval(sym, sym.location()));
                 }
             }
-        } else if (!lint.validate(LintCategory.DEPRECATION).isSuppressed(LintCategory.DEPRECATION)) {
+        } else if (!lint.isSuppressed(LintCategory.DEPRECATION, true)) {
             if (sym.kind == MDL) {
                 deprecationHandler.report(pos, LintWarnings.HasBeenDeprecatedModule(sym));
             } else {
@@ -267,7 +267,7 @@ public class Check {
      *  @param msg        A Warning describing the problem.
      */
     public void warnPreviewAPI(DiagnosticPosition pos, LintWarning warnKey) {
-        if (!lint.validate(LintCategory.PREVIEW).isSuppressed(LintCategory.PREVIEW))
+        if (!lint.isSuppressed(LintCategory.PREVIEW, true))
             preview.reportPreviewWarning(pos, warnKey);
     }
 
@@ -276,7 +276,7 @@ public class Check {
      *  @param msg        A Warning describing the problem.
      */
     public void warnDeclaredUsingPreview(DiagnosticPosition pos, Symbol sym) {
-        if (!lint.validate(LintCategory.PREVIEW).isSuppressed(LintCategory.PREVIEW))
+        if (!lint.isSuppressed(LintCategory.PREVIEW, true))
             preview.reportPreviewWarning(pos, LintWarnings.DeclaredUsingPreview(kindName(sym), sym));
     }
 
@@ -293,7 +293,7 @@ public class Check {
      *  @param msg        A string describing the problem.
      */
     public void warnUnchecked(DiagnosticPosition pos, LintWarning warnKey) {
-        if (!lint.validate(LintCategory.UNCHECKED).isSuppressed(LintCategory.UNCHECKED))
+        if (!lint.isSuppressed(LintCategory.UNCHECKED, true))
             uncheckedHandler.report(pos, warnKey);
     }
 
@@ -2741,7 +2741,7 @@ public class Check {
             // otherwise we could incorrectly validate an outer annotation.
             Predicate<MethodSymbol> methodSuppresses = m -> m.owner == site.tsym &&
               m.attribute(syms.suppressWarningsType.tsym) != null &&
-              lint.augment(m).validate(LintCategory.OVERLOADS).isSuppressed(LintCategory.OVERLOADS);
+              lint.augment(m).isSuppressed(LintCategory.OVERLOADS, true);
             if (methodSuppresses.test(m1) | methodSuppresses.test(m2))      // use "|" to avoid an artificial preference
                 return FIRST | SECOND;
 
@@ -2950,9 +2950,19 @@ public class Check {
         return potentiallyAmbiguous;
     }
 
+    // Apply special flag "-XDwarnOnAccessToMembers" which turns on just this particular warning for all types of access
     void checkAccessFromSerializableElement(final JCTree tree, boolean isLambda) {
-        if (warnOnAnyAccessToMembers ||
-            (lint.isActive(LintCategory.SERIAL) && isLambda)) {
+        final Lint prevLint = setLint(warnOnAnyAccessToMembers ? lint.enable(LintCategory.SERIAL) : lint);
+        try {
+            if (warnOnAnyAccessToMembers || isLambda)
+                checkAccessFromSerializableElementInner(tree, isLambda);
+        } finally {
+            setLint(prevLint);
+        }
+    }
+
+    private void checkAccessFromSerializableElementInner(final JCTree tree, boolean isLambda) {
+        if (lint.isActive(LintCategory.SERIAL)) {
             Symbol sym = TreeInfo.symbol(tree);
             if (!sym.kind.matches(KindSelector.VAL_MTH)) {
                 return;
@@ -2975,7 +2985,7 @@ public class Check {
                                     LintWarnings.AccessToMemberFromSerializableLambda(sym));
                     }
                 } else {
-                    lint.log(log, tree.pos(),
+                    lint.logIfEnabled(log, tree.pos(),
                                 LintWarnings.AccessToMemberFromSerializableElement(sym));
                 }
             }
@@ -4679,9 +4689,8 @@ public class Check {
     void checkModuleRequires(final DiagnosticPosition pos, final RequiresDirective rd) {
         if ((rd.module.flags() & Flags.AUTOMATIC_MODULE) != 0) {
             deferredLintHandler.report(_ -> {
-                if (rd.isTransitive() &&
-                    lint.validate(LintCategory.REQUIRES_TRANSITIVE_AUTOMATIC).isEnabled(LintCategory.REQUIRES_TRANSITIVE_AUTOMATIC)) {
-                    lint.log(log, pos, LintWarnings.RequiresTransitiveAutomatic);
+                if (rd.isTransitive() && lint.isEnabled(LintCategory.REQUIRES_TRANSITIVE_AUTOMATIC, true)) {
+                    lint.logIfEnabled(log, pos, LintWarnings.RequiresTransitiveAutomatic);
                 } else {
                     lint.logIfEnabled(log, pos, LintWarnings.RequiresAutomatic);
                 }

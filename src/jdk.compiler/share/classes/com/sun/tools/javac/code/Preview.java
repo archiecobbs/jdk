@@ -104,7 +104,7 @@ public class Preview {
         lint = Lint.instance(context);
         source = Source.instance(context);
         this.previewHandler =
-                new MandatoryWarningHandler(log, source, lint.isEnabled(LintCategory.PREVIEW), true, "preview", LintCategory.PREVIEW);
+                new MandatoryWarningHandler(log, source, lint.isEnabled(LintCategory.PREVIEW, false), true, "preview", LintCategory.PREVIEW);
         forcePreview = options.isSet("forcePreview");
         majorVersionToSource = initMajorVersionToSourceMap();
     }
@@ -174,7 +174,7 @@ public class Preview {
     public void warnPreview(DiagnosticPosition pos, Feature feature) {
         Assert.check(isEnabled());
         Assert.check(isPreview(feature));
-        if (!lint.validate(LintCategory.PREVIEW).isSuppressed(LintCategory.PREVIEW)) {
+        if (!lint.isSuppressed(LintCategory.PREVIEW, true)) {
             sourcesWithPreviewFeatures.add(log.currentSourceFile());
             previewHandler.report(pos, feature.isPlural() ?
                     LintWarnings.PreviewFeatureUsePlural(feature.nameFragment()) :
@@ -189,7 +189,7 @@ public class Preview {
      */
     public void warnPreview(JavaFileObject classfile, int majorVersion) {
         Assert.check(isEnabled());
-        if (lint.validate(LintCategory.PREVIEW).isEnabled(LintCategory.PREVIEW)) {
+        if (lint.isEnabled(LintCategory.PREVIEW, true)) {
             log.mandatoryWarning(null,
                     LintWarnings.PreviewFeatureUseClassfile(classfile, majorVersionToSource.get(majorVersion).name));
         }
