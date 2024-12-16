@@ -408,25 +408,13 @@ public class Lint {
         }
 
         /**
-         * Get the {@link LintCategory} having the given command line option, if any.
-         *
-         * @param option lint category option string
-         * @return corresponding {@link LintCategory}, or null if none
-         */
-        public static LintCategory get(String option) {
-            return map.get(option);
-        }
-
-        /**
          * Get the {@link LintCategory} having the given command line option.
          *
          * @param option lint category option string
-         * @return corresponding {@link LintCategory}
-         * @throws IllegalArgumentException if no such lint category exists
+         * @return corresponding {@link LintCategory}, or empty if none exists
          */
-        public static LintCategory forOption(String option) {
-            return Optional.ofNullable(get(option))
-              .orElseThrow(() -> new IllegalArgumentException(option));
+        public static Optional<LintCategory> get(String option) {
+            return Optional.ofNullable(map.get(option));
         }
 
         public static EnumSet<LintCategory> newEmptySet() {

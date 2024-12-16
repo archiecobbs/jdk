@@ -294,7 +294,8 @@ public class LintSuppression {
           .map(elem -> elem.value)
           .map(String.class::cast)
           .map(LintCategory::get)
-          .filter(Objects::nonNull)
+          .filter(Optional::isPresent)
+          .map(Optional::get)
           .collect(Collectors.toCollection(LintCategory::newEmptySet));
     }
 
