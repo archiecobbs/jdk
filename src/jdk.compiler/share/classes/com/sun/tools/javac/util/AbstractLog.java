@@ -158,10 +158,9 @@ public abstract class AbstractLog {
      * Report a lint warning, unless suppressed by the  -nowarn option or the
      * maximum number of warnings has been reached.
      *
-     * <b>Note:</b> If {@code warningKey} is a {@link LintWarning}, then
-     * you must also handle validation of suppressed lint categories via
-     * Lint.validate() or LintSuppression.validate(). In most cases, you
-     * are better off invoking Lint.log() instead of this method.
+     * <b>Note:</b> If {@code warningKey} is a {@link LintWarning}, then you must
+     * also validate suppressed lint categories via Lint.validateSuppresion() or
+     * LintSuppression.validate(). Consider using Lint.logIfEnabled() instead.
      *
      * @param warningKey The key for the localized warning message.
      */
@@ -172,10 +171,9 @@ public abstract class AbstractLog {
     /** Report a warning, unless suppressed by the  -nowarn option or the
      *  maximum number of warnings has been reached.
      *
-     *  <b>Note:</b> If {@code warningKey} is a {@link LintWarning}, then
-     *  you must also handle validation of suppressed lint categories via
-     *  Lint.validate() or LintSuppression.validate(). In most cases, you
-     *  are better off invoking Lint.log() instead of this method.
+     *  <b>Note:</b> If {@code warningKey} is a {@link LintWarning}, then you must
+     *  also validate suppressed lint categories via Lint.validateSuppresion() or
+     *  LintSuppression.validate(). Consider using Lint.logIfEnabled() instead.
      *
      *  @param pos    The source position at which to report the warning.
      *  @param warningKey    The key for the localized warning message.
@@ -186,6 +184,11 @@ public abstract class AbstractLog {
 
     /** Report a warning, unless suppressed by the  -nowarn option or the
      *  maximum number of warnings has been reached.
+     *
+     *  <b>Note:</b> If {@code warningKey} is a {@link LintWarning}, then you must
+     *  also validate suppressed lint categories via Lint.validateSuppresion() or
+     *  LintSuppression.validate(). Consider using Lint.logIfEnabled() instead.
+     *
      *  @param pos    The source position at which to report the warning.
      *  @param warningKey    The key for the localized warning message.
      */
