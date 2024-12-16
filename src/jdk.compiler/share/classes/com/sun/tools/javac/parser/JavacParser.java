@@ -668,7 +668,8 @@ public class JavacParser implements Parser {
         var pos = c.getPos();
         if (pos != null) {
             deferredLintHandler.report(lint -> {
-                if (!shebang(c, pos)) {
+                if (lint.isActive(Lint.LintCategory.DANGLING_DOC_COMMENTS) &&
+                        !shebang(c, pos)) {
                     lint.logIfEnabled(log, pos, LintWarnings.DanglingDocComment);
                 }
             });

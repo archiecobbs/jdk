@@ -522,8 +522,7 @@ public class Lint {
      * @param warning key for the localized warning message
      */
     public void logIfEnabled(Log log, DiagnosticPosition pos, LintWarning warning) {
-        LintCategory lc = warning.getLintCategory();
-        if (isEnabled(lc, true)) {
+        if (isEnabled(warning.getLintCategory(), true)) {
             log.warning(pos, warning);
         }
     }
