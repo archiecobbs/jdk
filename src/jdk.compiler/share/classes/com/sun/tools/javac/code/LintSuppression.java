@@ -138,23 +138,6 @@ public class LintSuppression {
     }
 
     /**
-     * Obtain the set of lint warning categories suppressed at the given symbol's declaration.
-     *
-     * <p>
-     * This set can be non-empty only if the symbol is annotated with either
-     * @SuppressWarnings or @Deprecated.
-     *
-     * @param symbol symbol corresponding to a possibly-annotated declaration
-     * @return new warning suppressions applied to sym
-     */
-    public EnumSet<LintCategory> suppressionsFrom(Symbol symbol) {
-        EnumSet<LintCategory> suppressions = suppressionsFrom(symbol.getDeclarationAttributes().stream());
-        if (symbol.isDeprecated() && symbol.isDeprecatableViaAnnotation())
-            suppressions.add(DEPRECATION);
-        return suppressions;
-    }
-
-    /**
      * Note that the given lint category has been validated within the scope of the given symbol's declaration
      * (or globally if symbol is null).
      *
@@ -270,36 +253,6 @@ public class LintSuppression {
           .collect(Collectors.joining(", ")));
     }
 
-    /**
-     * Retrieve the lint categories suppressed by the given @SuppressWarnings annotation.
-     *
-     * @param annotation @SuppressWarnings annotation, or null
-     * @return set of lint categories, possibly empty but never null
-     */
-    private EnumSet<LintCategory> suppressionsFrom(JCAnnotation annotation) {
-        initializeIfNeeded();
-        if (annotation == null)
-            return LintCategory.newEmptySet();
-        Assert.check(annotation.attribute.type.tsym == syms.suppressWarningsType.tsym);
-        return suppressionsFrom(Stream.of(annotation).map(anno -> anno.attribute));
-    }
-
-    // Find the @SuppressWarnings annotation in the attriubte stream and extract the suppressions
-    private EnumSet<LintCategory> suppressionsFrom(Stream<Attribute.Compound> attributes) {
-        initializeIfNeeded();
-        return attributes
-          .filter(attribute -> attribute.type.tsym == syms.suppressWarningsType.tsym)
-          .map(attribute -> attribute.member(names.value))
-          .flatMap(attribute -> Stream.of(((Attribute.Array)attribute).values))
-          .map(Attribute.Constant.class::cast)
-          .map(elem -> elem.value)
-          .map(String.class::cast)
-          .map(LintCategory::get)
-          .filter(Optional::isPresent)
-          .map(Optional::get)
-          .collect(Collectors.toCollection(LintCategory::newEmptySet));
-    }
-
     private void initializeIfNeeded() {
         if (syms == null) {
             syms = Symtab.instance(context);
@@ -409,7 +362,7 @@ public class LintSuppression {
             // We don't need to create a node here unless Lint.augment(symbol) would have created
             // a new Lint instance here (using symbol as the new "symbolInScope"). That happens when
             // the set of lint categories suppressed at the given symbol's declaration is non-empty.
-            EnumSet<LintCategory> suppressed = suppressionsFrom(symbol);
+            EnumSet<LintCategory> suppressed = rootLint.suppressionsFrom(symbol);
             if (suppressed.isEmpty()) {
                 recursion.accept(tree);
                 return;
@@ -421,7 +374,7 @@ public class LintSuppression {
             // "unnecessary". The annotation can be null here, which means the symbol has only @Deprecated.
             if (suppressed.contains(DEPRECATION)) {             // maybe came from @Deprecated, so need to rescan
                 suppressed = Optional.ofNullable(annotation)
-                                .map(LintSuppression.this::suppressionsFrom)
+                                .map(rootLint::suppressionsFrom)
                                 .orElseGet(LintCategory::newEmptySet);
             }
 

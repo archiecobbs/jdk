@@ -95,6 +95,7 @@ public abstract class BaseFileManager implements JavaFileManager {
 
         // Detect Lint options, but use Options.isLintSet() to avoid initializing the Lint class
         boolean warn = options.isLintSet(LintCategory.PATH.option);
+        boolean fileClashOption = options.isLintSet(LintCategory.OUTPUT_FILE_CLASH.option);
         locations.update(log, warn, FSInfo.instance(context));
         boolean suppressionOption = options.isLintSet(LintCategory.SUPPRESSION_OPTION.option);
 

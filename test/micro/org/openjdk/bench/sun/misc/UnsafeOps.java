@@ -32,7 +32,6 @@ import org.openjdk.jmh.annotations.*;
 @Measurement(iterations = 10, time = 500, timeUnit = TimeUnit.MILLISECONDS)
 @State(org.openjdk.jmh.annotations.Scope.Thread)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-@SuppressWarnings("removal")
 public class UnsafeOps {
     static final Unsafe U;
     static {

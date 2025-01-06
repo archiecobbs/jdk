@@ -30,13 +30,16 @@ import java.util.EnumSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
 
 import com.sun.tools.javac.main.Option;
-import com.sun.tools.javac.util.AbstractLog;
+import com.sun.tools.javac.tree.JCTree.*;
+import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.JCDiagnostic.LintWarning;
 import com.sun.tools.javac.util.Log;
+import com.sun.tools.javac.util.Names;
 import com.sun.tools.javac.util.Options;
 
 /**
@@ -86,13 +89,13 @@ public class Lint {
      *
      * <p>
      * The returned instance will be different from this instance if and only if
-     * {@link LintSuppression#suppressionsFrom} returns a non-empty set.
+     * {@link #suppressionsFrom} returns a non-empty set.
      *
      * @param sym symbol
      * @return lint instance with new warning suppressions applied, or this instance if none
      */
     public Lint augment(Symbol sym) {
-        EnumSet<LintCategory> suppressions = lintSuppression.suppressionsFrom(sym);
+        EnumSet<LintCategory> suppressions = suppressionsFrom(sym);
         if (!suppressions.isEmpty()) {
             Lint lint = new Lint(this, sym);
             lint.values.removeAll(suppressions);
@@ -124,18 +127,24 @@ public class Lint {
         return l;
     }
 
-    /** Contains the categories suppressed via "-Xlint:-foo" command line flags. */
-    final EnumSet<LintCategory> suppressedOptions;
-
-    // Used to track the validation of suppressed warnings
-    private final LintSuppression lintSuppression;
+    private final Context context;
 
     // The current symbol in scope (having @SuppressWarnings or @Deprecated), or null for global scope
     private final Symbol symbolInScope;
 
+    // Used to track the validation of suppressed warnings
+    private final LintSuppression lintSuppression;
+
+    // These are initialized lazily to avoid dependency loops
+    private Symtab syms;
+    private Names names;
+
     // Invariant: it's never the case that a category is in both "values" and "suppressedValues"
     private final EnumSet<LintCategory> values;
     private final EnumSet<LintCategory> suppressedValues;
+
+    /** Contains the categories suppressed via "-Xlint:-foo" command line flags. */
+    final EnumSet<LintCategory> suppressedOptions;
 
     private static final Map<String, LintCategory> map = new ConcurrentHashMap<>(20);
 
@@ -186,17 +195,21 @@ public class Lint {
         suppressedValues = LintCategory.newEmptySet();
         symbolInScope = null;
 
+        this.context = context;
         context.put(lintKey, this);
 
         lintSuppression = LintSuppression.instance(context);
     }
 
     protected Lint(Lint other, Symbol symbolInScope) {
-        this.suppressedOptions = other.suppressedOptions;
+        this.context = other.context;
+        this.syms = other.syms;
+        this.names = other.names;
         this.lintSuppression = other.lintSuppression;
         this.symbolInScope = symbolInScope;
         this.values = other.values.clone();
         this.suppressedValues = other.suppressedValues.clone();
+        this.suppressedOptions = other.suppressedOptions;
     }
 
     @Override
@@ -470,7 +483,7 @@ public class Lint {
      * This method also optionally validates any warning suppressions currently in scope.
      * If you just want to know the configuration of this instance, set validate to false.
      * If you are using the result of this method to control whether a warning is actually
-     * generated, then set validate to true to ensure any any suppression of the category
+     * generated, then set validate to true to ensure that any suppression of the category
      * in scope is validated (i.e., determined to actually be suppressing something).
      *
      * @param lc lint category
@@ -492,7 +505,7 @@ public class Lint {
      * This method also optionally validates any warning suppressions currently in scope.
      * If you just want to know the configuration of this instance, set validate to false.
      * If you are using the result of this method to control whether a warning is actually
-     * generated, then set validate to true to ensure any any suppression of the category
+     * generated, then set validate to true to ensure that any suppression of the category
      * in scope is validated (i.e., determined to actually be suppressing something).
      *
      * @param lc lint category
@@ -528,6 +541,60 @@ public class Lint {
     }
 
     /**
+     * Obtain the set of recognized lint warning categories suppressed at the given symbol's declaration.
+     *
+     * <p>
+     * This set can be non-empty only if the symbol is annotated with either
+     * @SuppressWarnings or @Deprecated.
+     *
+     * @param symbol symbol corresponding to a possibly-annotated declaration
+     * @return new warning suppressions applied to sym
+     */
+    public EnumSet<LintCategory> suppressionsFrom(Symbol symbol) {
+        EnumSet<LintCategory> suppressions = suppressionsFrom(symbol.getDeclarationAttributes().stream());
+        if (symbol.isDeprecated() && symbol.isDeprecatableViaAnnotation())
+            suppressions.add(LintCategory.DEPRECATION);
+        return suppressions;
+    }
+
+    /**
+     * Retrieve the recognized lint categories suppressed by the given @SuppressWarnings annotation.
+     *
+     * @param annotation @SuppressWarnings annotation, or null
+     * @return set of lint categories, possibly empty but never null
+     */
+    EnumSet<LintCategory> suppressionsFrom(JCAnnotation annotation) {
+        initializeIfNeeded();
+        if (annotation == null)
+            return LintCategory.newEmptySet();
+        Assert.check(annotation.attribute.type.tsym == syms.suppressWarningsType.tsym);
+        return suppressionsFrom(Stream.of(annotation).map(anno -> anno.attribute));
+    }
+
+    // Find the @SuppressWarnings annotation in the given stream and extract the recognized suppressions
+    private EnumSet<LintCategory> suppressionsFrom(Stream<Attribute.Compound> attributes) {
+        initializeIfNeeded();
+        EnumSet<LintCategory> result = LintCategory.newEmptySet();
+        attributes
+          .filter(attribute -> attribute.type.tsym == syms.suppressWarningsType.tsym)
+          .map(this::suppressionsFrom)
+          .forEach(result::addAll);
+        return result;
+    }
+
+    // Given a @SuppressWarnings annotation, extract the recognized suppressions
+    private EnumSet<LintCategory> suppressionsFrom(Attribute.Compound suppressWarnings) {
+        EnumSet<LintCategory> result = LintCategory.newEmptySet();
+        Attribute.Array values = (Attribute.Array)suppressWarnings.member(names.value);
+        for (Attribute value : values.values) {
+            Optional.of((String)((Attribute.Constant)value).value)
+              .flatMap(LintCategory::get)
+              .ifPresent(result::add);
+        }
+        return result;
+    }
+
+    /**
      * Record that any suppression of the given category currently in scope is valid.
      *
      * <p>
@@ -558,5 +625,12 @@ public class Lint {
         return lc.suppressionTracking &&
             (suppressedValues.contains(lc) || suppressedOptions.contains(lc)) &&
             (values.contains(LintCategory.SUPPRESSION) || values.contains(LintCategory.SUPPRESSION_OPTION));
+    }
+
+    private void initializeIfNeeded() {
+        if (syms == null) {
+            syms = Symtab.instance(context);
+            names = Names.instance(context);
+        }
     }
 }
