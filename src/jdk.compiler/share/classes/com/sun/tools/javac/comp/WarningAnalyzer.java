@@ -62,6 +62,8 @@ public class WarningAnalyzer {
 
     public void analyzeTree(Env<AttrContext> env) {
         thisEscapeAnalyzer.analyzeTree(env);
+
+        // This one should go last
         lintSuppression.reportUnnecessarySuppressWarnings(log, env.tree);
     }
 }
