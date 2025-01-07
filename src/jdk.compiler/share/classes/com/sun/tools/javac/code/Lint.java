@@ -43,26 +43,50 @@ import com.sun.tools.javac.util.Names;
 import com.sun.tools.javac.util.Options;
 
 /**
- * A class for handling -Xlint suboptions and @SuppressWarnings.
+ * A class for handling {@code -Xlint} suboptions and {@code @SuppressWarnings} annotations.
  *
  * <p>
- * Simple instructions:
+ * Each lint category can be in one of three states: enabled, suppressed, or neither. The "neither"
+ * state means it's effectively up to the code doing the check to determine the default behavior, by
+ * warning when enabled (i.e., default suppressed) or warning when suppressed (i.e., default enabled).
+ * Some categories default to enabled; most default to neither and warn when enabled.
+ *
+ * <p>
+ * A lint category can be explicitly enabled via the command line flag {@code -Xlint:key}, or explicitly
+ * disabled via the command line flag {@code -Xlint:-key}. Some lint categories warn at specific
+ * locations in the code and can be suppressed within the scope of a symbol declaration via the
+ * {@code @SuppressWarnings} annotation.
+ *
+ * <p>
+ * The meta-categories {@code suppression-option} and {@code suppression} warn about unnecessary
+ * {@code -Xlint:-key} flags and {@code @SuppressWarnings} annotations (respectively), i.e., they warn
+ * about explicit suppressions that don't actually suppress anything. In order for this calculation
+ * to be correct, <i>code that generates a warning must execute even when the corresponding category
+ * is disabled or suppressed</i>.
+ *
+ * <p>
+ * To ensure this happens, code should use {@link #isActive} to determine whether to bother performing
+ * a warning calculation (if the calculation is non-trivial), and it should use {@link #logIfEnabled}
+ * to actually log any warnings found. Even if the warning is suppressed, {@link #logIfEnabled} will note
+ * that any suppression in effect is actually doing something useful. This is termed the <i>validation</i>
+ * of the suppression.
+ *
+ * <p>
+ * Further details:
  * <ul>
- *  <li>To build an instance augmented with any new suppressions from @SuppressWarnings and/or
- *      @Deprecated annotations, use {@link #augment}. This creates a new symbol "scope".
- *  <li>Any category for which {@link #isActive} returns true must be checked; this is
- *      true even if {@link #isEnabled} returns false or {@link #isSuppressed} returns true.
- *      Use of {@link #isActive} is optional; it simply allows you to skip unnecessary work.
- *  <li>When a warnable condition is found, invoke {@link #logIfEnabled}. If the warning should
- *      be suppressed, it won't actually be logged, but the category will be validated as
- *      required for the SUPPRESSION and SUPPRESSION_OPTION categories. NOTE: All warnings that
- *      can possibly be generated must validate the corresponding category even if the warning
- *      is being suppressed.
- *  <li>You can also manually check whether a category {@link #isEnabled} or {@link #isSuppressed}.
- *      These methods allow you to validate any current suppression of the category as well;
- *      do that if a warning will actually be generated based on the method's return value.
- *  <li>You can also validate suppressions manually if needed via {@link #validateSuppression} or
- *      {@link LintSuppression#validate}.
+ *  <li>To build an instance augmented with any new suppressions from {@code @SuppressWarnings} and/or
+ *      {@code @Deprecated} annotations on a symbol declaration, use {@link #augment} to establish a
+ *      new symbol "scope".
+ *  <li>Any category for which {@link #isActive} returns true must be checked; this is true even if
+ *      {@link #isEnabled} returns false and/or {@link #isSuppressed} returns true. Use of {@link #isActive}
+ *      is optional; it simply allows you to skip unnecessary work. For trivial checks, it's not needed.
+ *  <li>When a warnable condition is found, invoke {@link #logIfEnabled}. If the warning is suppressed,
+ *      it won't actually be logged, but the category will still be validated. All lint warnings that would
+ *      have been generated but aren't because of suppression must still validate the corresponding category.
+ *  <li>You can manually check whether a category {@link #isEnabled} or {@link #isSuppressed}. These methods
+ *      include a boolean parameter to optionally also validate any suppression of the category; <i>always
+ *      do so if a warning will actually be generated based on the method's return value</i>.
+ *  <li>If needed, you can validate suppressions manually via {@link #validateSuppression}.
  * </ul>
  *
  *  <p><b>This is NOT part of any supported API.
@@ -72,10 +96,10 @@ import com.sun.tools.javac.util.Options;
  */
 public class Lint {
 
-    /** The context key for the root Lint object. */
+    /** The context key for the root {@link Lint} singleton. */
     protected static final Context.Key<Lint> lintKey = new Context.Key<>();
 
-    /** Get the root Lint instance. */
+    /** Get the root {@link Lint} singleton. */
     public static Lint instance(Context context) {
         Lint instance = context.get(lintKey);
         if (instance == null)
@@ -85,7 +109,7 @@ public class Lint {
 
     /**
      * Obtain an instance with additional warning supression applied from any
-     * @SuppressWarnings and/or @Deprecated annotations on the given symbol.
+     * {@code @SuppressWarnings} and/or {@code @Deprecated} annotations on the given symbol.
      *
      * <p>
      * The returned instance will be different from this instance if and only if
@@ -106,7 +130,8 @@ public class Lint {
     }
 
     /**
-     * Returns a new Lint that has the given LintCategorys enabled.
+     * Returns a new Lint that has the given {@link LintCategory}s enabled.
+     *
      * @param lc one or more categories to be enabled
      */
     public Lint enable(LintCategory... lc) {
@@ -117,7 +142,8 @@ public class Lint {
     }
 
     /**
-     * Returns a new Lint that has the given LintCategorys suppressed.
+     * Returns a new Lint that has the given {@link LintCategory}s suppressed.
+     *
      * @param lc one or more categories to be suppressed
      */
     public Lint suppress(LintCategory... lc) {
@@ -127,6 +153,7 @@ public class Lint {
         return l;
     }
 
+    // Associated compiler context
     private final Context context;
 
     // The current symbol in scope (having @SuppressWarnings or @Deprecated), or null for global scope
@@ -143,7 +170,7 @@ public class Lint {
     private final EnumSet<LintCategory> values;
     private final EnumSet<LintCategory> suppressedValues;
 
-    /** Contains the categories suppressed via "-Xlint:-foo" command line flags. */
+    /** Contains the categories suppressed via {@code -Xlint:-key} command line flags. */
     final EnumSet<LintCategory> suppressedOptions;
 
     private static final Map<String, LintCategory> map = new ConcurrentHashMap<>(20);
@@ -222,8 +249,8 @@ public class Lint {
      */
     public enum LintCategory {
         /**
-         * Warn when code refers to a auxiliary class that is hidden in a source file (ie source file name is
-         * different from the class name, and the type is not properly nested) and the referring code
+         * Warn when code refers to an auxiliary class that is hidden in a source file (i.e., the source file
+         * name is different from the class name, and the type is not properly nested) and the referring code
          * is not located in the same source file.
          */
         AUXILIARYCLASS("auxiliaryclass"),
@@ -234,7 +261,10 @@ public class Lint {
         CAST("cast"),
 
         /**
-         * Warn about issues related to classfile contents
+         * Warn about issues related to classfile contents.
+         *
+         * <p>
+         * This category is not supported by {@code @SuppressWarnings}.
          */
         CLASSFILE("classfile", false),
 
@@ -251,7 +281,7 @@ public class Lint {
 
         /**
          * Warn about items which are documented with an {@code @deprecated} JavaDoc
-         * comment, but which do not have {@code @Deprecated} annotation.
+         * comment, but which do not have the {@code @Deprecated} annotation.
          */
         DEP_ANN("dep-ann"),
 
@@ -306,12 +336,19 @@ public class Lint {
         OPENS("opens"),
 
         /**
-         * Warn about issues relating to use of command line options
+         * Warn about issues relating to use of command line options.
+         *
+         * <p>
+         * This category is not supported by {@code @SuppressWarnings}
+         * and is not tracked for unnecessary suppression.
          */
         OPTIONS("options", false, false),
 
         /**
          * Warn when any output file is written to more than once.
+         *
+         * <p>
+         * This category is not supported by {@code @SuppressWarnings}.
          */
         OUTPUT_FILE_CLASH("output-file-clash", false),
 
@@ -327,8 +364,10 @@ public class Lint {
 
         /**
          * Warn about invalid path elements on the command line.
-         * Such warnings cannot be suppressed with the SuppressWarnings
-         * annotation.
+         *
+         * <p>
+         * This category is not supported by {@code @SuppressWarnings}
+         * and is not tracked for unnecessary suppression.
          */
         PATH("path", false, false),
 
@@ -373,12 +412,19 @@ public class Lint {
         STRICTFP("strictfp"),
 
         /**
-         * Warn about @SuppressWarnings values that don't actually suppress any warnings.
+         * Warn about recognized {@code @SuppressWarnings} lint categories that don't actually suppress any warnings.
+         *
+         * <p>
+         * This category is not tracked for unnecessary suppression.
          */
         SUPPRESSION("suppression", true, false),
 
         /**
-         * Warn about -Xlint:-key options that don't actually suppress any warnings (requires OPTIONS).
+         * Warn about {@code -Xlint:-key} options that don't actually suppress any warnings (requires {@link #OPTIONS}).
+         *
+         * <p>
+         * This category is not supported by {@code @SuppressWarnings}
+         * and is not tracked for unnecessary suppression.
          */
         SUPPRESSION_OPTION("suppression-option", false, false),
 
@@ -388,7 +434,10 @@ public class Lint {
         SYNCHRONIZATION("synchronization"),
 
         /**
-         * Warn about issues relating to use of text blocks
+         * Warn about issues relating to use of text blocks.
+         *
+         * <p>
+         * This category is not supported by {@code @SuppressWarnings}.
          */
         TEXT_BLOCKS("text-blocks", false),
 
@@ -398,7 +447,7 @@ public class Lint {
         THIS_ESCAPE("this-escape"),
 
         /**
-         * Warn about issues relating to use of try blocks (i.e. try-with-resources)
+         * Warn about issues relating to use of try blocks (i.e., try-with-resources).
          */
         TRY("try"),
 
@@ -414,6 +463,9 @@ public class Lint {
 
         /**
          * Warn about use of preview features.
+         *
+         * <p>
+         * This category is not supported by {@code @SuppressWarnings}.
          */
         PREVIEW("preview", false),
 
@@ -447,24 +499,27 @@ public class Lint {
             return Optional.ofNullable(map.get(option));
         }
 
+        /**
+         * Create a new, empty, mutable set of {@link LintCategory}.
+         */
         public static EnumSet<LintCategory> newEmptySet() {
             return EnumSet.noneOf(LintCategory.class);
         }
 
-        /** Get the string representing this category in @SuppressAnnotations and -Xlint options. */
+        /** Get the string representing this category in {@code @SuppressWarnings} and {@code -Xlint:key} flags. */
         public final String option;
 
-        /** Does this category support suppression via @SuppressAnnotations annotations, or only via -Xlint? */
+        /** Does this category support being suppressed by the {@code @SuppressWarnings} annotation? */
         public final boolean annotationSuppression;
 
-        /** Do the SUPPRESSION and SUPPRESSION_OPTION categories generate warnings about this category? */
+        /** Do the {@code "suppression"} and {@code "suppression-option"} categories track suppressions in this category? */
         public final boolean suppressionTracking;
     }
 
     /**
-     * Determine whether warnings in the given category should be calculated, either because
-     * the category is enabled, or because one of SUPPRESSION or SUPPRESSION_OPTION is enabled,
-     * the category is currently suppressed, and that suppression has not yet been validated.
+     * Determine whether warnings in the given category should be calculated, because either
+     * (a) the category is enabled, or (b) one of {@code "suppression"} or {@code "suppression-option"}
+     * is enabled, the category is currently suppressed, and that suppression has not yet been validated.
      *
      * <p>
      * Use of this method is never required; it simply helps avoid potentially useless work.
@@ -477,13 +532,13 @@ public class Lint {
     /**
      * Checks if a warning category is enabled. A warning category may be enabled
      * on the command line, or by default, and can be temporarily disabled with
-     * the SuppressWarnings annotation.
+     * the {@code @SuppressWarnings} annotation.
      *
      * <p>
      * This method also optionally validates any warning suppressions currently in scope.
-     * If you just want to know the configuration of this instance, set validate to false.
+     * If you just want to know the configuration of this instance, set {@code validate} to false.
      * If you are using the result of this method to control whether a warning is actually
-     * generated, then set validate to true to ensure that any suppression of the category
+     * generated, then set {@code validate} to true to ensure that any suppression of the category
      * in scope is validated (i.e., determined to actually be suppressing something).
      *
      * @param lc lint category
@@ -497,15 +552,15 @@ public class Lint {
 
     /**
      * Checks is a warning category has been specifically suppressed, by means
-     * of the SuppressWarnings annotation, or, in the case of the deprecated
+     * of the {@code @SuppressWarnings} annotation, or, in the case of the deprecated
      * category, whether it has been implicitly suppressed by virtue of the
      * current entity being itself deprecated.
      *
      * <p>
      * This method also optionally validates any warning suppressions currently in scope.
-     * If you just want to know the configuration of this instance, set validate to false.
+     * If you just want to know the configuration of this instance, set {@code validate} to false.
      * If you are using the result of this method to control whether a warning is actually
-     * generated, then set validate to true to ensure that any suppression of the category
+     * generated, then set {@code validate} to true to ensure that any suppression of the category
      * in scope is validated (i.e., determined to actually be suppressing something).
      *
      * @param lc lint category
@@ -545,7 +600,7 @@ public class Lint {
      *
      * <p>
      * This set can be non-empty only if the symbol is annotated with either
-     * @SuppressWarnings or @Deprecated.
+     * {@code @SuppressWarnings} or {@code @Deprecated}.
      *
      * @param symbol symbol corresponding to a possibly-annotated declaration
      * @return new warning suppressions applied to sym
@@ -558,9 +613,9 @@ public class Lint {
     }
 
     /**
-     * Retrieve the recognized lint categories suppressed by the given @SuppressWarnings annotation.
+     * Retrieve the recognized lint categories suppressed by the given {@code @SuppressWarnings} annotation.
      *
-     * @param annotation @SuppressWarnings annotation, or null
+     * @param annotation {@code @SuppressWarnings} annotation, or null
      * @return set of lint categories, possibly empty but never null
      */
     EnumSet<LintCategory> suppressionsFrom(JCAnnotation annotation) {
@@ -599,7 +654,7 @@ public class Lint {
      *
      * <p>
      * Such a suppression will therefore <b>not</b> be declared as unnecessary by the
-     * SUPPRESSION or SUPPRESSION_OPTION warnings.
+     * {@code "suppression"} or {@code "suppression-option"} warnings.
      *
      * @param lc the lint category to be validated
      * @return this instance
@@ -616,9 +671,9 @@ public class Lint {
      * <p>
      * We need to track the validation of a lint category if:
      * <ul>
-     *  <li>It's subject to SUPPRESSION and SUPPRESSION_OPTION tracking
-     *  <li>It's currently being suppressed by @SuppressWarnings or -Xlint:-foo
-     *  <li>Either of SUPPRESSION or SUPPRESSION_OPTION is currently enabled
+     *  <li>It's supported by {@code "suppression"} and {@code "suppression-option"} suppression tracking
+     *  <li>One or both of {@code "suppression"} or {@code "suppression-option"} is currently enabled
+     *  <li>It's currently being suppressed by some {@code @SuppressWarnings} and/or {@code -Xlint:-key}
      * </ul>
      */
     private boolean needsSuppressionTracking(LintCategory lc) {
