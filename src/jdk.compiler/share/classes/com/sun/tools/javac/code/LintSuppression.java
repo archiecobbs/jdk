@@ -171,7 +171,7 @@ public class LintSuppression {
     /**
      * Report unnecessary @SuppressWarnings annotations within the given tree.
      */
-    public void reportUnnecessarySuppressWarnings(Log log, JCTree tree) {
+    public void reportUnnecessaryAnnotations(Log log, JCTree tree) {
         Assert.check(tree != null);
         initializeIfNeeded();
 
@@ -211,7 +211,7 @@ public class LintSuppression {
      * <p>
      * This step must be done last.
      */
-    public void reportUnnecessarySuppressOptions(Log log) {
+    public void reportUnnecessaryOptions(Log log) {
         initializeIfNeeded();
 
         // For some categories we don't get per-file calls to reportUnnecessarySuppressWarnings(),
