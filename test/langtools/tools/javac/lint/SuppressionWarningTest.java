@@ -528,6 +528,7 @@ public class SuppressionWarningTest extends TestRunner {
             """
             @OUTER@
             public class Test {
+                @INNER@
                 public Test() {
                     System.out.println();
                     super();
