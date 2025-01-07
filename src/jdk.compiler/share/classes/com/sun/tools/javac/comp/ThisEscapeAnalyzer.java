@@ -338,17 +338,17 @@ public class ThisEscapeAnalyzer extends TreeScanner {
 
                     // Gather some useful info
                     boolean constructor = TreeInfo.isConstructor(tree);
-                    boolean extendable = currentClassIsExternallyExtendable();
+                    boolean extendableClass = currentClassIsExternallyExtendable();
                     boolean nonPrivate = (tree.sym.flags() & (Flags.PUBLIC | Flags.PROTECTED)) != 0;
                     boolean finalish = (tree.mods.flags & (Flags.STATIC | Flags.PRIVATE | Flags.FINAL)) != 0;
 
                     // Determine if this is a constructor we should analyze
-                    boolean analyzable = extendable && constructor && nonPrivate;
+                    boolean analyzable = extendableClass && constructor && nonPrivate;
 
-                    // Determine if we can "invoke" the method in an analysis (code is valid because it can't be overridden)
-                    boolean invokable = !extendable || constructor || finalish;
+                    // Determine if it's safe to "invoke" the method in an analysis (i.e., it can't be overridden)
+                    boolean invokable = !extendableClass || constructor || finalish;
 
-                    // Add method or constructor to map
+                    // Add this method or constructor to our map
                     MethodInfo methodInfo = new MethodInfo(currentClass, tree, lint, analyzable, invokable);
                     methodMap.put(tree.sym, methodInfo);
 
@@ -378,16 +378,16 @@ public class ThisEscapeAnalyzer extends TreeScanner {
 
         // Analyze non-static field initializers and initialization blocks.
         //
-        // Note there is a subtlety here. Below we are analyzing initializers independently from constructors,
-        // but at runtime initializers execute implicitly from within each constructor (at super() time).
-        // We are doing two things to "fixup" this disconnect:
+        // Note there is a subtlety here. Below we are analyzing initializers independently from constructors
+        // even though at runtime initializers execute implicitly from within each constructor (after super()).
+        // We are doing two things to handle this disconnect:
         //  - Only scan initializers in classes that have at least one analyzable constructor
         //  - Only suppress warnings in initializers if EVERY analyzable constructor suppresses them
         analyzableConstructorMap.forEach((klass, methodInfo) -> {
             for (List<JCTree> defs = klass.defs; defs.nonEmpty(); defs = defs.tail) {
                 JCTree decl = defs.head;
 
-                // Ignore static stuff
+                // Ignore static field initializers and static initialization blocks
                 if ((TreeInfo.flags(decl) & Flags.STATIC) != 0)
                     continue;
 
@@ -434,7 +434,24 @@ public class ThisEscapeAnalyzer extends TreeScanner {
 
         // Stack traces are ordered top to bottom, and so duplicates always have the same first element(s).
         // Sort the stack traces lexicographically, so that duplicates immediately follow what they duplicate.
-        warningList.sort(WarningInfo::compareStacks);
+        Comparator<DiagnosticPosition[]> ordering = (warning1, warning2) -> {
+            for (int index1 = 0, index2 = 0; true; index1++, index2++) {
+                boolean end1 = index1 >= warning1.length;
+                boolean end2 = index2 >= warning2.length;
+                if (end1 && end2)
+                    return 0;
+                if (end1)
+                    return -1;
+                if (end2)
+                    return 1;
+                int posn1 = warning1[index1].getPreferredPosition();
+                int posn2 = warning2[index2].getPreferredPosition();
+                int diff = Integer.compare(posn1, posn2);
+                if (diff != 0)
+                    return diff;
+            }
+        };
+        warningList.sort(Comparator.comparing(WarningInfo::stack, ordering));
 
         // Now emit the warnings, but skipping over duplicates as we go through the list
         WarningInfo previous = null;
@@ -1784,28 +1801,6 @@ public class ThisEscapeAnalyzer extends TreeScanner {
     private record WarningInfo(
         Lint lint,                          // lint configuration in effect
         DiagnosticPosition[] stack) {       // "call stack" where the leak happens
-
-        // Sorts this instance and given instance lexicographically by stack trace.
-        // As a result, duplicates will immediately follow whatever they duplicate.
-        public int compareStacks(WarningInfo that) {
-            DiagnosticPosition[] stack1 = this.stack();
-            DiagnosticPosition[] stack2 = that.stack();
-            for (int index1 = 0, index2 = 0; true; index1++, index2++) {
-                boolean end1 = index1 >= stack1.length;
-                boolean end2 = index2 >= stack2.length;
-                if (end1 && end2)
-                    return 0;
-                if (end1)
-                    return -1;
-                if (end2)
-                    return 1;
-                int posn1 = stack1[index1].getPreferredPosition();
-                int posn2 = stack2[index2].getPreferredPosition();
-                int diff = Integer.compare(posn1, posn2);
-                if (diff != 0)
-                    return diff;
-            }
-        }
     }
 
 // MethodInfo
