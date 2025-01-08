@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @bug 9999999
+ * @bug 8344159
  * @summary Test "suppressed" and "suppressed-option" lint warnings
  * @library /tools/lib
  * @modules
