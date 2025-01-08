@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2025, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -265,6 +265,13 @@ define SetupJavaCompilationBody
       # If unspecified, default to the new jdk we're building
       $1_TARGET_RELEASE := $$(TARGET_RELEASE_NEWJDK)
     endif
+
+    # Always include "Xlint:-suppression-option" because, thanks to the Depend plugin, we
+    # only compile the source files that need to be recompiled, so the "suppression-option"
+    # lint warning will generate a false positive if the source file(s) that would generate
+    # an otherwise suppressed lint warning are not included in the compliation. With a fresh
+    # build, it would be safe to enable "suppression-option" (TODO: automate doing that).
+    $1_FLAGS += -Xlint:-suppression-option
   else
     $$(error Invalid value for COMPILER in SetupJavaCompilation for $1: '$$($1_COMPILER)')
   endif
