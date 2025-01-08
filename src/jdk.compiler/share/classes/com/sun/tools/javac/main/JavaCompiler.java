@@ -324,6 +324,10 @@ public class JavaCompiler {
 
     protected DeferredCompletionFailureHandler dcfh;
 
+    /** The lint warning suppression tracker.
+     */
+    protected LintSuppression lintSuppression;
+
     /** The type eraser.
      */
     protected TransTypes transTypes;
@@ -432,6 +436,7 @@ public class JavaCompiler {
         modules = Modules.instance(context);
         moduleFinder = ModuleFinder.instance(context);
         diags = Factory.instance(context);
+        lintSuppression = LintSuppression.instance(context);
         dcfh = DeferredCompletionFailureHandler.instance(context);
 
         finder.sourceCompleter = sourceCompleter;
@@ -1869,6 +1874,7 @@ public class JavaCompiler {
         }
         chk.reportDeferredDiagnostics();
         preview.reportDeferredDiagnostics();
+        lintSuppression.reportUnnecessaryOptions(log);
         if (log.compressedOutput) {
             log.mandatoryNote(null, Notes.CompressedDiags);
         }
@@ -1940,6 +1946,7 @@ public class JavaCompiler {
         source = null;
         attr = null;
         chk = null;
+        lintSuppression = null;
         gen = null;
         flow = null;
         transTypes = null;

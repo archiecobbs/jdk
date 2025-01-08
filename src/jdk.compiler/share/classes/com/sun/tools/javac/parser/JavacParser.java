@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -668,10 +668,9 @@ public class JavacParser implements Parser {
         var pos = c.getPos();
         if (pos != null) {
             deferredLintHandler.report(lint -> {
-                if (lint.isEnabled(Lint.LintCategory.DANGLING_DOC_COMMENTS) &&
+                if (lint.isActive(Lint.LintCategory.DANGLING_DOC_COMMENTS) &&
                         !shebang(c, pos)) {
-                    log.warning(
-                            pos, LintWarnings.DanglingDocComment);
+                    lint.logIfEnabled(log, pos, LintWarnings.DanglingDocComment);
                 }
             });
         }

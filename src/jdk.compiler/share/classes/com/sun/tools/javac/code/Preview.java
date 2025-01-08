@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -104,7 +104,7 @@ public class Preview {
         lint = Lint.instance(context);
         source = Source.instance(context);
         this.previewHandler =
-                new MandatoryWarningHandler(log, source, lint.isEnabled(LintCategory.PREVIEW), true, "preview", LintCategory.PREVIEW);
+                new MandatoryWarningHandler(log, source, lint.isEnabled(LintCategory.PREVIEW, false), true, "preview", LintCategory.PREVIEW);
         forcePreview = options.isSet("forcePreview");
         majorVersionToSource = initMajorVersionToSourceMap();
     }
@@ -176,7 +176,7 @@ public class Preview {
     public void warnPreview(DiagnosticPosition pos, Feature feature) {
         Assert.check(isEnabled());
         Assert.check(isPreview(feature));
-        if (!lint.isSuppressed(LintCategory.PREVIEW)) {
+        if (!lint.isSuppressed(LintCategory.PREVIEW, true)) {
             sourcesWithPreviewFeatures.add(log.currentSourceFile());
             previewHandler.report(pos, feature.isPlural() ?
                     LintWarnings.PreviewFeatureUsePlural(feature.nameFragment()) :
@@ -191,7 +191,7 @@ public class Preview {
      */
     public void warnPreview(JavaFileObject classfile, int majorVersion) {
         Assert.check(isEnabled());
-        if (lint.isEnabled(LintCategory.PREVIEW)) {
+        if (lint.isEnabled(LintCategory.PREVIEW, true)) {
             log.mandatoryWarning(null,
                     LintWarnings.PreviewFeatureUseClassfile(classfile, majorVersionToSource.get(majorVersion).name));
         }

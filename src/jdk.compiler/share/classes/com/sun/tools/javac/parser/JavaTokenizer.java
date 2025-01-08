@@ -226,7 +226,7 @@ public class JavaTokenizer extends UnicodeReader {
      */
     protected void lexWarning(int pos, JCDiagnostic.LintWarning key) {
         DiagnosticPosition dp = new SimpleDiagnosticPosition(pos) ;
-        log.warning(dp, key);
+        lint.logIfEnabled(log, dp, key);
     }
 
     /**
@@ -1069,7 +1069,7 @@ public class JavaTokenizer extends UnicodeReader {
                 // If a text block.
                 if (isTextBlock) {
                     // Verify that the incidental indentation is consistent.
-                    if (lint.isEnabled(LintCategory.TEXT_BLOCKS)) {
+                    if (lint.isActive(LintCategory.TEXT_BLOCKS)) {
                         Set<TextBlockSupport.WhitespaceChecks> checks =
                                 TextBlockSupport.checkWhitespace(string);
                         if (checks.contains(TextBlockSupport.WhitespaceChecks.INCONSISTENT)) {

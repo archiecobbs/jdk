@@ -2852,11 +2852,10 @@ public class Flow {
             int nextadrCatch = nextadr;
 
             if (!resourceVarDecls.isEmpty() &&
-                    lint.isEnabled(Lint.LintCategory.TRY)) {
+                    lint.isActive(Lint.LintCategory.TRY)) {
                 for (JCVariableDecl resVar : resourceVarDecls) {
                     if (unrefdResources.includes(resVar.sym) && !resVar.sym.isUnnamedVariable()) {
-                        log.warning(resVar.pos(),
-                                    LintWarnings.TryResourceNotReferenced(resVar.sym));
+                        lint.logIfEnabled(log, resVar.pos(), LintWarnings.TryResourceNotReferenced(resVar.sym));
                         unrefdResources.remove(resVar.sym);
                     }
                 }

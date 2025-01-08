@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -158,6 +158,10 @@ public abstract class AbstractLog {
      * Report a lint warning, unless suppressed by the  -nowarn option or the
      * maximum number of warnings has been reached.
      *
+     * <b>Note:</b> If {@code warningKey} is a {@link LintWarning}, then you must
+     * also validate suppressed lint categories via Lint.validateSuppresion() or
+     * LintSuppression.validate(). Consider using Lint.logIfEnabled() instead.
+     *
      * @param warningKey The key for the localized warning message.
      */
     public void warning(Warning warningKey) {
@@ -166,6 +170,11 @@ public abstract class AbstractLog {
 
     /** Report a warning, unless suppressed by the  -nowarn option or the
      *  maximum number of warnings has been reached.
+     *
+     *  <b>Note:</b> If {@code warningKey} is a {@link LintWarning}, then you must
+     *  also validate suppressed lint categories via Lint.validateSuppresion() or
+     *  LintSuppression.validate(). Consider using Lint.logIfEnabled() instead.
+     *
      *  @param pos    The source position at which to report the warning.
      *  @param warningKey    The key for the localized warning message.
      */
@@ -175,6 +184,11 @@ public abstract class AbstractLog {
 
     /** Report a warning, unless suppressed by the  -nowarn option or the
      *  maximum number of warnings has been reached.
+     *
+     *  <b>Note:</b> If {@code warningKey} is a {@link LintWarning}, then you must
+     *  also validate suppressed lint categories via Lint.validateSuppresion() or
+     *  LintSuppression.validate(). Consider using Lint.logIfEnabled() instead.
+     *
      *  @param pos    The source position at which to report the warning.
      *  @param warningKey    The key for the localized warning message.
      */
