@@ -86,7 +86,9 @@ import com.sun.tools.javac.util.Options;
  *  <li>You can manually check whether a category {@link #isEnabled} or {@link #isSuppressed}. These methods
  *      include a boolean parameter to optionally also validate any suppression of the category; <i>always
  *      do so if a warning will actually be generated based on the method's return value</i>.
- *  <li>If needed, you can validate suppressions manually via {@link #validateSuppression}.
+ *  <li>If needed, you can validate suppressions manually via {@link #validateSuppression} or
+ *      {@link LintSuppression#validate}.
+ *  <li>The root {@link Lint} singleton initializes itself lazily, so it can be used safely compiler startup.
  * </ul>
  *
  *  <p><b>This is NOT part of any supported API.
