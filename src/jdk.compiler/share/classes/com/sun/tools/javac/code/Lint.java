@@ -598,6 +598,52 @@ public class Lint {
     }
 
     /**
+     * Helper method. Validate a mandatory lint warning and log it if its lint category is enabled.
+     *
+     * @param log warning destination
+     * @param warning key for the localized warning message
+     */
+    public void logMandatoryIfEnabled(Log log, LintWarning warning) {
+        logMandatoryIfEnabled(log, null, warning);
+    }
+
+    /**
+     * Helper method. Validate a mandatory lint warning and log it if its lint category is enabled.
+     *
+     * @param log warning destination
+     * @param pos source position at which to report the warning
+     * @param warning key for the localized warning message
+     */
+    public void logMandatoryIfEnabled(Log log, DiagnosticPosition pos, LintWarning warning) {
+        if (isEnabled(warning.getLintCategory(), true)) {
+            log.mandatoryWarning(pos, warning);
+        }
+    }
+
+    /**
+     * Helper method. Validate a lint warning and log it if its lint category is not suppressed.
+     *
+     * @param log warning destination
+     * @param warning key for the localized warning message
+     */
+    public void logIfNotSuppressed(Log log, LintWarning warning) {
+        logIfNotSuppressed(log, null, warning);
+    }
+
+    /**
+     * Helper method. Validate a lint warning and log it if its lint category is not suppressed.
+     *
+     * @param log warning destination
+     * @param pos source position at which to report the warning
+     * @param warning key for the localized warning message
+     */
+    public void logIfNotSuppressed(Log log, DiagnosticPosition pos, LintWarning warning) {
+        if (!isSuppressed(warning.getLintCategory(), true)) {
+            log.warning(pos, warning);
+        }
+    }
+
+    /**
      * Obtain the set of recognized lint warning categories suppressed at the given symbol's declaration.
      *
      * <p>

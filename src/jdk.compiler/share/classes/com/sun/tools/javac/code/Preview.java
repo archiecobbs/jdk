@@ -80,7 +80,7 @@ public class Preview {
     private final Set<JavaFileObject> sourcesWithPreviewFeatures = new HashSet<>();
 
     private final Names names;
-    private final Lint lint;
+    private final Lint lint;            // the root Lint instance (we don't support @SuppressWarnings)
     private final Log log;
     private final Source source;
 
@@ -103,8 +103,8 @@ public class Preview {
         log = Log.instance(context);
         lint = Lint.instance(context);
         source = Source.instance(context);
-        this.previewHandler =
-                new MandatoryWarningHandler(log, source, lint.isEnabled(LintCategory.PREVIEW, false), true, "preview", LintCategory.PREVIEW);
+        boolean verbose = lint.isEnabled(LintCategory.PREVIEW, false);
+        this.previewHandler = new MandatoryWarningHandler(log, source, verbose, true);
         forcePreview = options.isSet("forcePreview");
         majorVersionToSource = initMajorVersionToSourceMap();
     }
@@ -176,12 +176,10 @@ public class Preview {
     public void warnPreview(DiagnosticPosition pos, Feature feature) {
         Assert.check(isEnabled());
         Assert.check(isPreview(feature));
-        if (!lint.isSuppressed(LintCategory.PREVIEW, true)) {
-            sourcesWithPreviewFeatures.add(log.currentSourceFile());
-            previewHandler.report(pos, feature.isPlural() ?
-                    LintWarnings.PreviewFeatureUsePlural(feature.nameFragment()) :
-                    LintWarnings.PreviewFeatureUse(feature.nameFragment()));
-        }
+        markUsesPreview(pos);
+        previewHandler.report(lint, pos, feature.isPlural() ?
+                LintWarnings.PreviewFeatureUsePlural(feature.nameFragment()) :
+                LintWarnings.PreviewFeatureUse(feature.nameFragment()));
     }
 
     /**
@@ -191,10 +189,8 @@ public class Preview {
      */
     public void warnPreview(JavaFileObject classfile, int majorVersion) {
         Assert.check(isEnabled());
-        if (lint.isEnabled(LintCategory.PREVIEW, true)) {
-            log.mandatoryWarning(null,
-                    LintWarnings.PreviewFeatureUseClassfile(classfile, majorVersionToSource.get(majorVersion).name));
-        }
+        lint.logMandatoryIfEnabled(log,
+                LintWarnings.PreviewFeatureUseClassfile(classfile, majorVersionToSource.get(majorVersion).name));
     }
 
     public void markUsesPreview(DiagnosticPosition pos) {
@@ -202,7 +198,7 @@ public class Preview {
     }
 
     public void reportPreviewWarning(DiagnosticPosition pos, LintWarning warnKey) {
-        previewHandler.report(pos, warnKey);
+        previewHandler.report(lint, pos, warnKey);
     }
 
     public boolean usesPreview(JavaFileObject file) {
