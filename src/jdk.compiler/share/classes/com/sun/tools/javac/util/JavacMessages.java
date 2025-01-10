@@ -90,10 +90,11 @@ public class JavacMessages implements Messages {
         this(defaultBundleName, context.get(Locale.class));
         this.context = context;
         context.put(messagesKey, this);
-        Options options = Options.instance(context);
-        boolean rawDiagnostics = options.isSet("rawDiagnostics");
-        this.diagFormatter = rawDiagnostics ? new RawDiagnosticFormatter(options) :
-                                                  new BasicDiagnosticFormatter(options, this);
+        Options.instance(context).whenReady(options -> {
+            boolean rawDiagnostics = options.isSet("rawDiagnostics");
+            diagFormatter = rawDiagnostics ? new RawDiagnosticFormatter(options) :
+                                             new BasicDiagnosticFormatter(options, this);
+        });
     }
 
     /** Creates a JavacMessages object.

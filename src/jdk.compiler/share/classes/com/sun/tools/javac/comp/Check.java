@@ -167,14 +167,9 @@ public class Check {
         boolean verboseUnchecked = lint.isEnabled(LintCategory.UNCHECKED);
         boolean enforceMandatoryWarnings = true;
 
-        deprecationHandler = new MandatoryWarningHandler(log, null, verboseDeprecated,
-                enforceMandatoryWarnings, "deprecated", LintCategory.DEPRECATION);
-        removalHandler = new MandatoryWarningHandler(log, null, verboseRemoval,
-                enforceMandatoryWarnings, "removal", LintCategory.REMOVAL);
-        uncheckedHandler = new MandatoryWarningHandler(log, null, verboseUnchecked,
-                enforceMandatoryWarnings, "unchecked", LintCategory.UNCHECKED);
-        sunApiHandler = new MandatoryWarningHandler(log, null, false,
-                enforceMandatoryWarnings, "sunapi", null);
+        deprecationHandler = new MandatoryWarningHandler(log, null, verboseDeprecated, enforceMandatoryWarnings, "deprecated");
+        removalHandler = new MandatoryWarningHandler(log, null, verboseRemoval, enforceMandatoryWarnings);
+        uncheckedHandler = new MandatoryWarningHandler(log, null, verboseUnchecked, enforceMandatoryWarnings);
 
         deferredLintHandler = DeferredLintHandler.instance(context);
 
@@ -203,10 +198,6 @@ public class Check {
     /** A handler for messages about unchecked or unsafe usage.
      */
     private MandatoryWarningHandler uncheckedHandler;
-
-    /** A handler for messages about using proprietary API.
-     */
-    private MandatoryWarningHandler sunApiHandler;
 
     /** A handler for deferred lint warnings.
      */
@@ -246,19 +237,13 @@ public class Check {
      */
     void warnDeprecated(DiagnosticPosition pos, Symbol sym) {
         if (sym.isDeprecatedForRemoval()) {
-            if (!lint.isSuppressed(LintCategory.REMOVAL)) {
-                if (sym.kind == MDL) {
-                    removalHandler.report(pos, LintWarnings.HasBeenDeprecatedForRemovalModule(sym));
-                } else {
-                    removalHandler.report(pos, LintWarnings.HasBeenDeprecatedForRemoval(sym, sym.location()));
-                }
-            }
-        } else if (!lint.isSuppressed(LintCategory.DEPRECATION)) {
-            if (sym.kind == MDL) {
-                deprecationHandler.report(pos, LintWarnings.HasBeenDeprecatedModule(sym));
-            } else {
-                deprecationHandler.report(pos, LintWarnings.HasBeenDeprecated(sym, sym.location()));
-            }
+            removalHandler.report(lint, pos, sym.kind == MDL ?
+                LintWarnings.HasBeenDeprecatedForRemovalModule(sym) :
+                LintWarnings.HasBeenDeprecatedForRemoval(sym, sym.location()));
+        } else {
+            deprecationHandler.report(lint, pos, sym.kind == MDL ?
+                LintWarnings.HasBeenDeprecatedModule(sym) :
+                LintWarnings.HasBeenDeprecated(sym, sym.location()));
         }
     }
 
@@ -267,8 +252,7 @@ public class Check {
      *  @param msg        A Warning describing the problem.
      */
     public void warnPreviewAPI(DiagnosticPosition pos, LintWarning warnKey) {
-        if (!lint.isSuppressed(LintCategory.PREVIEW))
-            preview.reportPreviewWarning(pos, warnKey);
+        preview.reportPreviewWarning(lint, pos, warnKey);
     }
 
     /** Log a preview warning.
@@ -276,8 +260,7 @@ public class Check {
      *  @param msg        A Warning describing the problem.
      */
     public void warnDeclaredUsingPreview(DiagnosticPosition pos, Symbol sym) {
-        if (!lint.isSuppressed(LintCategory.PREVIEW))
-            preview.reportPreviewWarning(pos, LintWarnings.DeclaredUsingPreview(kindName(sym), sym));
+        preview.reportPreviewWarning(lint, pos, LintWarnings.DeclaredUsingPreview(kindName(sym), sym));
     }
 
     /** Log a preview warning.
@@ -293,8 +276,7 @@ public class Check {
      *  @param msg        A string describing the problem.
      */
     public void warnUnchecked(DiagnosticPosition pos, LintWarning warnKey) {
-        if (!lint.isSuppressed(LintCategory.UNCHECKED))
-            uncheckedHandler.report(pos, warnKey);
+        uncheckedHandler.report(lint, pos, warnKey);
     }
 
     /**
@@ -304,7 +286,6 @@ public class Check {
         deprecationHandler.reportDeferredDiagnostic();
         removalHandler.reportDeferredDiagnostic();
         uncheckedHandler.reportDeferredDiagnostic();
-        sunApiHandler.reportDeferredDiagnostic();
     }
 
 
@@ -480,7 +461,6 @@ public class Check {
         deprecationHandler.clear();
         removalHandler.clear();
         uncheckedHandler.clear();
-        sunApiHandler.clear();
     }
 
     public void putCompiled(ClassSymbol csym) {

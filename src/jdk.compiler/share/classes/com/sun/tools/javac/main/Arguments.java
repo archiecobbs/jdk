@@ -348,6 +348,9 @@ public class Arguments {
     private boolean processArgs(Iterable<String> args,
             Set<Option> allowableOpts, OptionHelper helper,
             boolean allowOperands, boolean checkFileManager) {
+
+        options.ready();
+
         if (!doProcessArgs(args, allowableOpts, helper, allowOperands, checkFileManager))
             return false;
 

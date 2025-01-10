@@ -73,10 +73,7 @@ public class JCDiagnostic implements Diagnostic<JavaFileObject> {
         protected Factory(Context context) {
             this(JavacMessages.instance(context), "compiler");
             context.put(diagnosticFactoryKey, this);
-
-            final Options options = Options.instance(context);
-            initOptions(options);
-            options.addListener(() -> initOptions(options));
+            Options.instance(context).whenReady(this::initOptions);
         }
 
         private void initOptions(Options options) {

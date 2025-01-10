@@ -345,9 +345,7 @@ public class Log extends AbstractLog {
         messages = JavacMessages.instance(context);
         messages.add(Main.javacBundleName);
 
-        final Options options = Options.instance(context);
-        initOptions(options);
-        options.addListener(() -> initOptions(options));
+        Options.instance(context).whenReady(this::initOptions);
     }
     // where
         private void initOptions(Options options) {
