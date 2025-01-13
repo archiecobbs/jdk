@@ -132,9 +132,9 @@ public abstract class BaseFileManager implements JavaFileManager {
      */
     protected Charset charset;
 
-    protected Lint lint;
-
     protected Options options;
+
+    protected Lint lint;
 
     protected final Locations locations;
 
@@ -183,7 +183,7 @@ public abstract class BaseFileManager implements JavaFileManager {
     protected long deferredCloseTimeout = 0;
 
     public void clear() {
-        options.clear();
+        new HashSet<>(options.keySet()).forEach(k -> options.remove(k));
     }
 
     protected ClassLoader getClassLoader(URL[] urls) {
@@ -219,7 +219,6 @@ public abstract class BaseFileManager implements JavaFileManager {
     // <editor-fold defaultstate="collapsed" desc="Option handling">
     @Override @DefinedBy(Api.COMPILER)
     public boolean handleOption(String current, Iterator<String> remaining) {
-        options.ready();
         OptionHelper helper = new GrumpyHelper(log) {
             @Override
             public String get(Option option) {
@@ -239,6 +238,11 @@ public abstract class BaseFileManager implements JavaFileManager {
             @Override
             public boolean handleFileManagerOption(Option option, String value) {
                 return handleOption(option, value);
+            }
+
+            @Override
+            public void initialize() {
+                options.initialize();
             }
         };
 

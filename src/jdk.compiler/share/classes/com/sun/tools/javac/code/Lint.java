@@ -141,13 +141,13 @@ public class Lint {
     private Symtab syms;
     private Names names;
 
-    // State of this instance; for the root instance, these are initialized lazily
-    private EnumSet<LintCategory> values;           // categories enabled by default or "-Xlint:key", and with no "-Xlint:-key"
-    private EnumSet<LintCategory> suppressedValues; // categories suppressed by "-Xlint:-key" flag
-    private EnumSet<LintCategory> suppressedOptions;// categories suppressed by @SuppressWarnings (non-root only)
+    // For the root instance only, these are initialized lazily
+    private EnumSet<LintCategory> values;           // categories enabled by default or "-Xlint:key" and not (yet) suppressed
+    private EnumSet<LintCategory> suppressedValues; // categories suppressed by augment() or suppress() (but not "-Xlint:-key")
+    private EnumSet<LintCategory> suppressedOptions;// categories suppressed by "-Xlint:-key" flags
 
     // LintCategory lookup by option string
-    private static final Map<String, LintCategory> CATEGORY_OPTION_MAP = new ConcurrentHashMap<>(40);
+    private static final Map<String, LintCategory> map = new ConcurrentHashMap<>(40);
 
     // Instantiate the root instance
     @SuppressWarnings("this-escape")
@@ -159,7 +159,7 @@ public class Lint {
 
     // Instantiate a non-root ("symbol scoped") instance
     protected Lint(Lint other) {
-        other.initializeRootIfNeccesary();
+        other.initializeRootIfNeeded();
         this.context = other.context;
         this.options = other.options;
         this.syms = other.syms;
@@ -170,13 +170,13 @@ public class Lint {
     }
 
     // Process command line options on demand to allow use of root Lint early during startup
-    private void initializeRootIfNeccesary() {
+    private void initializeRootIfNeeded() {
 
         // Already initialized?
         if (values != null)
             return;
 
-        // initialize values according to the lint options
+        // Initialize enabled categories based on "-Xlint" flags
         if (options.isSet(Option.XLINT) || options.isSet(Option.XLINT_CUSTOM, "all")) {
             // If -Xlint or -Xlint:all is given, enable all categories by default
             values = EnumSet.allOf(LintCategory.class);
@@ -222,7 +222,7 @@ public class Lint {
 
     @Override
     public String toString() {
-        initializeRootIfNeccesary();
+        initializeRootIfNeeded();
         return "Lint:[enable" + values + ",suppress" + suppressedValues + "]";
     }
 
@@ -444,7 +444,7 @@ public class Lint {
         LintCategory(String option, boolean annotationSuppression) {
             this.option = option;
             this.annotationSuppression = annotationSuppression;
-            CATEGORY_OPTION_MAP.put(option, this);
+            map.put(option, this);
         }
 
         /**
@@ -454,7 +454,7 @@ public class Lint {
          * @return corresponding {@link LintCategory}, or empty if none exists
          */
         public static Optional<LintCategory> get(String option) {
-            return Optional.ofNullable(CATEGORY_OPTION_MAP.get(option));
+            return Optional.ofNullable(map.get(option));
         }
 
         /**
@@ -479,20 +479,20 @@ public class Lint {
      * @param lc lint category
      */
     public boolean isEnabled(LintCategory lc) {
-        initializeRootIfNeccesary();
+        initializeRootIfNeeded();
         return values.contains(lc);
     }
 
     /**
-     * Checks is a warning category has been specifically suppressed, by means of the
-     * {@code -Xlint:-key} flag, {@link Lint#suppress}, or {@link Lint#augment}
-     * (which applies {@code @SuppressWarnings} and {@code @Deprecated} annotations).
+     * Checks if a warning category has been specifically suppressed, by means of
+     * {@code @SuppressWarnings}, {@code @Deprecated} annotations), or {@link #suppress}.
+     * Note: this does not detect suppressions via {@code -Xlint:-key} flags.
      *
      * @param lc lint category
      */
     public boolean isSuppressed(LintCategory lc) {
-        initializeRootIfNeccesary();
-        return suppressedValues.contains(lc) || suppressedOptions.contains(lc);
+        initializeRootIfNeeded();
+        return suppressedValues.contains(lc);
     }
 
     /**

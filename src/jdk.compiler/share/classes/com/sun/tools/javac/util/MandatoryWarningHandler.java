@@ -150,7 +150,7 @@ public class MandatoryWarningHandler {
     public void report(Lint lint, DiagnosticPosition pos, LintWarning warnKey) {
         JavaFileObject currentSource = log.currentSourceFile();
 
-        // Log mandatory warnings unless the category is *explicitly* suppressed
+        // Log mandatory warnings unless the category is explicitly suppressed
         LintCategory lintCategory = warnKey.getLintCategory();
         if (lint.isSuppressed(lintCategory))
             return;

@@ -80,7 +80,7 @@ public class Preview {
     private final Set<JavaFileObject> sourcesWithPreviewFeatures = new HashSet<>();
 
     private final Names names;
-    private final Lint lint;            // the root Lint instance (we don't support @SuppressWarnings)
+    private final Lint lint;
     private final Log log;
     private final Source source;
 
@@ -103,8 +103,7 @@ public class Preview {
         log = Log.instance(context);
         lint = Lint.instance(context);
         source = Source.instance(context);
-        boolean verbose = lint.isEnabled(LintCategory.PREVIEW);
-        this.previewHandler = new MandatoryWarningHandler(log, source, verbose, true);
+        previewHandler = new MandatoryWarningHandler(log, source, lint.isEnabled(LintCategory.PREVIEW), true);
         forcePreview = options.isSet("forcePreview");
         majorVersionToSource = initMajorVersionToSourceMap();
     }
