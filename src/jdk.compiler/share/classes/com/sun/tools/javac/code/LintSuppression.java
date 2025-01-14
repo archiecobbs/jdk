@@ -238,7 +238,7 @@ public class LintSuppression {
 
         // Report -Xlint:-key suppressions that were never validated (unless "suppression-option" is suppressed)
         if (rootLint.isActive(OPTIONS) && rootLint.isActive(SUPPRESSION_OPTION)) {
-            reportUnnecessary(rootLint.suppressedOptions, globalValidations, name -> "-" + name,
+            reportUnnecessary(rootLint.getSuppressedOptions(), globalValidations, name -> "-" + name,
               names -> log.warning(LintWarnings.UnnecessaryLintWarningSuppression(names)));
         }
 
