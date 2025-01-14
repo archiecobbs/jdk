@@ -167,7 +167,7 @@ public class Check {
         boolean verboseUnchecked = lint.isEnabled(LintCategory.UNCHECKED, false);
         boolean enforceMandatoryWarnings = true;
 
-        deprecationHandler = new MandatoryWarningHandler(log, null, verboseDeprecated, enforceMandatoryWarnings);
+        deprecationHandler = new MandatoryWarningHandler(log, null, verboseDeprecated, enforceMandatoryWarnings, "deprecated");
         removalHandler = new MandatoryWarningHandler(log, null, verboseRemoval, enforceMandatoryWarnings);
         uncheckedHandler = new MandatoryWarningHandler(log, null, verboseUnchecked, enforceMandatoryWarnings);
 
@@ -252,7 +252,7 @@ public class Check {
      *  @param msg        A Warning describing the problem.
      */
     public void warnPreviewAPI(DiagnosticPosition pos, LintWarning warnKey) {
-        preview.reportPreviewWarning(pos, warnKey);
+        preview.reportPreviewWarning(lint, pos, warnKey);
     }
 
     /** Log a preview warning.
@@ -260,7 +260,7 @@ public class Check {
      *  @param msg        A Warning describing the problem.
      */
     public void warnDeclaredUsingPreview(DiagnosticPosition pos, Symbol sym) {
-        preview.reportPreviewWarning(pos, LintWarnings.DeclaredUsingPreview(kindName(sym), sym));
+        preview.reportPreviewWarning(lint, pos, LintWarnings.DeclaredUsingPreview(kindName(sym), sym));
     }
 
     /** Log a preview warning.
@@ -3817,7 +3817,6 @@ public class Check {
                     deferredLintHandler.report(_l -> warnPreviewAPI(pos, LintWarnings.IsPreview(s)));
                 }
             } else {
-                    preview.markUsesPreview(pos);
                     deferredLintHandler.report(_l -> warnPreviewAPI(pos, LintWarnings.IsPreviewReflective(s)));
             }
         }

@@ -80,7 +80,7 @@ public class Preview {
     private final Set<JavaFileObject> sourcesWithPreviewFeatures = new HashSet<>();
 
     private final Names names;
-    private final Lint lint;            // the root Lint instance (we don't support @SuppressWarnings)
+    private final Lint lint;
     private final Log log;
     private final Source source;
 
@@ -103,8 +103,7 @@ public class Preview {
         log = Log.instance(context);
         lint = Lint.instance(context);
         source = Source.instance(context);
-        boolean verbose = lint.isEnabled(LintCategory.PREVIEW, false);
-        this.previewHandler = new MandatoryWarningHandler(log, source, verbose, true);
+        previewHandler = new MandatoryWarningHandler(log, source, lint.isEnabled(LintCategory.PREVIEW, false), true);
         forcePreview = options.isSet("forcePreview");
         majorVersionToSource = initMajorVersionToSourceMap();
     }
@@ -189,15 +188,22 @@ public class Preview {
      */
     public void warnPreview(JavaFileObject classfile, int majorVersion) {
         Assert.check(isEnabled());
-        lint.logMandatoryIfEnabled(log,
-                LintWarnings.PreviewFeatureUseClassfile(classfile, majorVersionToSource.get(majorVersion).name));
+        if (lint.isEnabled(LintCategory.PREVIEW, true)) {
+            log.mandatoryWarning(null,
+                    LintWarnings.PreviewFeatureUseClassfile(classfile, majorVersionToSource.get(majorVersion).name));
+        }
     }
 
+    /**
+     * Mark the current source file as using a preview feature. The corresponding classfile
+     * will be generated with minor version {@link ClassFile#PREVIEW_MINOR_VERSION}.
+     * @param pos the position at which the preview feature was used.
+     */
     public void markUsesPreview(DiagnosticPosition pos) {
         sourcesWithPreviewFeatures.add(log.currentSourceFile());
     }
 
-    public void reportPreviewWarning(DiagnosticPosition pos, LintWarning warnKey) {
+    public void reportPreviewWarning(Lint lint, DiagnosticPosition pos, LintWarning warnKey) {
         previewHandler.report(lint, pos, warnKey);
     }
 

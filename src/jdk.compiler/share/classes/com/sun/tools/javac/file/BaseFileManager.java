@@ -90,8 +90,8 @@ public abstract class BaseFileManager implements JavaFileManager {
         log = Log.instance(context);
         lint = Lint.instance(context);
         options = Options.instance(context);
-        classLoaderClass = options.get("procloader");
 
+        // Initialize locations
         locations.update(log, lint, FSInfo.instance(context));
 
         // Setting this option is an indication that close() should defer actually closing
@@ -106,14 +106,16 @@ public abstract class BaseFileManager implements JavaFileManager {
         // in seconds, of the period of inactivity to wait for, before the file manager
         // is actually closed.
         // See also deferredClose().
-        String s = options.get("fileManager.deferClose");
-        if (s != null) {
-            try {
-                deferredCloseTimeout = (int) (Float.parseFloat(s) * 1000);
-            } catch (NumberFormatException e) {
-                deferredCloseTimeout = 60 * 1000;  // default: one minute, in millis
+        options.whenReady(options -> {
+            String s = options.get("fileManager.deferClose");
+            if (s != null) {
+                try {
+                    deferredCloseTimeout = (int) (Float.parseFloat(s) * 1000);
+                } catch (NumberFormatException e) {
+                    deferredCloseTimeout = 60 * 1000;  // default: one minute, in millis
+                }
             }
-        }
+        });
     }
 
     protected Locations createLocations() {
@@ -134,11 +136,9 @@ public abstract class BaseFileManager implements JavaFileManager {
 
     protected Lint lint;
 
-    protected String classLoaderClass;
-
     protected final Locations locations;
 
-    private final HashSet<Path> outputFilesWritten = new HashSet<>(0);      // clashes are rare, so expect zero of them
+    private final HashSet<Path> outputFilesWritten = new HashSet<>();
 
     /**
      * A flag for clients to use to indicate that this file manager should
@@ -193,6 +193,7 @@ public abstract class BaseFileManager implements JavaFileManager {
         // other than URLClassLoader.
 
         // 1: Allow client to specify the class to use via hidden option
+        String classLoaderClass = options.get("procloader");
         if (classLoaderClass != null) {
             try {
                 Class<? extends ClassLoader> loader =
@@ -237,6 +238,11 @@ public abstract class BaseFileManager implements JavaFileManager {
             @Override
             public boolean handleFileManagerOption(Option option, String value) {
                 return handleOption(option, value);
+            }
+
+            @Override
+            public void initialize() {
+                options.initialize();
             }
         };
 
@@ -508,7 +514,7 @@ public abstract class BaseFileManager implements JavaFileManager {
     // Note: individual files can be accessed concurrently, so we synchronize here
     synchronized void newOutputToPath(Path path) throws IOException {
 
-        // Is output file clash detection active?
+        // Is output file clash detection enabled?
         if (!lint.isActive(LintCategory.OUTPUT_FILE_CLASH))
             return;
 

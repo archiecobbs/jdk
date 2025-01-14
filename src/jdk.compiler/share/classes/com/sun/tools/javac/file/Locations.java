@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -127,7 +127,7 @@ public class Locations {
     private FSInfo fsInfo;
 
     /**
-     * The root {@link Lint} singleton.
+     * The root {@link Lint} instance.
      */
     private Lint lint;
 
@@ -1484,7 +1484,7 @@ public class Locations {
                     }
                 }
 
-                if (false) {        // temp disable, when enabled, massage examples.not-yet.txt suitably.
+                if (false) {  // temp disable, when enabled, massage examples.not-yet.txt suitably.
                     lint.logIfEnabled(log, LintWarnings.LocnUnknownFileOnModulePath(p));
                 }
                 return null;
@@ -1653,9 +1653,9 @@ public class Locations {
 
         void add(Map<String, List<Path>> map, Path prefix, Path suffix) {
             if (!Files.isDirectory(prefix)) {
-                lint.logIfEnabled(log, Files.exists(prefix)
-                    ? LintWarnings.DirPathElementNotDirectory(prefix)
-                    : LintWarnings.DirPathElementNotFound(prefix));
+                lint.logIfEnabled(log, Files.exists(prefix) ?
+                    LintWarnings.DirPathElementNotDirectory(prefix) :
+                    LintWarnings.DirPathElementNotFound(prefix));
                 return;
             }
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(prefix, path -> Files.isDirectory(path))) {
