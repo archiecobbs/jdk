@@ -103,8 +103,7 @@ public class Preview {
         log = Log.instance(context);
         lint = Lint.instance(context);
         source = Source.instance(context);
-        this.previewHandler =
-                new MandatoryWarningHandler(log, source, lint.isEnabled(LintCategory.PREVIEW, false), true, "preview", LintCategory.PREVIEW);
+        previewHandler = new MandatoryWarningHandler(log, source, lint.isEnabled(LintCategory.PREVIEW, false), true);
         forcePreview = options.isSet("forcePreview");
         majorVersionToSource = initMajorVersionToSourceMap();
     }
@@ -176,12 +175,10 @@ public class Preview {
     public void warnPreview(DiagnosticPosition pos, Feature feature) {
         Assert.check(isEnabled());
         Assert.check(isPreview(feature));
-        if (!lint.isSuppressed(LintCategory.PREVIEW, true)) {
-            sourcesWithPreviewFeatures.add(log.currentSourceFile());
-            previewHandler.report(pos, feature.isPlural() ?
-                    LintWarnings.PreviewFeatureUsePlural(feature.nameFragment()) :
-                    LintWarnings.PreviewFeatureUse(feature.nameFragment()));
-        }
+        markUsesPreview(pos);
+        previewHandler.report(lint, pos, feature.isPlural() ?
+                LintWarnings.PreviewFeatureUsePlural(feature.nameFragment()) :
+                LintWarnings.PreviewFeatureUse(feature.nameFragment()));
     }
 
     /**
@@ -197,12 +194,17 @@ public class Preview {
         }
     }
 
+    /**
+     * Mark the current source file as using a preview feature. The corresponding classfile
+     * will be generated with minor version {@link ClassFile#PREVIEW_MINOR_VERSION}.
+     * @param pos the position at which the preview feature was used.
+     */
     public void markUsesPreview(DiagnosticPosition pos) {
         sourcesWithPreviewFeatures.add(log.currentSourceFile());
     }
 
-    public void reportPreviewWarning(DiagnosticPosition pos, LintWarning warnKey) {
-        previewHandler.report(pos, warnKey);
+    public void reportPreviewWarning(Lint lint, DiagnosticPosition pos, LintWarning warnKey) {
+        previewHandler.report(lint, pos, warnKey);
     }
 
     public boolean usesPreview(JavaFileObject file) {

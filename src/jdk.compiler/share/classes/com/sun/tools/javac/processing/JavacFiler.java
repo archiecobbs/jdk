@@ -338,11 +338,11 @@ public class JavacFiler implements Filer, Closeable {
     JavaFileManager fileManager;
     JavacElements elementUtils;
     Log log;
+    Lint lint;
     Modules modules;
     Names names;
     Symtab syms;
     Context context;
-    Lint lint;
     boolean lastRound;
 
     /**

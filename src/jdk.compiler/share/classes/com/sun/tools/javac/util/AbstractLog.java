@@ -173,9 +173,8 @@ public abstract class AbstractLog {
      *  maximum number of warnings has been reached.
      *
      *  <b>Note:</b> If {@code warningKey} is a {@link LintWarning}, then you
-     *  may also need to validate suppresssion of the corresponding category
-     *  via {@link Lint#validateSuppresion} or {@link LintSuppression#validate}.
-     *  Consider using {@link Lint#logIfEnabled} instead.
+     *  may also need to validate suppresssion of the corresponding category.
+     *  See {@link Lint} for details.
      *
      *  @param pos    The source position at which to report the warning.
      *  @param warningKey    The key for the localized warning message.
@@ -188,9 +187,8 @@ public abstract class AbstractLog {
      *  maximum number of warnings has been reached.
      *
      *  <b>Note:</b> If {@code warningKey} is a {@link LintWarning}, then you
-     *  may also need to validate suppresssion of the corresponding category
-     *  via {@link Lint#validateSuppresion} or {@link LintSuppression#validate}.
-     *  Consider using {@link Lint#logIfEnabled} instead.
+     *  may also need to validate suppresssion of the corresponding category.
+     *  See {@link Lint} for details.
      *
      *  @param pos    The source position at which to report the warning.
      *  @param warningKey    The key for the localized warning message.
@@ -200,6 +198,11 @@ public abstract class AbstractLog {
     }
 
     /** Report a warning.
+     *
+     *  <b>Note:</b> If {@code warningKey} is a {@link LintWarning}, then you
+     *  may also need to validate suppresssion of the corresponding category.
+     *  See {@link Lint} for details.
+     *
      *  @param pos    The source position at which to report the warning.
      *  @param warningKey    The key for the localized warning message.
      */

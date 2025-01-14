@@ -2073,14 +2073,12 @@ public class ClassReader {
             // The method wasn't found: emit a warning and recover
             JavaFileObject prevSource = log.useSource(requestingOwner.classfile);
             try {
-                if (lint.isActive(LintCategory.CLASSFILE)) {
-                    if (failure == null) {
-                        lint.logIfEnabled(log, LintWarnings.AnnotationMethodNotFound(container, name));
-                    } else {
-                        lint.logIfEnabled(log, LintWarnings.AnnotationMethodNotFoundReason(container,
+                if (failure == null) {
+                    lint.logIfEnabled(log, LintWarnings.AnnotationMethodNotFound(container, name));
+                } else {
+                    lint.logIfEnabled(log, LintWarnings.AnnotationMethodNotFoundReason(container,
                                                                             name,
                                                                             failure.getDetailValue()));//diagnostic, if present
-                    }
                 }
             } finally {
                 log.useSource(prevSource);

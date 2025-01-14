@@ -48,14 +48,14 @@ import com.sun.tools.javac.util.Options;
  * <p>
  * Each lint category can be in one of three states: enabled, suppressed, or neither. The "neither"
  * state means it's effectively up to the code doing the check to determine the default behavior, by
- * warning when enabled (i.e., default suppressed) or warning when suppressed (i.e., default enabled).
- * Some categories default to enabled; most default to neither and warn when enabled.
+ * warning when enabled (i.e., default suppressed) or not warning when suppressed (i.e., default enabled).
+ * Some categories default to enabled; most default to neither and the code warns when enabled.
  *
  * <p>
  * A lint category can be explicitly enabled via the command line flag {@code -Xlint:key}, or explicitly
  * disabled via the command line flag {@code -Xlint:-key}. Some lint categories warn at specific
  * locations in the code and can be suppressed within the scope of a symbol declaration via the
- * {@code @SuppressWarnings} annotation.
+ * {@code @SuppressWarnings} annotation; see {@link LintCategory#annotationSuppression}.
  *
  * <p>
  * The meta-categories {@code suppression-option} and {@code suppression} warn about unnecessary
@@ -155,8 +155,9 @@ public class Lint {
         return l;
     }
 
-    // Associated compiler context
+    // Compiler context
     private final Context context;
+    private final Options options;
 
     // The current symbol in scope (having @SuppressWarnings or @Deprecated), or null for global scope
     private final Symbol symbolInScope;
@@ -168,20 +169,46 @@ public class Lint {
     private Symtab syms;
     private Names names;
 
-    // Invariant: it's never the case that a category is in both "values" and "suppressedValues"
-    private final EnumSet<LintCategory> values;
-    private final EnumSet<LintCategory> suppressedValues;
+    // For the root instance only, these are initialized lazily
+    private EnumSet<LintCategory> values;           // categories enabled by default or "-Xlint:key" and not (yet) suppressed
+    private EnumSet<LintCategory> suppressedValues; // categories suppressed by augment() or suppress() (but not "-Xlint:-key")
+    EnumSet<LintCategory> suppressedOptions;        // categories suppressed by "-Xlint:-key" flags
 
-    /** Contains the categories suppressed via {@code -Xlint:-key} command line flags. */
-    final EnumSet<LintCategory> suppressedOptions;
+    // LintCategory lookup by option string
+    private static final Map<String, LintCategory> map = new ConcurrentHashMap<>(40);
 
-    private static final Map<String, LintCategory> map = new ConcurrentHashMap<>(20);
-
+    // Instantiate the root instance
     @SuppressWarnings("this-escape")
     protected Lint(Context context) {
-        // initialize values according to the lint options
-        Options options = Options.instance(context);
+        this.context = context;
+        context.put(lintKey, this);
+        options = Options.instance(context);
+        lintSuppression = LintSuppression.instance(context);
+        symbolInScope = null;
+    }
 
+    // Instantiate a non-root ("symbol scoped") instance
+    protected Lint(Lint other, Symbol symbolInScope) {
+        other.initializeRootIfNeeded();
+        this.context = other.context;
+        this.options = other.options;
+        this.syms = other.syms;
+        this.names = other.names;
+        this.lintSuppression = other.lintSuppression;
+        this.symbolInScope = symbolInScope;
+        this.values = other.values.clone();
+        this.suppressedValues = other.suppressedValues.clone();
+        this.suppressedOptions = other.suppressedOptions.clone();
+    }
+
+    // Process command line options on demand to allow use of root Lint early during startup
+    private void initializeRootIfNeeded() {
+
+        // Already initialized?
+        if (values != null)
+            return;
+
+        // Initialize enabled categories based on "-Xlint" flags
         if (options.isSet(Option.XLINT) || options.isSet(Option.XLINT_CUSTOM, "all")) {
             // If -Xlint or -Xlint:all is given, enable all categories by default
             values = EnumSet.allOf(LintCategory.class);
@@ -210,7 +237,7 @@ public class Lint {
             values.add(LintCategory.INCUBATING);
         }
 
-        // Look for specific overrides
+        // Look for specific overrides via -Xlint flags
         suppressedOptions = LintCategory.newEmptySet();
         for (LintCategory lc : LintCategory.values()) {
             if (options.isSet(Option.XLINT_CUSTOM, lc.option)) {
@@ -221,28 +248,13 @@ public class Lint {
             }
         }
 
+        // @SuppressWarnings suppressions
         suppressedValues = LintCategory.newEmptySet();
-        symbolInScope = null;
-
-        this.context = context;
-        context.put(lintKey, this);
-
-        lintSuppression = LintSuppression.instance(context);
-    }
-
-    protected Lint(Lint other, Symbol symbolInScope) {
-        this.context = other.context;
-        this.syms = other.syms;
-        this.names = other.names;
-        this.lintSuppression = other.lintSuppression;
-        this.symbolInScope = symbolInScope;
-        this.values = other.values.clone();
-        this.suppressedValues = other.suppressedValues.clone();
-        this.suppressedOptions = other.suppressedOptions;
     }
 
     @Override
     public String toString() {
+        initializeRootIfNeeded();
         return "Lint:[sym=" + symbolInScope + ",enable" + values + ",suppress" + suppressedValues + "]";
     }
 
@@ -527,6 +539,7 @@ public class Lint {
      * Use of this method is never required; it simply helps avoid potentially useless work.
      */
     public boolean isActive(LintCategory lc) {
+        initializeRootIfNeeded();
         return values.contains(lc) ||
           (needsSuppressionTracking(lc) && !lintSuppression.isValid(symbolInScope, lc));
     }
@@ -547,16 +560,16 @@ public class Lint {
      * @param validateSuppression true to also validate any suppression of the category
      */
     public boolean isEnabled(LintCategory lc, boolean validateSuppression) {
+        initializeRootIfNeeded();
         if (validateSuppression)
             validateSuppression(lc);
         return values.contains(lc);
     }
 
     /**
-     * Checks is a warning category has been specifically suppressed, by means
-     * of the {@code @SuppressWarnings} annotation, or, in the case of the deprecated
-     * category, whether it has been implicitly suppressed by virtue of the
-     * current entity being itself deprecated.
+     * Checks if a warning category has been specifically suppressed, by means of
+     * {@code @SuppressWarnings}, {@code @Deprecated}, or {@link #suppress}.
+     * Note: this does not detect suppressions via {@code -Xlint:-key} flags.
      *
      * <p>
      * This method also optionally validates any warning suppressions currently in scope.
@@ -569,6 +582,7 @@ public class Lint {
      * @param validateSuppression true to also validate any suppression of the category
      */
     public boolean isSuppressed(LintCategory lc, boolean validateSuppression) {
+        initializeRootIfNeeded();
         if (validateSuppression)
             validateSuppression(lc);
         return suppressedValues.contains(lc);
@@ -604,6 +618,9 @@ public class Lint {
      * This set can be non-empty only if the symbol is annotated with either
      * {@code @SuppressWarnings} or {@code @Deprecated}.
      *
+     * <p>
+     * Note: The result may include categories that don't support suppression via {@code @SuppressWarnings}.
+     *
      * @param symbol symbol corresponding to a possibly-annotated declaration
      * @return new warning suppressions applied to sym
      */
@@ -617,11 +634,14 @@ public class Lint {
     /**
      * Retrieve the recognized lint categories suppressed by the given {@code @SuppressWarnings} annotation.
      *
+     * <p>
+     * Note: The result may include categories that don't support suppression via {@code @SuppressWarnings}.
+     *
      * @param annotation {@code @SuppressWarnings} annotation, or null
      * @return set of lint categories, possibly empty but never null
      */
     EnumSet<LintCategory> suppressionsFrom(JCAnnotation annotation) {
-        initializeIfNeeded();
+        initializeSymbolsIfNeeded();
         if (annotation == null)
             return LintCategory.newEmptySet();
         Assert.check(annotation.attribute.type.tsym == syms.suppressWarningsType.tsym);
@@ -630,7 +650,7 @@ public class Lint {
 
     // Find the @SuppressWarnings annotation in the given stream and extract the recognized suppressions
     private EnumSet<LintCategory> suppressionsFrom(Stream<Attribute.Compound> attributes) {
-        initializeIfNeeded();
+        initializeSymbolsIfNeeded();
         EnumSet<LintCategory> result = LintCategory.newEmptySet();
         attributes
           .filter(attribute -> attribute.type.tsym == syms.suppressWarningsType.tsym)
@@ -684,7 +704,7 @@ public class Lint {
             (values.contains(LintCategory.SUPPRESSION) || values.contains(LintCategory.SUPPRESSION_OPTION));
     }
 
-    private void initializeIfNeeded() {
+    private void initializeSymbolsIfNeeded() {
         if (syms == null) {
             syms = Symtab.instance(context);
             names = Names.instance(context);
