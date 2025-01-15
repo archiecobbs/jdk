@@ -172,7 +172,7 @@ public class Lint {
     // For the root instance only, these are initialized lazily
     private EnumSet<LintCategory> values;           // categories enabled by default or "-Xlint:key" and not (yet) suppressed
     private EnumSet<LintCategory> suppressedValues; // categories suppressed by augment() or suppress() (but not "-Xlint:-key")
-    EnumSet<LintCategory> suppressedOptions;        // categories suppressed by "-Xlint:-key" flags
+    private EnumSet<LintCategory> suppressedOptions;// categories suppressed by "-Xlint:-key" flags
 
     // LintCategory lookup by option string
     private static final Map<String, LintCategory> map = new ConcurrentHashMap<>(40);
@@ -589,6 +589,19 @@ public class Lint {
     }
 
     /**
+     * Get all categories for which a {@code -Xlint:-key} global suppression flag was specified.
+     *
+     * <p>
+     * The caller must not modify the returned set.
+     *
+     * @return set of globally suppressed categories
+     */
+    public EnumSet<LintCategory> getSuppressedOptions() {
+        initializeRootIfNeeded();
+        return suppressedOptions;
+    }
+
+    /**
      * Helper method. Validate a lint warning and log it if its lint category is enabled.
      *
      * @param log warning destination
@@ -699,6 +712,7 @@ public class Lint {
      * </ul>
      */
     private boolean needsSuppressionTracking(LintCategory lc) {
+        initializeRootIfNeeded();
         return lc.suppressionTracking &&
             (suppressedValues.contains(lc) || suppressedOptions.contains(lc)) &&
             (values.contains(LintCategory.SUPPRESSION) || values.contains(LintCategory.SUPPRESSION_OPTION));
