@@ -712,6 +712,7 @@ public class Lint {
      * </ul>
      */
     private boolean needsSuppressionTracking(LintCategory lc) {
+        initializeRootIfNeeded();
         return lc.suppressionTracking &&
             (suppressedValues.contains(lc) || suppressedOptions.contains(lc)) &&
             (values.contains(LintCategory.SUPPRESSION) || values.contains(LintCategory.SUPPRESSION_OPTION));
