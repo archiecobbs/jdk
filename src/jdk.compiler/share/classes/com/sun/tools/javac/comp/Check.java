@@ -237,13 +237,19 @@ public class Check {
      */
     void warnDeprecated(DiagnosticPosition pos, Symbol sym) {
         if (sym.isDeprecatedForRemoval()) {
-            removalHandler.report(lint, pos, sym.kind == MDL ?
-                LintWarnings.HasBeenDeprecatedForRemovalModule(sym) :
-                LintWarnings.HasBeenDeprecatedForRemoval(sym, sym.location()));
-        } else {
-            deprecationHandler.report(lint, pos, sym.kind == MDL ?
-                LintWarnings.HasBeenDeprecatedModule(sym) :
-                LintWarnings.HasBeenDeprecated(sym, sym.location()));
+            if (!lint.isSuppressed(LintCategory.REMOVAL)) {
+                if (sym.kind == MDL) {
+                    removalHandler.report(pos, LintWarnings.HasBeenDeprecatedForRemovalModule(sym));
+                } else {
+                    removalHandler.report(pos, LintWarnings.HasBeenDeprecatedForRemoval(sym, sym.location()));
+                }
+            }
+        } else if (!lint.isSuppressed(LintCategory.DEPRECATION)) {
+            if (sym.kind == MDL) {
+                deprecationHandler.report(pos, LintWarnings.HasBeenDeprecatedModule(sym));
+            } else {
+                deprecationHandler.report(pos, LintWarnings.HasBeenDeprecated(sym, sym.location()));
+            }
         }
     }
 
@@ -252,7 +258,8 @@ public class Check {
      *  @param msg        A Warning describing the problem.
      */
     public void warnPreviewAPI(DiagnosticPosition pos, LintWarning warnKey) {
-        preview.reportPreviewWarning(lint, pos, warnKey);
+        if (!lint.isSuppressed(LintCategory.PREVIEW))
+            preview.reportPreviewWarning(pos, warnKey);
     }
 
     /** Log a preview warning.
@@ -260,7 +267,8 @@ public class Check {
      *  @param msg        A Warning describing the problem.
      */
     public void warnDeclaredUsingPreview(DiagnosticPosition pos, Symbol sym) {
-        preview.reportPreviewWarning(lint, pos, LintWarnings.DeclaredUsingPreview(kindName(sym), sym));
+        if (!lint.isSuppressed(LintCategory.PREVIEW))
+            preview.reportPreviewWarning(pos, LintWarnings.DeclaredUsingPreview(kindName(sym), sym));
     }
 
     /** Log a preview warning.
@@ -276,7 +284,8 @@ public class Check {
      *  @param msg        A string describing the problem.
      */
     public void warnUnchecked(DiagnosticPosition pos, LintWarning warnKey) {
-        uncheckedHandler.report(lint, pos, warnKey);
+        if (!lint.isSuppressed(LintCategory.UNCHECKED))
+            uncheckedHandler.report(pos, warnKey);
     }
 
     /**
