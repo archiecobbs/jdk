@@ -30,7 +30,6 @@ import java.util.Objects;
 import java.util.Set;
 import javax.tools.JavaFileObject;
 
-import com.sun.tools.javac.code.Lint;
 import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
@@ -146,21 +145,15 @@ public class MandatoryWarningHandler {
     /**
      * Report a mandatory warning.
      *
-     * @param lint current lint configuration
      * @param pos source code position
      * @param warnKey lint warning
      */
-    public void report(Lint lint, DiagnosticPosition pos, LintWarning warnKey) {
+    public void report(DiagnosticPosition pos, LintWarning warnKey) {
         JavaFileObject currentSource = log.currentSourceFile();
-
-        // Log mandatory warnings unless the category is explicitly suppressed
-        LintCategory lintCategory = warnKey.getLintCategory();
-        if (lint.isSuppressed(lintCategory, true))
-            return;
 
         // Infer the log prefix from the lint category if not given explicitly
         if (prefix == null)
-            prefix = lintCategory.option;
+            prefix = warnKey.getLintCategory().option;
 
         if (verbose) {
             if (sourcesWithReportedWarnings == null)
