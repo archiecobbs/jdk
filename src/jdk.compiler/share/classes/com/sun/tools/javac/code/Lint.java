@@ -55,7 +55,7 @@ import com.sun.tools.javac.util.Options;
  * A lint category can be explicitly enabled via the command line flag {@code -Xlint:key}, or explicitly
  * disabled via the command line flag {@code -Xlint:-key}. Some lint categories warn at specific
  * locations in the code and can be suppressed within the scope of a symbol declaration via the
- * {@code @SuppressWarnings} annotation; see {@link LintCategory#annotationSuppression}.
+ * {@code @SuppressWarnings} annotation.
  *
  * <p>
  * Further details:
@@ -144,7 +144,6 @@ public class Lint {
     // For the root instance only, these are initialized lazily
     private EnumSet<LintCategory> values;           // categories enabled by default or "-Xlint:key" and not (yet) suppressed
     private EnumSet<LintCategory> suppressedValues; // categories suppressed by augment() or suppress() (but not "-Xlint:-key")
-    private EnumSet<LintCategory> suppressedOptions;// categories suppressed by "-Xlint:-key" flags
 
     // LintCategory lookup by option string
     private static final Map<String, LintCategory> map = new ConcurrentHashMap<>(40);
@@ -166,7 +165,6 @@ public class Lint {
         this.names = other.names;
         this.values = other.values.clone();
         this.suppressedValues = other.suppressedValues.clone();
-        this.suppressedOptions = other.suppressedOptions.clone();
     }
 
     // Process command line options on demand to allow use of root Lint early during startup
@@ -205,18 +203,15 @@ public class Lint {
             values.add(LintCategory.INCUBATING);
         }
 
-        // Look for specific overrides via -Xlint flags
-        suppressedOptions = LintCategory.newEmptySet();
+        // Look for specific overrides via "-Xlint" flags
         for (LintCategory lc : LintCategory.values()) {
             if (options.isSet(Option.XLINT_CUSTOM, lc.option)) {
                 values.add(lc);
             } else if (options.isSet(Option.XLINT_CUSTOM, "-" + lc.option)) {
-                suppressedOptions.add(lc);
                 values.remove(lc);
             }
         }
 
-        // @SuppressWarnings suppressions
         suppressedValues = LintCategory.newEmptySet();
     }
 
@@ -248,7 +243,7 @@ public class Lint {
          * <p>
          * This category is not supported by {@code @SuppressWarnings}.
          */
-        CLASSFILE("classfile", false),
+        CLASSFILE("classfile"),
 
         /**
          * Warn about "dangling" documentation comments,
@@ -323,7 +318,7 @@ public class Lint {
          * <p>
          * This category is not supported by {@code @SuppressWarnings}.
          */
-        OPTIONS("options", false),
+        OPTIONS("options"),
 
         /**
          * Warn when any output file is written to more than once.
@@ -331,7 +326,7 @@ public class Lint {
          * <p>
          * This category is not supported by {@code @SuppressWarnings}.
          */
-        OUTPUT_FILE_CLASH("output-file-clash", false),
+        OUTPUT_FILE_CLASH("output-file-clash"),
 
         /**
          * Warn about issues regarding method overloads.
@@ -349,7 +344,7 @@ public class Lint {
          * <p>
          * This category is not supported by {@code @SuppressWarnings}.
          */
-        PATH("path", false),
+        PATH("path"),
 
         /**
          * Warn about issues regarding annotation processing.
@@ -402,7 +397,7 @@ public class Lint {
          * <p>
          * This category is not supported by {@code @SuppressWarnings}.
          */
-        TEXT_BLOCKS("text-blocks", false),
+        TEXT_BLOCKS("text-blocks"),
 
         /**
          * Warn about possible 'this' escapes before subclass instance is fully initialized.
@@ -430,7 +425,7 @@ public class Lint {
          * <p>
          * This category is not supported by {@code @SuppressWarnings}.
          */
-        PREVIEW("preview", false),
+        PREVIEW("preview"),
 
         /**
          * Warn about use of restricted methods.
@@ -438,12 +433,7 @@ public class Lint {
         RESTRICTED("restricted");
 
         LintCategory(String option) {
-            this(option, true);
-        }
-
-        LintCategory(String option, boolean annotationSuppression) {
             this.option = option;
-            this.annotationSuppression = annotationSuppression;
             map.put(option, this);
         }
 
@@ -466,9 +456,6 @@ public class Lint {
 
         /** Get the string representing this category in {@code @SuppressWarnings} and {@code -Xlint:key} flags. */
         public final String option;
-
-        /** Does this category support being suppressed by the {@code @SuppressWarnings} annotation? */
-        public final boolean annotationSuppression;
     }
 
     /**
