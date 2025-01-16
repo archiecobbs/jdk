@@ -237,7 +237,7 @@ public class Lint {
             values.add(LintCategory.INCUBATING);
         }
 
-        // Look for specific overrides via -Xlint flags
+        // Look for specific overrides via "-Xlint" flags
         suppressedOptions = LintCategory.newEmptySet();
         for (LintCategory lc : LintCategory.values()) {
             if (options.isSet(Option.XLINT_CUSTOM, lc.option)) {
@@ -248,7 +248,6 @@ public class Lint {
             }
         }
 
-        // @SuppressWarnings suppressions
         suppressedValues = LintCategory.newEmptySet();
     }
 
