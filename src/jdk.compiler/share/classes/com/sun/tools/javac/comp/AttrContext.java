@@ -100,10 +100,6 @@ public class AttrContext {
      */
     Resolve.MethodResolutionPhase pendingResolutionPhase = null;
 
-    /** A record of the lint/SuppressWarnings currently in effect
-     */
-    Lint lint;
-
     /** The variable whose initializer is being attributed
      * useful for detecting self-references in variable initializers
      */

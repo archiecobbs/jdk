@@ -40,7 +40,7 @@ public class WarningAnalyzer {
 
     protected static final Context.Key<WarningAnalyzer> contextKey = new Context.Key<>();
 
-    private final Log log;
+    private final Lint lint;
     private final ThisEscapeAnalyzer thisEscapeAnalyzer;
 
     public static WarningAnalyzer instance(Context context) {
@@ -53,11 +53,16 @@ public class WarningAnalyzer {
     @SuppressWarnings("this-escape")
     protected WarningAnalyzer(Context context) {
         context.put(contextKey, this);
-        log = Log.instance(context);
+        lint = Lint.instance(context);
         thisEscapeAnalyzer = ThisEscapeAnalyzer.instance(context);
     }
 
     public void analyzeTree(Env<AttrContext> env) {
+
+        // Enqueue various additional warnings
         thisEscapeAnalyzer.analyzeTree(env);
+
+        // Finally, analyze and emit all the enqueued warnings
+        lint.executeAnalyses(env.toplevel);
     }
 }

@@ -52,7 +52,6 @@ import javax.tools.JavaFileObject.Kind;
 import javax.tools.StandardLocation;
 
 import com.sun.source.tree.ModuleTree.ModuleKind;
-import com.sun.tools.javac.code.DeferredLintHandler;
 import com.sun.tools.javac.code.Directive;
 import com.sun.tools.javac.code.Directive.ExportsDirective;
 import com.sun.tools.javac.code.Directive.ExportsFlag;
@@ -141,7 +140,6 @@ public class Modules extends JCTree.Visitor {
     private final Attr attr;
     private final Check chk;
     private final Preview preview;
-    private final DeferredLintHandler deferredLintHandler;
     private final TypeEnvs typeEnvs;
     private final Types types;
     private final JavaFileManager fileManager;
@@ -193,7 +191,6 @@ public class Modules extends JCTree.Visitor {
         attr = Attr.instance(context);
         chk = Check.instance(context);
         preview = Preview.instance(context);
-        deferredLintHandler = DeferredLintHandler.instance(context);
         typeEnvs = TypeEnvs.instance(context);
         moduleFinder = ModuleFinder.instance(context);
         types = Types.instance(context);
@@ -746,7 +743,6 @@ public class Modules extends JCTree.Visitor {
                 ModuleVisitor v = new ModuleVisitor();
                 JavaFileObject prev = log.useSource(tree.sourcefile);
                 JCModuleDecl moduleDecl = tree.getModuleDecl();
-                deferredLintHandler.push(moduleDecl);
 
                 try {
                     moduleDecl.accept(v);
@@ -754,7 +750,6 @@ public class Modules extends JCTree.Visitor {
                     checkCyclicDependencies(moduleDecl);
                 } finally {
                     log.useSource(prev);
-                    deferredLintHandler.pop();
                     msym.flags_field &= ~UNATTRIBUTED;
                 }
             }
@@ -779,7 +774,6 @@ public class Modules extends JCTree.Visitor {
 
     class ModuleVisitor extends JCTree.Visitor {
         private ModuleSymbol sym;
-        private Lint lint;
         private final Set<ModuleSymbol> allRequires = new HashSet<>();
         private final Map<PackageSymbol,List<ExportsDirective>> allExports = new HashMap<>();
         private final Map<PackageSymbol,List<OpensDirective>> allOpens = new HashMap<>();
@@ -787,7 +781,6 @@ public class Modules extends JCTree.Visitor {
         @Override
         public void visitModuleDef(JCModuleDecl tree) {
             sym = Assert.checkNonNull(tree.sym);
-            lint = Modules.this.lint.augment(sym);
 
             if (tree.getModuleType() == ModuleKind.OPEN) {
                 sym.flags.add(ModuleFlags.OPEN);
@@ -819,7 +812,8 @@ public class Modules extends JCTree.Visitor {
                     if (msym == syms.java_base &&
                         !preview.participatesInPreview(syms, sym)) {
                         if (source.compareTo(Source.JDK10) >= 0) {
-                            preview.checkSourceLevel(lint, tree.pos(), Feature.JAVA_BASE_TRANSITIVE);
+                            preview.checkSourceLevel(tree.pos(),
+                                                     Feature.JAVA_BASE_TRANSITIVE);
                         }
                     }
                     flags.add(RequiresFlag.TRANSITIVE);
@@ -992,13 +986,11 @@ public class Modules extends JCTree.Visitor {
             UsesProvidesVisitor v = new UsesProvidesVisitor(msym, env);
             JavaFileObject prev = log.useSource(env.toplevel.sourcefile);
             JCModuleDecl decl = env.toplevel.getModuleDecl();
-            deferredLintHandler.push(decl);
 
             try {
                 decl.accept(v);
             } finally {
                 log.useSource(prev);
-                deferredLintHandler.pop();
             }
         };
     }
@@ -1366,16 +1358,16 @@ public class Modules extends JCTree.Visitor {
                 .forEach(result::add);
         }
 
-        if (lint.isEnabled(LintCategory.INCUBATING)) {
+        lint.analyzeIfEnabled(LintCategory.INCUBATING, null, reporter -> {
             String incubatingModules = filterAlreadyWarnedIncubatorModules(result.stream()
                     .filter(msym -> msym.resolutionFlags.contains(ModuleResolutionFlags.WARN_INCUBATING))
                     .map(msym -> msym.name.toString()))
                     .collect(Collectors.joining(","));
 
             if (!incubatingModules.isEmpty()) {
-                log.warning(LintWarnings.IncubatingModules(incubatingModules));
+                reporter.logIfEnabled(null, LintWarnings.IncubatingModules(incubatingModules));
             }
-        }
+        });
 
         allModules = result;
 

@@ -518,8 +518,8 @@ public abstract class BaseFileManager implements JavaFileManager {
     // Note: individual files can be accessed concurrently, so we synchronize here
     synchronized void newOutputToPath(Path path) throws IOException {
 
-        // Is output file clash detection enabled?
-        if (!lint.isEnabled(LintCategory.OUTPUT_FILE_CLASH))
+        // Does output file clash detection need to be performed?
+        if (!lint.getRootConfig().isActive(LintCategory.OUTPUT_FILE_CLASH))
             return;
 
         // Get the "canonical" version of the file's path; we are assuming
@@ -533,6 +533,6 @@ public abstract class BaseFileManager implements JavaFileManager {
 
         // Check whether we've already opened this file for output
         if (!outputFilesWritten.add(realPath))
-            log.warning(LintWarnings.OutputFileClash(path));
+            lint.logIfEnabled(LintWarnings.OutputFileClash(path));
     }
 }

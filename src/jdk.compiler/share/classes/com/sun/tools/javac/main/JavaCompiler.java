@@ -290,9 +290,9 @@ public class JavaCompiler {
      */
     protected Names names;
 
-    /** The deferred lint handler.
+    /** The lint singleton.
      */
-    protected DeferredLintHandler deferredLintHandler;
+    protected Lint lint;
 
     /** The attributor.
      */
@@ -401,7 +401,7 @@ public class JavaCompiler {
         names = Names.instance(context);
         log = Log.instance(context);
         diagFactory = JCDiagnostic.Factory.instance(context);
-        deferredLintHandler = DeferredLintHandler.instance(context);
+        lint = Lint.instance(context);
         finder = ClassFinder.instance(context);
         reader = ClassReader.instance(context);
         make = TreeMaker.instance(context);
@@ -661,11 +661,11 @@ public class JavaCompiler {
             }
             Parser parser = parserFactory.newParser(content, keepComments(), genEndPos,
                                 lineDebugInfo, filename.isNameCompatible("module-info", Kind.SOURCE));
-            deferredLintHandler.enterParsingMode();
+            lint.enterParsingMode(filename);
             try {
                 tree = parser.parseCompilationUnit();
             } finally {
-                deferredLintHandler.exitParsingMode(tree);
+                lint.exitParsingMode(tree);
             }
             if (verbose) {
                 log.printVerbose("parsing.done", Long.toString(elapsed(msec)));
@@ -1868,6 +1868,7 @@ public class JavaCompiler {
         }
 
     public void reportDeferredDiagnostics() {
+        lint.emitNonSpecificWarnings();
         if (errorCount() == 0
                 && annotationProcessingOccurred
                 && implicitSourceFilesRead

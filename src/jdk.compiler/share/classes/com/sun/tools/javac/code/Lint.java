@@ -29,15 +29,23 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BiPredicate;
+import java.util.function.Consumer;
+import java.util.function.UnaryOperator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
+import javax.tools.JavaFileObject;
+
+import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.JCDiagnostic;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.JCDiagnostic.LintWarning;
+import com.sun.tools.javac.util.JCDiagnostic.SimpleDiagnosticPosition;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Names;
 import com.sun.tools.javac.util.Options;
@@ -50,12 +58,12 @@ import com.sun.tools.javac.util.Options;
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  */
-public class Lint {
+public class Lint implements Lint.Logger {
 
     /** The context key for the root Lint object. */
     protected static final Context.Key<Lint> lintKey = new Context.Key<>();
 
-    /** Get the root Lint instance. */
+    /** Get the Lint singleton. */
     public static Lint instance(Context context) {
         Lint instance = context.get(lintKey);
         if (instance == null)
@@ -63,60 +71,817 @@ public class Lint {
         return instance;
     }
 
+// Config
+
     /**
-     * Obtain an instance with additional warning supression applied from any
-     * @SuppressWarnings and/or @Deprecated annotations on the given symbol.
+     * A class representing a specific combination of enabled and suppressed {@link LintCategory}s.
      *
      * <p>
-     * The returned instance will be different from this instance if and only if
-     * {@link #suppressionsFrom} returns a non-empty set.
-     *
-     * @param sym symbol
-     * @return lint instance with new warning suppressions applied, or this instance if none
+     * Instances are immutable. New instances may be created by using the methods
+     * {@link #enable}, {@link #suppress}, and {@link #augment}.
      */
-    public Lint augment(Symbol sym) {
-        EnumSet<LintCategory> suppressions = suppressionsFrom(sym);
-        if (!suppressions.isEmpty()) {
-            Lint lint = new Lint(this);
-            lint.values.removeAll(suppressions);
-            lint.suppressedValues.addAll(suppressions);
-            return lint;
+    public class Config {
+
+        private final EnumSet<LintCategory> enabled;
+        private final EnumSet<LintCategory> suppressed;
+        private final String description;
+
+        Config(EnumSet<LintCategory> enabled, EnumSet<LintCategory> suppressed, String description) {
+            this.enabled = enabled;
+            this.suppressed = suppressed;
+            this.description = description;
         }
-        return this;
+
+        private Config copy(String descriptionSuffix) {
+            return new Config(EnumSet.copyOf(enabled), EnumSet.copyOf(suppressed), description + descriptionSuffix);
+        }
+
+        /**
+         * Checks if the given category is active.
+         *
+         * <p>
+         * A lint category is active if warnings in the category should be calculated.
+         * In the case of non-trivial warning calculations, this method can be used
+         * to skip doing unnecessary work.
+         *
+         * @param category lint category
+         */
+        public boolean isActive(LintCategory category) {
+            return enabled.contains(category);
+        }
+
+        /**
+         * Create an instance with additional warning supression applied from any
+         * {@code @SuppressWarnings} and/or {@code @Deprecated} annotations on the given symbol.
+         *
+         * <p>
+         * The returned instance will be different from this instance if and only if
+         * {@link #suppressionsFrom} returns a non-empty set.
+         *
+         * @param sym symbol
+         * @return lint instance with new warning suppressions applied, or this instance if none
+         */
+        public Config augment(Symbol sym) {
+            EnumSet<LintCategory> suppressions = suppressionsFrom(sym);
+            if (!suppressions.isEmpty()) {
+                Config config = copy("+" + sym);
+                config.enabled.removeAll(suppressions);
+                config.suppressed.addAll(suppressions);
+                return config;
+            }
+            return this;
+        }
+
+        /**
+         * Returns a new instance equivalent to this instance but
+         * with the given {@code LintCategory}s enabled.
+         *
+         * @param category one or more categories to be enabled
+         */
+        public Config enable(LintCategory... categories) {
+            List<LintCategory> categoryList = Arrays.asList(categories);
+            Config config = copy("+" + categoryList);
+            config.enabled.addAll(categoryList);
+            config.suppressed.removeAll(categoryList);
+            return config;
+        }
+
+        /**
+         * Returns a new instance equivalent to this instance but
+         * with the given {@code LintCategory}s suppressed.
+         *
+         * @param categories one or more categories to be suppressed
+         */
+        public Config suppress(LintCategory... categories) {
+            List<LintCategory> categoryList = Arrays.asList(categories);
+            Config config = copy("-" + categoryList);
+            config.enabled.removeAll(categoryList);
+            config.suppressed.addAll(categoryList);
+            return config;
+        }
+
+        @Override
+        public String toString() {
+            return "Lint.Config[" + description + ",enable" + enabled + ",suppress" + suppressed + "]";
+        }
+    }
+
+// Logger
+
+    /**
+     * An interface for creating a {@link LintWarning} at a particular source file location,
+     * subject to the current {@link Config} in effect at that location.
+     *
+     * <p>
+     * The actual logging of a warning may or may not occur synchronously; for example,
+     * during parsing, before {@code @SuppressWarnings} annotations have been analyzed,
+     * warnings must be deferred until it's known whether the corresponding category is
+     * suppressed at the warning's location. In addition, all warnings that are logged
+     * prior to the compiler's {@code warn()} phase are deferred until that happens.
+     */
+    public interface Logger {
+
+        /**
+         * Log a non-specific lint warning if its category is enabled in the root lint config.
+         *
+         * <p>
+         * Non-specific lint warnings are not specific to any particular source file
+         * and do not support suppression via {@code @SuppressWarnings}.
+         *
+         * @param pos source position at which to report the warning
+         * @param warning key for the localized warning message; category should normally be non-specific
+         */
+        void logIfEnabled(LintWarning warning);
+
+        /**
+         * Log a non-specific lint warning if its category is not suppressed in the root lint config.
+         *
+         * <p>
+         * Non-specific lint warnings are not specific to any particular source file
+         * and do not support suppression via {@code @SuppressWarnings}.
+         *
+         * @param pos source position at which to report the warning
+         * @param warning key for the localized warning message; category should normally be non-specific
+         */
+        void logIfNotSuppressed(LintWarning warning);
+
+        /**
+         * Log a lint warning if its category is {@linkplain Config#isEnabled enabled}
+         * at the specified source file position.
+         *
+         * @param pos position in the current source file at which to report the warning
+         * @param warning key for the localized warning message; category must be specific
+         */
+        default void logIfEnabled(int pos, LintWarning warning) {
+            logIfEnabled(wrap(pos), warning);
+        }
+
+        /**
+         * Log a lint warning if its category is {@linkplain Config#isEnabled enabled}
+         * at the specified source file position.
+         *
+         * @param pos current source file position at which to report the warning, or null if unspecified
+         * @param warning key for the localized warning message; category must be specific
+         */
+        void logIfEnabled(DiagnosticPosition pos, LintWarning warning);
+
+        /**
+         * Log a lint warning if its category is not {@linkplain Config#isSuppressed suppressed}
+         * at the specified source file position.
+         *
+         * @param pos current source file position at which to report the warning
+         * @param warning key for the localized warning message; category must be specific
+         */
+        default void logIfNotSuppressed(int pos, LintWarning warning) {
+            logIfNotSuppressed(wrap(pos), warning);
+        }
+
+        /**
+         * Log a lint warning if its category is not {@linkplain Config#isSuppressed suppressed}
+         * at the specified source file position.
+         *
+         * @param pos current source file position at which to report the warning, or null if unspecified
+         * @param warning key for the localized warning message; category must be specific
+         */
+        void logIfNotSuppressed(DiagnosticPosition pos, LintWarning warning);
+
+        /**
+         * Log a mandatory warning specific to a source file.
+         *
+         * @param pos current source file position at which to report the warning, or null if unspecified
+         * @param warning key for the localized warning message; category must be specific
+         */
+        void logMandatoryWarning(DiagnosticPosition pos, Warning warning);
+
+        /**
+         * Log a non-specific mandatory warning.
+         *
+         * @param warning key for the localized warning message; category must be specific
+         */
+        void logMandatoryWarning(Warning warning);
+    }
+
+// Reporter
+
+    /**
+     * A {@link Logger} that has an associated {@link Config} and is the conduit through which
+     * an {@link Analyzer} reports the warnings it generates.
+     *
+     * <p>
+     * The associated {@link Config} is initialized based on the analysis source file location.
+     * During the analysis it may be modified/restored using {@link #modifyConfig} and
+     * {@link #restoreConfig}.
+     */
+    public abstract class Reporter extends Logger {
+
+        private final ArrayList<Config> configList = new ArrayList<>();
+        private final ArrayList<Warning> warningList;
+        private final LintCategory category;
+
+        private boolean invalid;
+
+        private Reporter(LintCategory category, Config config, ArrayList<Warning> warningList) {
+            this.category = category;
+            this.configList.add(config);
+        }
+
+        /**
+         * Get the current configuration associated with this instance.
+         *
+         * @return current configuration
+         */
+        public Config getConfig() {
+            return configList.get(configList.size() - 1);
+        }
+
+        /**
+         * Modify the current configuration associated with this instance.
+         *
+         * <p>
+         * Use {@link #restoreConfig} to un-do the modifications.
+         *
+         * @param modifier modifies the current config
+         * @return previous configuration
+         */
+        public void modifyConfig(UnaryOperator<Config> modifier) {
+            configList.add(modifier.apply(getConfig()));
+        }
+
+        /**
+         * Restore the configuration in effect prior to the most recent call to {@link #modifyConfig}.
+         *
+         * @param modifier modifies the current config
+         * @return previous configuration
+         */
+        public void restoreConfig() {
+            int count = configList.size();
+            Assert.check(count > 1);
+            configList.remove(count - 1);
+        }
+
+    // Logger
+
+        @Override
+        public void logIfEnabled(LintWarning warning) {
+            if (getRootConfig().isEnabled(warning.getLintCategory())) {
+                log(warning);
+            }
+        }
+
+        @Override
+        public void logIfNotSuppressed(LintWarning warning) {
+            if (!getRootConfig().isSuppressed(warning.getLintCategory())) {
+                log(warning);
+            }
+        }
+
+        @Override
+        public void logIfEnabled(DiagnosticPosition pos, LintWarning warning) {
+            if (config.isEnabled(warning.getLintCategory())) {
+                log(pos, warning);
+            }
+        }
+
+        @Override
+        public void logIfNotSuppressed(DiagnosticPosition pos, LintWarning warning) {
+            if (!config.isSuppressed(warning.getLintCategory())) {
+                log(pos, warning);
+            }
+        }
+
+        /**
+         * Log a non-specific warning.
+         *
+         * @param warning key for the localized warning message; category must be non-specific
+         */
+        public void log(LintWarning warning) {
+            LintWarning warningCategory = warning.getLintCategory();
+            Assert.check(warningCategory == category || category == null);
+            Assert.check(!invalid);
+            warningList.add(new Warning(null, warning));
+        }
+
+        /**
+         * Log a specific warning.
+         *
+         * @param pos source position at which to report the warning
+         * @param warning key for the localized warning message; category must be specific
+         */
+        public void log(DiagnosticPosition pos, LintWarning warning) {
+            LintWarning warningCategory = warning.getLintCategory();
+            Assert.check(warningCategory.isSpecific());
+            Assert.check(warningCategory == category || category == null);
+            Assert.check(!invalid);
+            warningList.add(new Warning(pos, warning));
+        }
+
+        void invalidate() {
+            this.invalid = true;
+        }
+    }
+
+// Analyzer
+
+    /**
+     * Callback interface for doing lint warning analysis, starting from a specific source file location.
+     */
+    @FunctionalInterface
+    public interface Analyzer {
+
+        /**
+         * Analyze for warnings and report any found via the given {@link Reporter}.
+         *
+         * @param reporter a {@link Reporter} pre-configured based on the analysis location
+         */
+        void analyze(Reporter reporter);
+    }
+
+// Public API
+
+    /**
+     * Get the root {@link Config}.
+     *
+     * <p>
+     * The root configuration consists of the categories that are enabled by default,
+     * with any adjustments specified by {@code -Xlint} command line flags applied.
+     *
+     * @return root lint configuration
+     */
+    public Config getRootConfig() {
+        Assert.check(rootConfig != null);
+        return rootConfig;
     }
 
     /**
-     * Returns a new Lint that has the given LintCategorys enabled.
-     * @param lc one or more categories to be enabled
+     * Get the {@link Reporter} associated with the analysis executing in the current thread, if any.
+     *
+     * @return current thread's {@link Reporter}, or null if no analysis is executing
      */
-    public Lint enable(LintCategory... lc) {
-        Lint l = new Lint(this);
-        l.values.addAll(Arrays.asList(lc));
-        l.suppressedValues.removeAll(Arrays.asList(lc));
-        return l;
+    public Reporter currentReporter() {
+        return currentReporter.get();
+    }
+
+// Logger Methods
+
+    @Override
+    public void logIfEnabled(LintWarning warning) {
+        Assert.check(!category.isSpecific());
+        if (getRootConfig().isEnabled(warning.getLintCategory()))
+            log.warning(warning);
+    }
+
+    @Override
+    public void logIfNotSuppressed(LintWarning warning) {
+        Assert.check(!category.isSpecific());
+        if (!getRootConfig().isSuppressed(warning.getLintCategory()))
+            log.warning(warning);
+    }
+
+    @Override
+    public void logIfEnabled(DiagnosticPosition pos, LintWarning warning) {
+        nowOrLater(warning.getLintCategory(), pos, reporter -> reporter.logIfEnabled(pos, warning));
+    }
+
+    @Override
+    public void logIfNotSuppressed(DiagnosticPosition pos, LintWarning warning) {
+        nowOrLater(warning.getLintCategory(), pos, reporter -> reporter.logIfNotSuppressed(pos, warning));
+    }
+
+    @Override
+    public void logMandatoryWarning(JCDiagnostic.Warning warning) {
+        if (warning instanceof LintWarning lintWarning)
+            Assert.check(!lintWarning.getLintCategory().isSpecific());
+        nonSpecificWarnings.add(new Warning(warning));
+    }
+
+    @Override
+    public void logMandatoryWarning(DiagnosticPosition pos, JCDiagnostic.Warning warning) {
+        LintCategory category = warning instanceof LintWarning lw ? lw.getLintCategory() : null;
+        nowOrLater(category, pos, reporter -> reporter.logMandatoryWarning(pos, warning));
+    }
+
+    private void nowOrLater(LintCategory category, DiagnosticPosition pos, Analyzer analyzer) {
+        Reporter currentReporter = currentReporter();
+        if (currentReporter != null) {
+            analyzer.accept(currentReporter);       // we are already doing an analysis
+        } else {
+            analyze(category, pos, analyzer);       // enqueue the analysis for later
+        }
     }
 
     /**
-     * Returns a new Lint that has the given LintCategorys suppressed.
-     * @param lc one or more categories to be suppressed
+     * Enqueue a warning analysis task for generating warning(s) in a specific {@link LintCategory},
+     * to be executed when the compiler reaches the warning phase for the current source file,
+     * but only if the category is enabled at the specified source file position.
+     *
+     * <p>
+     * The {@code analyzer} will be given a {@link Reporter} that is configured based on the specified
+     * source file location. <b>The {@link Reporter} should be used to report all lint warnings generated
+     * and all such warnings should be in the given {@code category}</b>.
+     *
+     * <p>
+     * If {@code category} is not active at {@code pos}, then the analysis will be skipped entirely.
+     *
+     * @param category category for generated warnings
+     * @param pos analysis starting source file position
+     * @param analyzer callback object for doing the analysis
      */
-    public Lint suppress(LintCategory... lc) {
-        Lint l = new Lint(this);
-        l.values.removeAll(Arrays.asList(lc));
-        l.suppressedValues.addAll(Arrays.asList(lc));
-        return l;
+    public void analyzeIfEnabled(LintCategory category, int pos, Analyzer analyzer) {
+        analyzeIfEnabled(category, wrap(pos), analyzer);
     }
+
+    /**
+     * Enqueue a warning analysis task for generating warning(s) in a specific {@link LintCategory},
+     * to be executed when the compiler reaches the warning phase for the current source file,
+     * but only if the category is enabled at the specified source file position.
+     *
+     * <p>
+     * The {@code analyzer} will be given a {@link Reporter} that is configured based on the specified
+     * source file location. <b>The {@link Reporter} should be used to report all lint warnings generated
+     * and all such warnings should be in the given {@code category}</b>.
+     *
+     * <p>
+     * If {@code category} is not active at {@code pos}, then the analysis will be skipped entirely.
+     *
+     * @param category category for generated warnings
+     * @param pos analysis starting source file position
+     * @param analyzer callback object for doing the analysis
+     */
+    public void analyzeIfEnabled(LintCategory category, DiagnosticPosition pos, Analyzer analyzer) {
+        Assert.check(category != null);
+        analyze(category, pos, reporter -> {
+            if (reporter.getConfig().isEnabled(category)) {
+                analyzer.analyze(reporter);
+            }
+        });
+    }
+
+    /**
+     * Enqueue a warning analysis task for generating warning(s) in a specific {@link LintCategory},
+     * to be executed when the compiler reaches the warning phase for the current source file,
+     * but only if the category is not suppressed at the specified source file position.
+     *
+     * <p>
+     * The {@code analyzer} will be given a {@link Reporter} that is configured based on the specified
+     * source file location. <b>The {@link Reporter} should be used to report all lint warnings generated
+     * and all such warnings should be in the given {@code category}</b>.
+     *
+     * <p>
+     * If {@code category} is not active at {@code pos}, then the analysis will be skipped entirely.
+     *
+     * @param category category for generated warnings
+     * @param pos analysis starting source file position
+     * @param analyzer callback object for doing the analysis
+     */
+    public void analyzeIfNotSuppressed(LintCategory category, int pos, Analyzer analyzer) {
+        analyzeIfNotSuppressed(category, wrap(pos), analyzer);
+    }
+
+    /**
+     * Enqueue a warning analysis task for generating warning(s) in a specific {@link LintCategory},
+     * to be executed when the compiler reaches the warning phase for the current source file,
+     * but only if the category is not suppressed at the specified source file position.
+     *
+     * <p>
+     * The {@code analyzer} will be given a {@link Reporter} that is configured based on the specified
+     * source file location. <b>The {@link Reporter} should be used to report all lint warnings generated
+     * and all such warnings should be in the given {@code category}</b>.
+     *
+     * <p>
+     * If {@code category} is not active at {@code pos}, then the analysis will be skipped entirely.
+     *
+     * @param category category for generated warnings
+     * @param pos analysis starting source file position
+     * @param analyzer callback object for doing the analysis
+     */
+    public void analyzeIfNotSuppressed(LintCategory category, DiagnosticPosition pos, Analyzer analyzer) {
+        Assert.check(category != null);
+        analyze(category, pos, reporter -> {
+            if (!reporter.getConfig().isSuppressed(category)) {
+                analyzer.analyze(reporter);
+            }
+        });
+    }
+
+    /**
+     * Enqueue a warning analysis task for generating warning(s) in a specific {@link LintCategory},
+     * to be executed when the compiler reaches the warning phase for the current source file.
+     *
+     * <p>
+     * The {@code analyzer} will be given a {@link Reporter} that is configured based on the specified
+     * source file location. <b>The {@link Reporter} should be used to report all lint warnings generated
+     * and all such warnings should be in the given {@code category} (if not null)</b>.
+     *
+     * @param category category for generated warnings, or null for unspecified
+     * @param pos analysis starting source file position
+     * @param analyzer callback object for doing the analysis
+     */
+    public void analyze(LintCategory category, DiagnosticPosition pos, Analyzer analyzer) {
+
+        // Get the analysis list for the current source file
+        Assert.check(analyzer != null);
+        JavaFileObject source = currentSource();
+        List<Analysis> analysisList = analysisMap.get(source);
+        if (analysisList == null) {                     // a null list means warnings have already happened
+            Assert.check(!analysisMap.containsKey(source), "too late for analysis of source");
+            analysisList = new ArrayList<>();
+            analysisMap.put(source, analysisList);
+        }
+
+        // Enqueue this analysis
+        analysisList.add(new Analysis(category, pos, analyzer));
+    }
+
+    /**
+     * Execute all enqueued analyses for the given compilation unit.
+     *
+     * @param tree attributed compliation unit
+     */
+    public void executeAnalyses(JCCompilationUnit tree) {
+        Assert.check(currentReporter() == null, "reentrant invocation");
+
+        // Get the associated source file
+        JavaSourceFile source = tree.sourcefile;
+        Assert.check(source.equals(currentSource()));
+
+        // Do we have any enqueued analyses for this source file?
+        if (!analysisMap.containsKey(source)) {
+            analysisMap.put(source, null);          // put in a tombstone marker
+            return;
+        }
+
+        // Get the analysis list replace with a tombstone marker
+        List<Analysis> analysisList = analysisMap.replace(source, null);
+        Assert.check(analysisList != null, "executeWarnings() invoked twice for the same source");
+
+        // Compute the appropriate initial Config for each analysis
+        List<Config> configList = new ConfigAssigner(analysisList).assign(tree);
+
+        // Run the analyses and gather the resulting warnings
+        ArrayList<Warning> warningList = new ArrayList<>();
+        for (int i = 0; i < analysisList.size(); i++) {
+            Analysis analysis = analysisList.get(i);
+            LintCategory analysisCategory = analysis.category();
+            Config config = configList.get(i);
+            Reporter reporter = new Reporter(config) {
+                @Override
+                protected void log(DiagnosticPosition pos, LintWarning warning) {
+                    LintWarning warningCategory = warning.getLintCategory();
+                    Assert.check(analysisCategory == null || warningCategory == analysisCategory);
+                    warningList.add(new Warning(pos, warning));
+                }
+            };
+            currentReporter.set(reporter);
+            try {
+                analysis.analyzer().analyze(reporter);
+            } finally {
+                currentReporter.set(null);
+            }
+        }
+
+        // Sort and emit the warnings, puting the non-specific warnings aside
+        warningList.sort(Comparator.comparingInt(Warning::sortKey));
+        warningList.forEach(warning -> {
+            if (warning.isSpecific())
+                log.warning(warning.pos(), warning.warning());
+            else
+                nonSpecificWarnings.add(warning);
+        });
+    }
+
+    /**
+     * Emit all remaining non-specific warnings.
+     */
+    public void emitNonSpecificWarnings() {
+        nonSpecificWarnings.stream()
+          .map(Warning::warning)
+          .forEach(log::warning);
+    }
+
+    // Get the "current" source file
+    private JavaFileObject currentSource() {
+        Optional<JavaFileObject> opt = Optional.of(log)
+          .map(Log::currentSource)
+          .map(DiagnosticSource::getFile);
+        Assert.check(opt.isPresent(), "no current source file");
+        return opt.get();
+    }
+
+    static DiagnosticPosition wrap(int pos) {
+        return pos != Position.NOPOS ? new SimpleDiagnosticPosition(pos) : null;
+    }
+
+    static int unwrap(DiagnosticPosition pos) {
+        return Optional.ofNullable(pos)
+          .mapToInt(DiagnosticPosition::getPreferredPosition)
+          .orElse(Position.NOPOS);
+    }
+
+// Analysis
+
+    private record Analysis(LintCategory category, int pos, Analyzer analyzer) {
+
+        /**
+         * Compare the position of this analysis to the given declaration range.
+         *
+         * <p>
+         * This instance's position is either before, contained by, or after the declaration.
+         *
+         * @return -1 if before, 0 if contained, 1 if after
+         */
+        int compareToRange(int minPos, int maxPos) {
+            if (pos() < minPos)
+                return -1;
+            if (pos() == minPos || (pos() > minPos && pos() < maxPos))
+                return 0;
+            return 1;
+        }
+    }
+
+// Warning
+
+    private record Warning(DiagnosticPosition pos, JCDiagnostic.Warning warning, boolean specific) {
+
+        Warning(JCDiagnostic.Warning warning) {
+            this(null, warning, false);
+        }
+
+        Warning(DiagnosticPosition pos, JCDiagnostic.Warning warning) {
+            this(pos, warning, true);
+        }
+
+        int sortKey() {
+            return pos() != null ? pos().getPreferredPosition() : Integer.MAX_VALUE;
+        }
+    }
+
+// ConfigAssigner
+
+    /**
+     * This scans a source file and identifies, for each {@link Analysis} starting position,
+     * the innermost declaration that contains it, and assigns a corresponding {@link Config}.
+     */
+    private class ConfigAssigner extends TreeScanner {
+
+        private final List<Analysis> analysisList;
+        private final List<Config> configList;
+
+        private Config config = rootConfig;
+        private int currentAnalysis;
+
+        ConfigAssigner(List<Analysis> analysisList) {
+            this.analysisList = analysisList;
+            Config[] configArray = new Config[analysisList.size()];
+            Arrays.fill(configArray, rootConfig);
+            configList = Arrays.asList(configArray);
+        }
+
+        List<Config> assign(JCCompilationUnit tree) {
+            analysisList.sort(Comparator.comparingInt(Analysis::pos));
+            try {
+                scan(tree);
+            } catch (ShortCircuitException e) {
+                // got done early
+            }
+            return configList;
+        }
+
+    // TreeScanner methods
+
+        @Override
+        public void visitModuleDef(JCModuleDecl decl) {
+            visitDeclaration(decl, decl.sym, super::visitModuleDef);
+        }
+
+        @Override
+        public void visitPackageDef(JCPackageDecl decl) {
+            visitDeclaration(decl, decl.packge, super::visitPackageDef);
+        }
+
+        @Override
+        public void visitClassDef(JCClassDecl decl) {
+            visitDeclaration(decl, decl.sym, super::visitClassDef);
+        }
+
+        @Override
+        public void visitMethodDef(JCMethodDecl decl) {
+            visitDeclaration(decl, decl.sym, super::visitMethodDef);
+        }
+
+        @Override
+        public void visitVarDef(JCVariableDecl decl) {
+            visitDeclaration(decl, decl.sym, super::visitVarDef);
+        }
+
+        @Override
+        public void visitImport(JCImport tree) {
+            initializeSymbolsIfNeeded();
+
+            // Proceed normally unless the special suppression logic applies here
+            JCFieldAccess imp = tree.qualid;
+            Name name = TreeInfo.name(imp);
+            if (Feature.DEPRECATION_ON_IMPORT.allowedInSource(source)
+              || name == names.asterisk
+              || tree.staticImport) {
+                super.visitImport(tree);
+                return;
+            }
+
+            // Suppress warnings here because we're only importing (and not using) the symbol
+            visitTree(tree,
+              config -> config.suppress(LintCategory.DEPRECATION, LintCategory.REMOVAL, LintCategory.PREVIEW),
+              super::visitImport);
+        }
+
+        private void visitDeclaration(JCTree decl, Symbol sym, Consumer<? super T> recursion) {
+            visitTree(decl, config -> config.augment(sym), recursion);  // apply @SuppressWarnings and @Deprecated
+        }
+
+        private void visitTree(JCTree tree, UnaryOperator<Config> mods, Consumer<? super T> recursion) {
+
+            // Determine the lexical extent of the given AST node
+            int minPos = TreeInfo.getStartPos(tree);
+            int maxPos = TreeInfo.endPos(tree);
+
+            // Update the current Config and assign to matching analyses
+            Config prevConfig = config;
+            config = mods.apply(config);
+            try {
+                assignCurrentConfig(minPos, maxPos);
+                recursion.accept(tree);
+            } finally {
+                config = prevConfig;
+            }
+        }
+
+        private void assignCurrentConfig(int minPos, int maxPos) {
+
+            // Find analyses contained in the range and assign them the current config
+            int numMatches = 0;
+            while (currentAnalysis + numMatches < analysisList.size()) {
+
+                // Where is the range relative to the current analysis?
+                Analysis analysis = analysisList.get(currentAnalysis + numMatches);
+                int relativePosition = analysis.compareToRange(minPos, maxPos);
+
+                // If range is before the current analysis, then it overlaps nothing else in the list
+                if (relativePosition > 0) {
+                    break;
+                }
+
+                // If range is after the current analysis, advance to the next analysis and try again
+                if (relativePosition < 0) {
+                    Assert.check(numMatches == 0);
+                    currentAnalysis++;
+                    continue;
+                }
+
+                // The current analysis is contained within this declaration, so assign to it the
+                // config associated with the declaration, and continue doing so for all immediately
+                // following analyses that also match, but don't advance the current analysis just yet:
+                // this declaration may not be the innermost containing declaration, and if not,
+                // we want the narrower declaration(s) that follow to assign their config instead.
+                configList.set(currentAnalysis + numMatches, config);
+                numMatches++;
+            }
+
+            // If we have assigned all of the analyses, we can stop now
+            if (currentAnalysis >= analysisList.size()) {
+                throw new ShortCircuitException();
+            }
+        }
+    }
+
+// ShortCircuitException
+
+    @SuppressWarnings("serial")
+    private static class ShortCircuitException extends RuntimeException {
+    }
+
+// Internal State
 
     private final Context context;
-    private final Options options;
+    private final Log log;
+    private final Source source;
 
     // These are initialized lazily to avoid dependency loops
     private Symtab syms;
     private Names names;
 
-    // Invariant: it's never the case that a category is in both "values" and "suppressedValues"
-    private EnumSet<LintCategory> values;
-    private EnumSet<LintCategory> suppressedValues;
+    // The root configuration
+    private Config rootConfig;
+
+    // The source file we are currently parsing, or null if not parsing
+    private JavaFileObject parsingFile;
+
+    // Maps source file to enqueued analyses, or null if already analyzed
+    private final Map<JavaFileObject, List<Analysis>> analysisMap = new HashMap<>();
+
+    // Collects non-specific warnings
+    private final List<Warning> nonSpecificWarnings = new ArrayList<>();
+
+    // Is the current thread executing a call to analyze()?
+    private static ThreadLocal<Lint.Reporter> currentReporter = new ThreadLocal<>();
 
     private static final Map<String, LintCategory> map = new ConcurrentHashMap<>(20);
 
@@ -124,28 +889,16 @@ public class Lint {
     protected Lint(Context context) {
         this.context = context;
         context.put(lintKey, this);
-        options = Options.instance(context);
-    }
-
-    // Instantiate a non-root ("symbol scoped") instance
-    protected Lint(Lint other) {
-        other.initializeRootIfNeeded();
-        this.context = other.context;
-        this.options = other.options;
-        this.syms = other.syms;
-        this.names = other.names;
-        this.values = other.values.clone();
-        this.suppressedValues = other.suppressedValues.clone();
+        log = Log.instance(context);
+        source = Source.instance(context);
+        Options.instance(context).whenReady(this::initializeRootConfig);
     }
 
     // Process command line options on demand to allow use of root Lint early during startup
-    private void initializeRootIfNeeded() {
-
-        // Already initialized?
-        if (values != null)
-            return;
+    private void initializeRootConfig(Options options) {
 
         // Initialize enabled categories based on "-Xlint" flags
+        EnumSet<LintCategory> values;
         if (options.isSet(Option.XLINT) || options.isSet(Option.XLINT_CUSTOM, "all")) {
             // If -Xlint or -Xlint:all is given, enable all categories by default
             values = EnumSet.allOf(LintCategory.class);
@@ -156,7 +909,6 @@ public class Lint {
             // otherwise, enable on-by-default categories
             values = LintCategory.newEmptySet();
 
-            Source source = Source.instance(context);
             if (source.compareTo(Source.JDK9) >= 0) {
                 values.add(LintCategory.DEP_ANN);
             }
@@ -183,13 +935,8 @@ public class Lint {
             }
         }
 
-        suppressedValues = LintCategory.newEmptySet();
-    }
-
-    @Override
-    public String toString() {
-        initializeRootIfNeeded();
-        return "Lint:[enable" + values + ",suppress" + suppressedValues + "]";
+        // Create root config
+        rootConfig = new Config(values, LintCategory.newEmptySet(), "ROOT");
     }
 
     /**
@@ -209,9 +956,12 @@ public class Lint {
         CAST("cast"),
 
         /**
-         * Warn about issues related to classfile contents
+         * Warn about issues related to classfile contents.
+         *
+         * <p>
+         * This category is non-specific (e.g., not supported by {@code @SuppressWarnings}).
          */
-        CLASSFILE("classfile"),
+        CLASSFILE("classfile", false),
 
         /**
          * Warn about "dangling" documentation comments,
@@ -281,14 +1031,20 @@ public class Lint {
         OPENS("opens"),
 
         /**
-         * Warn about issues relating to use of command line options
+         * Warn about issues relating to use of command line options.
+         *
+         * <p>
+         * This category is non-specific (e.g., not supported by {@code @SuppressWarnings}).
          */
-        OPTIONS("options"),
+        OPTIONS("options", false),
 
         /**
          * Warn when any output file is written to more than once.
+         *
+         * <p>
+         * This category is non-specific (e.g., not supported by {@code @SuppressWarnings}).
          */
-        OUTPUT_FILE_CLASH("output-file-clash"),
+        OUTPUT_FILE_CLASH("output-file-clash", false),
 
         /**
          * Warn about issues regarding method overloads.
@@ -302,10 +1058,11 @@ public class Lint {
 
         /**
          * Warn about invalid path elements on the command line.
-         * Such warnings cannot be suppressed with the SuppressWarnings
-         * annotation.
+         *
+         * <p>
+         * This category is non-specific (e.g., not supported by {@code @SuppressWarnings}).
          */
-        PATH("path"),
+        PATH("path", false),
 
         /**
          * Warn about issues regarding annotation processing.
@@ -388,7 +1145,12 @@ public class Lint {
         RESTRICTED("restricted");
 
         LintCategory(String option) {
+            this(option, true);
+        }
+
+        LintCategory(String option, boolean specific) {
             this.option = option;
+            this.specific = specific;
             map.put(option, this);
         }
 
@@ -406,52 +1168,22 @@ public class Lint {
             return EnumSet.noneOf(LintCategory.class);
         }
 
+        /**
+         * Determine whether this category is specific or non-specific.
+         *
+         * <p>
+         * Specific lint categories are applicable to specific locations in a source file,
+         * for example {@link #UNCHECKED}. Non-specific lint categories apply generally
+         * to the entire compliation process, for example {@link #OPTIONS}.
+         */
+        public boolean isSpecific() {
+            return specific;
+        }
+
         /** Get the string representing this category in @SuppressAnnotations and -Xlint options. */
         public final String option;
-    }
 
-    /**
-     * Checks if a warning category is enabled. A warning category may be enabled
-     * on the command line, or by default, and can be temporarily disabled with
-     * the SuppressWarnings annotation.
-     */
-    public boolean isEnabled(LintCategory lc) {
-        initializeRootIfNeeded();
-        return values.contains(lc);
-    }
-
-    /**
-     * Checks is a warning category has been specifically suppressed, by means
-     * of the SuppressWarnings annotation, or, in the case of the deprecated
-     * category, whether it has been implicitly suppressed by virtue of the
-     * current entity being itself deprecated.
-     */
-    public boolean isSuppressed(LintCategory lc) {
-        initializeRootIfNeeded();
-        return suppressedValues.contains(lc);
-    }
-
-    /**
-     * Helper method. Log a lint warning if its lint category is enabled.
-     *
-     * @param log warning destination
-     * @param warning key for the localized warning message
-     */
-    public void logIfEnabled(Log log, LintWarning warning) {
-        logIfEnabled(log, null, warning);
-    }
-
-    /**
-     * Helper method. Log a lint warning if its lint category is enabled.
-     *
-     * @param log warning destination
-     * @param pos source position at which to report the warning
-     * @param warning key for the localized warning message
-     */
-    public void logIfEnabled(Log log, DiagnosticPosition pos, LintWarning warning) {
-        if (isEnabled(warning.getLintCategory())) {
-            log.warning(pos, warning);
-        }
+        private final boolean specific;
     }
 
     /**

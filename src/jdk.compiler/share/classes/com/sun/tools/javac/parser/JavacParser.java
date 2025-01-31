@@ -4286,7 +4286,9 @@ public class JavacParser implements Parser {
             }
         } while (token.kind == DOT);
         accept(SEMI);
-        return toP(F.at(pos).Import((JCFieldAccess)pid, importStatic));
+        JCImport result = toP(F.at(pos).Import((JCFieldAccess)pid, importStatic));
+        result.endPos = S.prevToken().endPos;
+        return result;
     }
 
     /** TypeDeclaration = ClassOrInterfaceOrEnumDeclaration
