@@ -3754,7 +3754,7 @@ public class Check {
 
     void checkSunAPI(final DiagnosticPosition pos, final Symbol s) {
         if ((s.flags() & PROPRIETARY) != 0) {
-            lint.analyze(null, pos, reporter -> log.mandatoryWarning(pos, Warnings.SunProprietary(s)));
+            log.mandatoryWarning(pos, Warnings.SunProprietary(s));
         }
     }
 

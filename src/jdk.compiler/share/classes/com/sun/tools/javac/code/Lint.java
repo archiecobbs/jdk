@@ -77,8 +77,12 @@ public class Lint implements Lint.Logger {
      * A class representing a specific combination of enabled and suppressed {@link LintCategory}s.
      *
      * <p>
-     * Instances are immutable. New instances may be created by using the methods
-     * {@link #enable}, {@link #suppress}, and {@link #augment}.
+     * A {@link LintCategory} may be enabled, suppressed, or neither, but never both.
+     *
+     * <p>
+     * Instances are immutable. New instances may be created by using the methods {@link #enable},
+     * {@link #suppress}, and {@link #augment}. The "root" instance is configured based solely on
+     * {@code -Xlint} flags and is available via {@link Lint#getRootConfig}.
      */
     public class Config {
 
@@ -97,17 +101,23 @@ public class Lint implements Lint.Logger {
         }
 
         /**
-         * Checks if the given category is active.
-         *
-         * <p>
-         * A lint category is active if warnings in the category should be calculated.
-         * In the case of non-trivial warning calculations, this method can be used
-         * to skip doing unnecessary work.
+         * Determine if the given category is enabled.
          *
          * @param category lint category
+         * @return true if category is enabled (and therefore not suppressed), otherwise false
          */
-        public boolean isActive(LintCategory category) {
+        public boolean isEnabled(LintCategory category) {
             return enabled.contains(category);
+        }
+
+        /**
+         * Determine if the given category is suppressed.
+         *
+         * @param category lint category
+         * @return true if category is suppressed (and therefore not enabled), otherwise false
+         */
+        public boolean isSuppressed(LintCategory category) {
+            return suppressed.contains(category);
         }
 
         /**
@@ -356,6 +366,7 @@ public class Lint implements Lint.Logger {
          */
         public void log(LintWarning warning) {
             LintWarning warningCategory = warning.getLintCategory();
+            Assert.check(!warningCategory.isSpecific());
             Assert.check(warningCategory == category || category == null);
             Assert.check(!invalid);
             warningList.add(new Warning(null, warning));
@@ -439,25 +450,14 @@ public class Lint implements Lint.Logger {
 
     @Override
     public void logIfEnabled(DiagnosticPosition pos, LintWarning warning) {
+        Assert.check(warningCategory.isSpecific());
         nowOrLater(warning.getLintCategory(), pos, reporter -> reporter.logIfEnabled(pos, warning));
     }
 
     @Override
     public void logIfNotSuppressed(DiagnosticPosition pos, LintWarning warning) {
+        Assert.check(warningCategory.isSpecific());
         nowOrLater(warning.getLintCategory(), pos, reporter -> reporter.logIfNotSuppressed(pos, warning));
-    }
-
-    @Override
-    public void logMandatoryWarning(JCDiagnostic.Warning warning) {
-        if (warning instanceof LintWarning lintWarning)
-            Assert.check(!lintWarning.getLintCategory().isSpecific());
-        nonSpecificWarnings.add(new Warning(warning));
-    }
-
-    @Override
-    public void logMandatoryWarning(DiagnosticPosition pos, JCDiagnostic.Warning warning) {
-        LintCategory category = warning instanceof LintWarning lw ? lw.getLintCategory() : null;
-        nowOrLater(category, pos, reporter -> reporter.logMandatoryWarning(pos, warning));
     }
 
     private void nowOrLater(LintCategory category, DiagnosticPosition pos, Analyzer analyzer) {
@@ -486,8 +486,8 @@ public class Lint implements Lint.Logger {
      * @param pos analysis starting source file position
      * @param analyzer callback object for doing the analysis
      */
-    public void analyzeIfEnabled(LintCategory category, int pos, Analyzer analyzer) {
-        analyzeIfEnabled(category, wrap(pos), analyzer);
+    public void ifEnabled(LintCategory category, int pos, Analyzer analyzer) {
+        ifEnabled(category, wrap(pos), analyzer);
     }
 
     /**
@@ -507,7 +507,7 @@ public class Lint implements Lint.Logger {
      * @param pos analysis starting source file position
      * @param analyzer callback object for doing the analysis
      */
-    public void analyzeIfEnabled(LintCategory category, DiagnosticPosition pos, Analyzer analyzer) {
+    public void ifEnabled(LintCategory category, DiagnosticPosition pos, Analyzer analyzer) {
         Assert.check(category != null);
         analyze(category, pos, reporter -> {
             if (reporter.getConfig().isEnabled(category)) {
@@ -533,8 +533,8 @@ public class Lint implements Lint.Logger {
      * @param pos analysis starting source file position
      * @param analyzer callback object for doing the analysis
      */
-    public void analyzeIfNotSuppressed(LintCategory category, int pos, Analyzer analyzer) {
-        analyzeIfNotSuppressed(category, wrap(pos), analyzer);
+    public void ifNotSuppressed(LintCategory category, int pos, Analyzer analyzer) {
+        ifNotSuppressed(category, wrap(pos), analyzer);
     }
 
     /**
@@ -554,7 +554,7 @@ public class Lint implements Lint.Logger {
      * @param pos analysis starting source file position
      * @param analyzer callback object for doing the analysis
      */
-    public void analyzeIfNotSuppressed(LintCategory category, DiagnosticPosition pos, Analyzer analyzer) {
+    public void ifNotSuppressed(LintCategory category, DiagnosticPosition pos, Analyzer analyzer) {
         Assert.check(category != null);
         analyze(category, pos, reporter -> {
             if (!reporter.getConfig().isSuppressed(category)) {
@@ -1066,8 +1066,11 @@ public class Lint implements Lint.Logger {
 
         /**
          * Warn about issues regarding annotation processing.
+         *
+         * <p>
+         * This category is non-specific (e.g., not supported by {@code @SuppressWarnings}).
          */
-        PROCESSING("processing"),
+        PROCESSING("processing", false),
 
         /**
          * Warn about unchecked operations on raw types.
@@ -1172,9 +1175,9 @@ public class Lint implements Lint.Logger {
          * Determine whether this category is specific or non-specific.
          *
          * <p>
-         * Specific lint categories are applicable to specific locations in a source file,
-         * for example {@link #UNCHECKED}. Non-specific lint categories apply generally
-         * to the entire compliation process, for example {@link #OPTIONS}.
+         * Specific lint category warnings always occur at a specific location in a source file.
+         * (for example {@link #UNCHECKED}). Non-specific lint categories apply generally to the
+         * entire compliation process, for example {@link #OUTPUT_FILE_CLASH}.
          */
         public boolean isSpecific() {
             return specific;
