@@ -526,7 +526,7 @@ public class DeferredAttr extends JCTree.Visitor {
         }
     }
     //where
-        static class DeferredAttrDiagHandler extends Log.DeferredDiagnosticHandler {
+        static class DeferredAttrDiagHandler extends Log.DiscardDiagnosticHandler {
 
             static class PosScanner extends TreeScanner {
                 DiagnosticPosition pos;

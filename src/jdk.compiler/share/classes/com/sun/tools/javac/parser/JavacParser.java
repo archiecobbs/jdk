@@ -37,6 +37,7 @@ import com.sun.source.tree.MemberReferenceTree.ReferenceMode;
 import com.sun.source.tree.ModuleTree.ModuleKind;
 
 import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.file.PathFileObject;
 import com.sun.tools.javac.parser.Tokens.*;
@@ -113,8 +114,8 @@ public class JavacParser implements Parser {
     /** End position mappings container */
     protected final AbstractEndPosTable endPosTable;
 
-    /** Handler for deferred diagnostics. */
-    protected final DeferredLintHandler deferredLintHandler;
+    /** The lint singleton. */
+    private Lint lint;
 
     // Because of javac's limited lookahead, some contexts are ambiguous in
     // the presence of type annotations even though they are not ambiguous
@@ -186,7 +187,7 @@ public class JavacParser implements Parser {
         this.names = fac.names;
         this.source = fac.source;
         this.preview = fac.preview;
-        this.deferredLintHandler = fac.deferredLintHandler;
+        this.lint = fac.lint;
         this.allowStringFolding = fac.options.getBoolean("allowStringFolding", true);
         this.keepDocComments = keepDocComments;
         this.parseModuleInfo = parseModuleInfo;
@@ -211,7 +212,7 @@ public class JavacParser implements Parser {
         this.names = parser.names;
         this.source = parser.source;
         this.preview = parser.preview;
-        this.deferredLintHandler = parser.deferredLintHandler;
+        this.lint = parser.lint;
         this.allowStringFolding = parser.allowStringFolding;
         this.keepDocComments = parser.keepDocComments;
         this.parseModuleInfo = false;
@@ -579,8 +580,8 @@ public class JavacParser implements Parser {
      *     (using {@code token.getDocComment()}.
      *  3. At the end of the "signature" of the declaration
      *     (that is, before any initialization or body for the
-     *     declaration) any other "recent" comments are
-     *     reported to the {@link #deferredLintHandler}.
+     *     declaration) any other "recent" comments are reported
+     *     via {@link Lint}.
      *
      *  @param dc the primary documentation comment
      */
@@ -621,7 +622,7 @@ public class JavacParser implements Parser {
     }
 
     /**
-     * Reports an individual dangling comment using the {@link #deferredLintHandler}.
+     * Reports an individual dangling comment via {@link Lint}.
      * The comment may or not may generate an actual diagnostic, depending on
      * the settings for {@code -Xlint} and/or {@code @SuppressWarnings}.
      *
@@ -629,17 +630,8 @@ public class JavacParser implements Parser {
      */
     void reportDanglingDocComment(Comment c) {
         var pos = c.getPos();
-        if (pos != null) {
-            deferredLintHandler.push(pos.getPreferredPosition());
-            try {
-                deferredLintHandler.report(lint -> {
-                    if (lint.isEnabled(Lint.LintCategory.DANGLING_DOC_COMMENTS) && !shebang(c, pos)) {
-                        log.warning(pos, LintWarnings.DanglingDocComment);
-                    }
-                });
-            } finally {
-                deferredLintHandler.pop();
-            }
+        if (pos != null && !shebang(c, pos)) {
+            lint.logIfEnabled(pos, LintWarnings.DanglingDocComment);
         }
     }
 

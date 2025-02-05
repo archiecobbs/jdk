@@ -25,7 +25,7 @@
 
 package com.sun.tools.javac.parser;
 
-import com.sun.tools.javac.code.DeferredLintHandler;
+import com.sun.tools.javac.code.Lint;
 import com.sun.tools.javac.code.Preview;
 import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.code.Source.Feature;
@@ -85,9 +85,9 @@ public class JavaTokenizer extends UnicodeReader {
     private final Log log;
 
     /**
-     * The deferred lint handler. Required for recognizing @SuppressWarnings.
+     * The lint singleton. Required for handling @SuppressWarnings.
      */
-    private final DeferredLintHandler deferredLintHandler;
+    private final Lint lint;
 
     /**
      * The token factory. Copied from scanner factory.
@@ -164,7 +164,7 @@ public class JavaTokenizer extends UnicodeReader {
         this.tokens = fac.tokens;
         this.source = fac.source;
         this.preview = fac.preview;
-        this.deferredLintHandler = fac.deferredLintHandler;
+        this.lint = fac.lint;
         this.enableLineDocComments = fac.enableLineDocComments;
         this.sb = new StringBuilder(256);
     }
@@ -213,21 +213,6 @@ public class JavaTokenizer extends UnicodeReader {
             tk = TokenKind.ERROR;
         }
         errPos = pos;
-    }
-
-    /**
-     * Report a warning at the given position using the provided arguments.
-     *
-     * @param pos    position in input buffer.
-     * @param key    error key to report.
-     */
-    protected void lexWarning(int pos, JCDiagnostic.LintWarning key) {
-        deferredLintHandler.push(pos);
-        try {
-            deferredLintHandler.report(lint -> lint.logIfEnabled(new SimpleDiagnosticPosition(pos), key));
-        } finally {
-            deferredLintHandler.pop();
-        }
     }
 
     /**
@@ -1073,10 +1058,10 @@ public class JavaTokenizer extends UnicodeReader {
                     Set<TextBlockSupport.WhitespaceChecks> checks =
                             TextBlockSupport.checkWhitespace(string);
                     if (checks.contains(TextBlockSupport.WhitespaceChecks.INCONSISTENT)) {
-                        lexWarning(pos, LintWarnings.InconsistentWhiteSpaceIndentation);
+                        lint.logIfEnabled(pos, LintWarnings.InconsistentWhiteSpaceIndentation);
                     }
                     if (checks.contains(TextBlockSupport.WhitespaceChecks.TRAILING)) {
-                        lexWarning(pos, LintWarnings.TrailingWhiteSpaceWillBeRemoved);
+                        lint.logIfEnabled(pos, LintWarnings.TrailingWhiteSpaceWillBeRemoved);
                     }
                     // Remove incidental indentation.
                     try {

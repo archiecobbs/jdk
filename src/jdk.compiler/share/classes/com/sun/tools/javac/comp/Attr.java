@@ -1226,7 +1226,7 @@ public class Attr extends JCTree.Visitor {
                 }
 
                 // Attribute all type annotations in the body
-                annotate.queueScanTreeAndTypeAnnotate(tree.body, localEnv, m, null);
+                annotate.queueScanTreeAndTypeAnnotate(tree.body, localEnv, m);
                 annotate.flush();
 
                 // Start of constructor prologue
@@ -1324,7 +1324,7 @@ public class Attr extends JCTree.Visitor {
             env.info.scope.owner.kind != MTH && env.info.scope.owner.kind != VAR) {
             tree.mods.flags |= Flags.FIELD_INIT_TYPE_ANNOTATIONS_QUEUED;
             // Field initializer expression need to be entered.
-            annotate.queueScanTreeAndTypeAnnotate(tree.init, env, tree.sym, tree);
+            annotate.queueScanTreeAndTypeAnnotate(tree.init, env, tree.sym);
             annotate.flush();
         }
     }
@@ -1421,7 +1421,7 @@ public class Attr extends JCTree.Visitor {
 
             if ((tree.flags & STATIC) != 0) localEnv.info.staticLevel++;
             // Attribute all type annotations in the block
-            annotate.queueScanTreeAndTypeAnnotate(tree, localEnv, localEnv.info.scope.owner, null);
+            annotate.queueScanTreeAndTypeAnnotate(tree, localEnv, localEnv.info.scope.owner);
             annotate.flush();
             attribStats(tree.stats, localEnv);
 
@@ -4198,9 +4198,9 @@ public class Attr extends JCTree.Visitor {
             setSyntheticVariableType(tree.var, type == Type.noType ? syms.errType
                                                                    : type);
         }
-        annotate.annotateLater(tree.var.mods.annotations, env, v, tree.var);
+        annotate.annotateLater(tree.var.mods.annotations, env, v);
         if (!tree.var.isImplicitlyTyped()) {
-            annotate.queueScanTreeAndTypeAnnotate(tree.var.vartype, env, v, tree.var);
+            annotate.queueScanTreeAndTypeAnnotate(tree.var.vartype, env, v);
         }
         annotate.flush();
         result = tree.type;
@@ -5283,7 +5283,7 @@ public class Attr extends JCTree.Visitor {
     }
 
     void attribPackage(PackageSymbol p) {
-        attribWithLint(p,
+        attribWithLogSource(p,
                        env -> chk.checkDeprecatedAnnotation(((JCPackageDecl) env.tree).pid.pos(), p));
     }
 
@@ -5297,18 +5297,12 @@ public class Attr extends JCTree.Visitor {
     }
 
     void attribModule(ModuleSymbol m) {
-        attribWithLint(m, env -> attribStat(env.tree, env));
+        attribWithLogSource(m, env -> attribStat(env.tree, env));
     }
 
-    private void attribWithLint(TypeSymbol sym, Consumer<Env<AttrContext>> attrib) {
+    private void attribWithLogSource(TypeSymbol sym, Consumer<Env<AttrContext>> attrib) {
         Env<AttrContext> env = typeEnvs.get(sym);
-
-        Env<AttrContext> lintEnv = env;
-        while (lintEnv.info.lint == null)
-            lintEnv = lintEnv.next;
-
         JavaFileObject prev = log.useSource(env.toplevel.sourcefile);
-
         try {
             attrib.accept(env);
         } finally {
@@ -5364,19 +5358,6 @@ public class Attr extends JCTree.Visitor {
             // Get environment current at the point of class definition.
             Env<AttrContext> env = typeEnvs.get(c);
 
-            // The info.lint field in the envs stored in typeEnvs is deliberately uninitialized,
-            // because the annotations were not available at the time the env was created. Therefore,
-            // we look up the environment chain for the first enclosing environment for which the
-            // lint value is set. Typically, this is the parent env, but might be further if there
-            // are any envs created as a result of TypeParameter nodes.
-            Env<AttrContext> lintEnv = env;
-            while (lintEnv.info.lint == null)
-                lintEnv = lintEnv.next;
-
-            // Having found the enclosing lint value, we can initialize the lint value for this class
-            env.info.lint = lintEnv.info.lint.augment(c);
-
-            Lint prevLint = chk.setLint(env.info.lint);
             JavaFileObject prev = log.useSource(c.sourcefile);
             ResultInfo prevReturnRes = env.info.returnResult;
 
@@ -5517,7 +5498,6 @@ public class Attr extends JCTree.Visitor {
             } finally {
                 env.info.returnResult = prevReturnRes;
                 log.useSource(prev);
-                chk.setLint(prevLint);
             }
 
         }

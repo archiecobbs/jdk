@@ -66,7 +66,6 @@ public class MemberEnter extends JCTree.Visitor {
     private final Annotate annotate;
     private final Types types;
     private final Names names;
-    private final DeferredLintHandler deferredLintHandler;
 
     public static MemberEnter instance(Context context) {
         MemberEnter instance = context.get(memberEnterKey);
@@ -87,7 +86,6 @@ public class MemberEnter extends JCTree.Visitor {
         types = Types.instance(context);
         source = Source.instance(context);
         names = Names.instance(context);
-        deferredLintHandler = DeferredLintHandler.instance(context);
     }
 
     /** Construct method type from method signature.
@@ -194,16 +192,12 @@ public class MemberEnter extends JCTree.Visitor {
         }
 
         Env<AttrContext> localEnv = methodEnv(tree, env);
-        deferredLintHandler.push(tree);
-        try {
-            // Compute the method type
-            m.type = signature(m, tree.typarams, tree.params,
-                               tree.restype, tree.recvparam,
-                               tree.thrown,
-                               localEnv);
-        } finally {
-            deferredLintHandler.pop();
-        }
+
+        // Compute the method type
+        m.type = signature(m, tree.typarams, tree.params,
+                           tree.restype, tree.recvparam,
+                           tree.thrown,
+                           localEnv);
 
         if (types.isSignaturePolymorphic(m)) {
             m.flags_field |= SIGNATURE_POLYMORPHIC;
@@ -227,14 +221,14 @@ public class MemberEnter extends JCTree.Visitor {
         enclScope.enter(m);
         }
 
-        annotate.annotateLater(tree.mods.annotations, localEnv, m, tree);
+        annotate.annotateLater(tree.mods.annotations, localEnv, m);
         // Visit the signature of the method. Note that
         // TypeAnnotate doesn't descend into the body.
-        annotate.queueScanTreeAndTypeAnnotate(tree, localEnv, m, tree);
+        annotate.queueScanTreeAndTypeAnnotate(tree, localEnv, m);
 
         if (tree.defaultValue != null) {
             m.defaultValue = annotate.unfinishedDefaultValue(); // set it to temporary sentinel for now
-            annotate.annotateDefaultValueLater(tree.defaultValue, localEnv, m, tree);
+            annotate.annotateDefaultValueLater(tree.defaultValue, localEnv, m);
         }
     }
 
@@ -263,18 +257,13 @@ public class MemberEnter extends JCTree.Visitor {
             localEnv = env.dup(tree, env.info.dup());
             localEnv.info.staticLevel++;
         }
-        deferredLintHandler.push(tree);
 
-        try {
-            if (TreeInfo.isEnumInit(tree)) {
-                attr.attribIdentAsEnumType(localEnv, (JCIdent)tree.vartype);
-            } else if (!tree.isImplicitlyTyped()) {
-                attr.attribType(tree.vartype, localEnv);
-                if (TreeInfo.isReceiverParam(tree))
-                    checkReceiver(tree, localEnv);
-            }
-        } finally {
-            deferredLintHandler.pop();
+        if (TreeInfo.isEnumInit(tree)) {
+            attr.attribIdentAsEnumType(localEnv, (JCIdent)tree.vartype);
+        } else if (!tree.isImplicitlyTyped()) {
+            attr.attribType(tree.vartype, localEnv);
+            if (TreeInfo.isReceiverParam(tree))
+                checkReceiver(tree, localEnv);
         }
 
         if ((tree.mods.flags & VARARGS) != 0) {
@@ -315,9 +304,9 @@ public class MemberEnter extends JCTree.Visitor {
             }
         }
 
-        annotate.annotateLater(tree.mods.annotations, localEnv, v, tree);
+        annotate.annotateLater(tree.mods.annotations, localEnv, v);
         if (!tree.isImplicitlyTyped()) {
-            annotate.queueScanTreeAndTypeAnnotate(tree.vartype, localEnv, v, tree);
+            annotate.queueScanTreeAndTypeAnnotate(tree.vartype, localEnv, v);
         }
 
         v.pos = tree.pos;
@@ -452,7 +441,6 @@ public class MemberEnter extends JCTree.Visitor {
 
     public Env<AttrContext> getMethodEnv(JCMethodDecl tree, Env<AttrContext> env) {
         Env<AttrContext> mEnv = methodEnv(tree, env);
-        mEnv.info.lint = mEnv.info.lint.augment(tree.sym);
         for (List<JCTypeParameter> l = tree.typarams; l.nonEmpty(); l = l.tail)
             mEnv.info.scope.enterIfAbsent(l.head.type.tsym);
         for (List<JCVariableDecl> l = tree.params; l.nonEmpty(); l = l.tail)

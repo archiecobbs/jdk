@@ -194,6 +194,10 @@ public class Main {
      * @return the result of the compilation
      */
     public Result compile(String[] argv, Context context) {
+
+System.out.println("*** MAIN.compile():"
++"\n  " + java.util.Arrays.asList(argv).stream().map(s -> "\""+s+"\"").collect(java.util.stream.Collectors.joining("\n  ")));
+
         if (stdOut != null) {
             context.put(Log.outKey, stdOut);
         }

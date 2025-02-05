@@ -887,13 +887,15 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         }
         unmatchedAnnotations.remove("");
 
-        if (lint.getRootConfig().isActive(PROCESSING) && unmatchedAnnotations.size() > 0) {
-            // Remove annotations processed by javac
-            unmatchedAnnotations.keySet().removeAll(platformAnnotations);
+        lint.ifEnabled(PROCESSING, () -> {
             if (unmatchedAnnotations.size() > 0) {
-                lint.logIfEnabled(LintWarnings.ProcAnnotationsWithoutProcessors(unmatchedAnnotations.keySet()));
+                // Remove annotations processed by javac
+                unmatchedAnnotations.keySet().removeAll(platformAnnotations);
+                if (unmatchedAnnotations.size() > 0) {
+                    lint.logIfEnabled(LintWarnings.ProcAnnotationsWithoutProcessors(unmatchedAnnotations.keySet()));
+                }
             }
-        }
+        });
 
         // Run contributing processors that haven't run yet
         psi.runContributingProcs(renv);

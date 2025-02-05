@@ -109,26 +109,29 @@ public class MandatoryWarningHandler {
      * Create a handler for mandatory warnings.
      *
      * @param log     The log on which to generate any diagnostics
+     * @param lint    The lint singleton
      * @param source  Associated source file, or null for none
      * @param enforceMandatory
      *                True if mandatory warnings and notes are being enforced.
      */
-    public MandatoryWarningHandler(Log log, Source source, boolean enforceMandatory) {
-        this(log, source, enforceMandatory, null);
+    public MandatoryWarningHandler(Log log, Lint lint, Source source, boolean enforceMandatory) {
+        this(log, lint, source, enforceMandatory, null);
     }
 
     /**
      * Create a handler for mandatory warnings.
      *
      * @param log     The log on which to generate any diagnostics
+     * @param lint    The lint singleton
      * @param source  Associated source file, or null for none
      * @param enforceMandatory
      *                True if mandatory warnings and notes are being enforced.
      * @param prefix  A common prefix for the set of message keys for the messages
      *                that may be generated, or null to infer from the lint category.
      */
-    public MandatoryWarningHandler(Log log, Source source, boolean enforceMandatory, String prefix) {
+    public MandatoryWarningHandler(Log log, Lint lint, Source source, boolean enforceMandatory, String prefix) {
         this.log = log;
+        this.lint = lint;
         this.source = source;
         this.prefix = prefix;
         this.enforceMandatory = enforceMandatory;
@@ -137,20 +140,24 @@ public class MandatoryWarningHandler {
     /**
      * Report a mandatory warning.
      *
-     * @param reporter the lint reporter
      * @param pos source code position
      * @param warnKey lint warning
      */
-    public void report(Lint.Reporter reporter, DiagnosticPosition pos, LintWarning warnKey) {
-        JavaFileObject currentSource = log.currentSourceFile();
+    public void report(DiagnosticPosition pos, LintWarning warnKey) {
 
         // Infer the log prefix from the lint category if not given explicitly
         LintCategory category = warnKey.getLintCategory();
         if (prefix == null)
             prefix = category.option;
 
-        // Either emit the warning, or just remember that one occurred
-        if (reporter.getConfig().isEnabled(category)) {
+        // How we report the warning depends on the lint configuration at "pos"
+        lint.analyze(category, () -> reportOrAggregate(pos, warnKey));
+    }
+
+    private void reportOrAggregate(DiagnosticPosition pos, LintWarning warnKey) {
+        JavaFileObject currentSource = log.currentSourceFile();
+        boolean verbose = lint.configAt(pos).isEnabled(warnKey.getLintCategory());
+        if (verbose) {
             if (sourcesWithReportedWarnings == null)
                 sourcesWithReportedWarnings = new HashSet<>();
 
@@ -219,6 +226,7 @@ public class MandatoryWarningHandler {
      * The log to which to report warnings.
      */
     private final Log log;
+    private final Lint lint;
     private final Source source;
 
     /**

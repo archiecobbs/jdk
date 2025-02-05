@@ -139,7 +139,7 @@ public class ClassReader {
     /** The symbol table. */
     Symtab syms;
 
-    /** The root Lint config. */
+    /** The Lint singleton. */
     Lint lint;
 
     Types types;
@@ -854,8 +854,7 @@ public class ClassReader {
                 if (!warnedAttrs.contains(name)) {
                     JavaFileObject prev = log.useSource(currentClassFile);
                     try {
-                        lint.logIfEnabled(
-                                    LintWarnings.FutureAttr(name, version.major, version.minor, majorVersion, minorVersion));
+                        lint.logIfEnabled(LintWarnings.FutureAttr(name, version.major, version.minor, majorVersion, minorVersion));
                     } finally {
                         log.useSource(prev);
                     }

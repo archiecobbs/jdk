@@ -661,12 +661,7 @@ public class JavaCompiler {
             }
             Parser parser = parserFactory.newParser(content, keepComments(), genEndPos,
                                 lineDebugInfo, filename.isNameCompatible("module-info", Kind.SOURCE));
-            lint.enterParsingMode(filename);
-            try {
-                tree = parser.parseCompilationUnit();
-            } finally {
-                lint.exitParsingMode(tree);
-            }
+            tree = parser.parseCompilationUnit();
             if (verbose) {
                 log.printVerbose("parsing.done", Long.toString(elapsed(msec)));
             }
@@ -1827,8 +1822,8 @@ public class JavaCompiler {
                 }
                 @Override
                 public void visitVarDef(JCVariableDecl tree) {
-                    if (tree.init != null && tree.init.type.constValue() == null)
-                        tree.init = null;
+//                    if (tree.init != null && tree.init.type.constValue() == null)
+//                        tree.init = null;
                     super.visitVarDef(tree);
                 }
                 @Override
@@ -1868,7 +1863,7 @@ public class JavaCompiler {
         }
 
     public void reportDeferredDiagnostics() {
-        lint.emitNonSpecificWarnings();
+        lint.analyzeAndEmitWarnings(null);
         if (errorCount() == 0
                 && annotationProcessingOccurred
                 && implicitSourceFilesRead

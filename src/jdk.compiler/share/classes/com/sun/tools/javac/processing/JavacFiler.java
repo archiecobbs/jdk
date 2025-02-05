@@ -486,7 +486,7 @@ public class JavacFiler implements Filer, Closeable {
     private JavaFileObject createSourceOrClassFile(ModuleSymbol mod, boolean isSourceFile, String name, Element... originatingElements) throws IOException {
         Assert.checkNonNull(mod);
 
-        if (lint.getRootConfig().isActive(PROCESSING)) {
+        lint.ifEnabled(PROCESSING, () -> {
             int periodIndex = name.lastIndexOf(".");
             if (periodIndex != -1) {
                 String base = name.substring(periodIndex);
@@ -494,7 +494,7 @@ public class JavacFiler implements Filer, Closeable {
                 if (base.equals(extn))
                     lint.logIfEnabled(LintWarnings.ProcSuspiciousClassName(name, extn));
             }
-        }
+        });
         checkNameAndExistence(mod, name, isSourceFile);
         Location loc = (isSourceFile ? SOURCE_OUTPUT : CLASS_OUTPUT);
 

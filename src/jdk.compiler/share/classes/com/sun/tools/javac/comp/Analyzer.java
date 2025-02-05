@@ -75,6 +75,7 @@ import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.DefinedBy;
 import com.sun.tools.javac.util.DefinedBy.Api;
 import com.sun.tools.javac.util.DiagnosticSource;
+import com.sun.tools.javac.util.JCDiagnostic;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticType;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
@@ -729,13 +730,15 @@ public class Analyzer {
         /**
          * Simple deferred diagnostic handler which filters out all messages and keep track of errors.
          */
-        Log.DeferredDiagnosticHandler diagHandler() {
-            return new Log.DeferredDiagnosticHandler(log, d -> {
-                if (d.getType() == DiagnosticType.ERROR) {
-                    erroneous = true;
+        Log.DiscardDiagnosticHandler diagHandler() {
+            return new Log.DiscardDiagnosticHandler(log) {
+                @Override
+                protected void handleFiltered(JCDiagnostic d) {
+                    if (d.getType() == DiagnosticType.ERROR) {
+                        erroneous = true;
+                    }
                 }
-                return true;
-            });
+            };
         }
     }
 

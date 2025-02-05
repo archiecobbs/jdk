@@ -357,8 +357,8 @@ public class JavacTrees extends DocTrees {
         if (tree instanceof DCReference dcReference) {
             JCTree qexpr = dcReference.qualifierExpression;
             if (qexpr != null) {
-                Log.DeferredDiagnosticHandler deferredDiagnosticHandler =
-                        new Log.DeferredDiagnosticHandler(log);
+                Log.DiscardDiagnosticHandler discardDiagnosticHandler =
+                        new Log.DiscardDiagnosticHandler(log);
                 try {
                     Env<AttrContext> env = getAttrContext(path.getTreePath());
                     Type t = attr.attribType(dcReference.qualifierExpression, env);
@@ -368,7 +368,7 @@ public class JavacTrees extends DocTrees {
                 } catch (Abort e) { // may be thrown by Check.completionError in case of bad class file
                     return null;
                 } finally {
-                    log.popDiagnosticHandler(deferredDiagnosticHandler);
+                    log.popDiagnosticHandler(discardDiagnosticHandler);
                 }
             }
         }
@@ -388,8 +388,8 @@ public class JavacTrees extends DocTrees {
             // module name and member name without type
             return null;
         }
-        Log.DeferredDiagnosticHandler deferredDiagnosticHandler =
-                new Log.DeferredDiagnosticHandler(log);
+        Log.DiscardDiagnosticHandler discardDiagnosticHandler =
+                new Log.DiscardDiagnosticHandler(log);
         try {
             final TypeSymbol tsym;
             final Name memberName;
@@ -511,7 +511,7 @@ public class JavacTrees extends DocTrees {
         } catch (Abort e) { // may be thrown by Check.completionError in case of bad class file
             return null;
         } finally {
-            log.popDiagnosticHandler(deferredDiagnosticHandler);
+            log.popDiagnosticHandler(discardDiagnosticHandler);
         }
     }
 

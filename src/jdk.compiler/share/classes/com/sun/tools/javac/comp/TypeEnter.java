@@ -384,7 +384,7 @@ public class TypeEnter implements Completer {
                     //check @Deprecated:
                     markDeprecated(decl.sym, decl.mods.annotations, env);
                     // process module annotations
-                    annotate.annotateLater(decl.mods.annotations, env, env.toplevel.modle, decl);
+                    annotate.annotateLater(decl.mods.annotations, env, env.toplevel.modle);
                 }
             } finally {
                 this.env = prevEnv;
@@ -420,7 +420,7 @@ public class TypeEnter implements Completer {
                 }
             }
             // process package annotations
-            annotate.annotateLater(tree.annotations, env, env.toplevel.packge, tree);
+            annotate.annotateLater(tree.annotations, env, env.toplevel.packge);
         }
 
         private void doImport(JCImport tree, boolean fromModuleImport) {
@@ -910,9 +910,9 @@ public class TypeEnter implements Completer {
             Env<AttrContext> baseEnv = baseEnv(tree, env);
 
             if (tree.extending != null)
-                annotate.queueScanTreeAndTypeAnnotate(tree.extending, baseEnv, sym, tree);
+                annotate.queueScanTreeAndTypeAnnotate(tree.extending, baseEnv, sym);
             for (JCExpression impl : tree.implementing)
-                annotate.queueScanTreeAndTypeAnnotate(impl, baseEnv, sym, tree);
+                annotate.queueScanTreeAndTypeAnnotate(impl, baseEnv, sym);
             annotate.flush();
 
             attribSuperTypes(env, baseEnv);
@@ -927,11 +927,11 @@ public class TypeEnter implements Completer {
                     chk.checkNotRepeated(iface.pos(), types.erasure(it), interfaceSet);
             }
 
-            annotate.annotateLater(tree.mods.annotations, baseEnv, sym, tree);
+            annotate.annotateLater(tree.mods.annotations, baseEnv, sym);
             attr.attribTypeVariables(tree.typarams, baseEnv, false);
 
             for (JCTypeParameter tp : tree.typarams)
-                annotate.queueScanTreeAndTypeAnnotate(tp, baseEnv, sym, tree);
+                annotate.queueScanTreeAndTypeAnnotate(tp, baseEnv, sym);
 
             // check that no package exists with same fully qualified name,
             // but admit classes in the unnamed package which have the same

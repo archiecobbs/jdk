@@ -49,7 +49,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Consumer;
 
 import static com.sun.tools.javac.main.Option.PREVIEW;
 import com.sun.tools.javac.util.JCDiagnostic;
@@ -105,8 +104,9 @@ public class Preview {
         enabled = options.isSet(PREVIEW);
         log = Log.instance(context);
         source = Source.instance(context);
-        verbose = Lint.instance(context).getRootConfig().isEnabled(LintCategory.PREVIEW);
-        previewHandler = new MandatoryWarningHandler(log, source, true);
+        Lint lint = Lint.instance(context);
+        verbose = lint.getRootConfig().isEnabled(LintCategory.PREVIEW);
+        previewHandler = new MandatoryWarningHandler(log, lint, source, true);
         forcePreview = options.isSet("forcePreview");
         majorVersionToSource = initMajorVersionToSourceMap();
     }
@@ -162,10 +162,6 @@ public class Preview {
     /**
      * Report usage of a preview feature. Usages reported through this method will affect the
      * set of sourcefiles with dependencies on preview features.
-     *
-     * <p>
-     * This method may be invoked either before or during the compiler warning phase.
-     *
      * @param pos the position at which the preview feature was used.
      * @param feature the preview feature used.
      */
@@ -176,10 +172,6 @@ public class Preview {
     /**
      * Report usage of a preview feature. Usages reported through this method will affect the
      * set of sourcefiles with dependencies on preview features.
-     *
-     * <p>
-     * This method may be invoked either before or during the compiler warning phase.
-     *
      * @param pos the position at which the preview feature was used.
      * @param feature the preview feature used.
      */
@@ -187,15 +179,9 @@ public class Preview {
         Assert.check(isEnabled());
         Assert.check(isPreview(feature));
         markUsesPreview(pos);
-        Consumer<Lint.Reporter> task = reporter ->
-            previewHandler.report(reporter, pos, feature.isPlural() ?
+        previewHandler.report(pos, feature.isPlural() ?
                 LintWarnings.PreviewFeatureUsePlural(feature.nameFragment()) :
                 LintWarnings.PreviewFeatureUse(feature.nameFragment()));
-        Lint.Reporter reporter = lint.currentReporter();
-        if (reporter != null)
-            task.accept(reporter);
-        else
-            lint.analyze(LintCategory.PREVIEW, pos, task);
     }
 
     /**
@@ -220,8 +206,8 @@ public class Preview {
         sourcesWithPreviewFeatures.add(log.currentSourceFile());
     }
 
-    public void reportPreviewWarning(Lint.Reporter reporter, DiagnosticPosition pos, LintWarning warnKey) {
-        previewHandler.report(reporter, pos, warnKey);
+    public void reportPreviewWarning(DiagnosticPosition pos, LintWarning warnKey) {
+        previewHandler.report(pos, warnKey);
     }
 
     public boolean usesPreview(JavaFileObject file) {

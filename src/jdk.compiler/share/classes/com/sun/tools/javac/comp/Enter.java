@@ -97,7 +97,6 @@ public class Enter extends JCTree.Visitor {
     TreeMaker make;
     TypeEnter typeEnter;
     Types types;
-    Lint lint;
     Names names;
     JavaFileManager fileManager;
     PkgInfo pkginfoOpt;
@@ -125,7 +124,6 @@ public class Enter extends JCTree.Visitor {
         typeEnter = TypeEnter.instance(context);
         types = Types.instance(context);
         annotate = Annotate.instance(context);
-        lint = Lint.instance(context);
         names = Names.instance(context);
         modules = Modules.instance(context);
         diags = JCDiagnostic.Factory.instance(context);
@@ -157,13 +155,7 @@ public class Enter extends JCTree.Visitor {
     }
 
     public Env<AttrContext> getClassEnv(TypeSymbol sym) {
-        Env<AttrContext> localEnv = getEnv(sym);
-        if (localEnv == null) return null;
-        Env<AttrContext> lintEnv = localEnv;
-        while (lintEnv.info.lint == null)
-            lintEnv = lintEnv.next;
-        localEnv.info.lint = lintEnv.info.lint.augment(sym);
-        return localEnv;
+        return getEnv(sym);
     }
 
     /** The queue of all classes that might still need to be completed;
@@ -206,8 +198,6 @@ public class Enter extends JCTree.Visitor {
             env.dup(tree, env.info.dup(WriteableScope.create(tree.sym)));
         localEnv.enclClass = tree;
         localEnv.outer = env;
-        localEnv.info.lint = null; // leave this to be filled in by Attr,
-                                   // when annotations have been processed
         localEnv.info.isAnonymousDiamond = TreeInfo.isDiamond(env.tree);
         localEnv.info.ctorPrologue = false;
         return localEnv;
@@ -225,7 +215,6 @@ public class Enter extends JCTree.Visitor {
         tree.starImportScope = new StarImportScope(tree.packge);
         tree.moduleImportScope = new StarImportScope(tree.packge);
         localEnv.info.scope = tree.toplevelScope;
-        localEnv.info.lint = lint;
         return localEnv;
     }
 
@@ -234,7 +223,6 @@ public class Enter extends JCTree.Visitor {
         localEnv.toplevel = tree;
         localEnv.enclClass = predefClassDef;
         localEnv.info.scope = tree.toplevelScope;
-        localEnv.info.lint = lint;
         return localEnv;
     }
 
@@ -260,8 +248,6 @@ public class Enter extends JCTree.Visitor {
             env.dup(tree, env.info.dup(WriteableScope.create(tree.sym)));
         localEnv.enclClass = predefClassDef;
         localEnv.outer = env;
-        localEnv.info.lint = null; // leave this to be filled in by Attr,
-                                   // when annotations have been processed
         return localEnv;
     }
 

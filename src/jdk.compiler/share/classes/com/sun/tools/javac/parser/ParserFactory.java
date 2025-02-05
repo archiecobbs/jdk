@@ -28,7 +28,6 @@ package com.sun.tools.javac.parser;
 import java.util.Locale;
 
 import com.sun.tools.javac.api.JavacTrees;
-import com.sun.tools.javac.code.DeferredLintHandler;
 import com.sun.tools.javac.code.Lint;
 import com.sun.tools.javac.code.Preview;
 import com.sun.tools.javac.code.Source;
@@ -70,7 +69,7 @@ public class ParserFactory {
     final Options options;
     final ScannerFactory scannerFactory;
     final Locale locale;
-    final DeferredLintHandler deferredLintHandler;
+    final Lint lint;
 
     private final JavacTrees trees;
 
@@ -88,7 +87,7 @@ public class ParserFactory {
         this.options = Options.instance(context);
         this.scannerFactory = ScannerFactory.instance(context);
         this.locale = context.get(Locale.class);
-        this.deferredLintHandler = DeferredLintHandler.instance(context);
+        this.lint = Lint.instance(context);
         this.trees = JavacTrees.instance(context);
     }
 

@@ -135,7 +135,6 @@ public class AttrContext {
         info.ctorPrologue = ctorPrologue;
         info.selectSuper = selectSuper;
         info.pendingResolutionPhase = pendingResolutionPhase;
-        info.lint = lint;
         info.enclVar = enclVar;
         info.returnResult = returnResult;
         info.yieldResult = yieldResult;
