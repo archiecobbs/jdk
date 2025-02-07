@@ -100,7 +100,7 @@ public class Lint {
 // Config
 
     /**
-     * A class representing a specific combination of enabled or suppressed {@link LintCategory}s.
+     * Represents a specific combination of enabled or suppressed {@link LintCategory}s.
      *
      * <p>
      * A {@link LintCategory} may be enabled, suppressed, or neither, but never both.
@@ -120,10 +120,6 @@ public class Lint {
             this.enabled = enabled;
             this.suppressed = suppressed;
             this.description = description;
-        }
-
-        private Config copy(String descriptionSuffix) {
-            return new Config(EnumSet.copyOf(enabled), EnumSet.copyOf(suppressed), description + descriptionSuffix);
         }
 
         /**
@@ -196,6 +192,10 @@ public class Lint {
             return config;
         }
 
+        private Config copy(String descriptionSuffix) {
+            return new Config(EnumSet.copyOf(enabled), EnumSet.copyOf(suppressed), description + descriptionSuffix);
+        }
+
         public String getDescription() {
             return this.description;
         }
@@ -213,7 +213,7 @@ public class Lint {
      *
      * <p>
      * The root configuration consists of the categories that are enabled by default
-     * plus adjustments due to {@code -Xlint} command line flags.
+     * plus any adjustments due to {@code -Xlint} command line flags.
      *
      * @return root lint configuration
      */
@@ -234,7 +234,7 @@ public class Lint {
      * @throws AssertionError if the current thread is not executing an analysis
      */
     public Config configAt(int pos) {
-        return currentAnalysis().configCalculator().configAt(pos);
+        return currentSourceInfo().getConfigCalculator().configAt(pos);
     }
 
     /**
@@ -268,7 +268,7 @@ public class Lint {
      * @throws AssertionError if the current thread is not executing an analysis
      */
     public void modifyConfig(int minPos, int maxPos, UnaryOperator<Config> modifier) {
-        currentAnalysis().configCalculator().push(minPos, maxPos, modifier);
+        currentSourceInfo().getConfigCalculator().push(minPos, maxPos, modifier);
     }
 
     /**
@@ -301,7 +301,7 @@ public class Lint {
      * @throws AssertionError if the current thread is not executing an analysis
      */
     public void restoreConfig() {
-        currentAnalysis().configCalculator().pop();
+        currentSourceInfo().getConfigCalculator().pop();
     }
 
 // Non-Specific Warnings
@@ -314,9 +314,11 @@ public class Lint {
      * @param warning key for the localized warning message; must be non-specific
      */
     public void logIfEnabled(LintWarning warning) {
-        if (log.wouldDiscard(null, warning))
-            return;
-        ifEnabled(warning.getLintCategory(), () -> warningList.add(new Warning(warning)));
+        LintCategory category = warning.getLintCategory();
+        Assert.check(!category.isSpecific());
+        if (!log.wouldDiscard(null, warning)) {
+            ifEnabled(category, () -> addWarning(new Warning(warning)));
+        }
     }
 
     /**
@@ -327,9 +329,11 @@ public class Lint {
      * @param warning key for the localized warning message; must be non-specific
      */
     public void logIfNotSuppressed(LintWarning warning) {
-        if (log.wouldDiscard(null, warning))
-            return;
-        ifNotSuppressed(warning.getLintCategory(), () -> warningList.add(new Warning(warning)));
+        LintCategory category = warning.getLintCategory();
+        Assert.check(!category.isSpecific());
+        if (!log.wouldDiscard(null, warning)) {
+            ifNotSuppressed(category, () -> addWarning(new Warning(warning)));
+        }
     }
 
     /**
@@ -348,7 +352,9 @@ public class Lint {
      * @param analyzer callback for doing the analysis
      */
     public void ifEnabled(LintCategory category, Runnable analyzer) {
-        analyze(category, true, true, () -> {
+        Assert.check(category != null);
+        Assert.check(!category.isSpecific());
+        analyze(category, () -> {
             if (configAt(Position.NOPOS).isEnabled(category)) {
                 analyzer.run();
             }
@@ -371,7 +377,9 @@ public class Lint {
      * @param analyzer callback for doing the analysis
      */
     public void ifNotSuppressed(LintCategory category, Runnable analyzer) {
-        analyze(category, true, true, () -> {
+        Assert.check(category != null);
+        Assert.check(!category.isSpecific());
+        analyze(category, () -> {
             if (!configAt(Position.NOPOS).isSuppressed(category)) {
                 analyzer.run();
             }
@@ -399,23 +407,26 @@ public class Lint {
      * @param warning key for the localized warning message; category must be specific
      */
     public void logIfEnabled(DiagnosticPosition pos, LintWarning warning) {
-        if (log.wouldDiscard(pos, warning))
-            return;
         LintCategory category = warning.getLintCategory();
+        Assert.check(category.isSpecific());
 
-/*
+if (false) {
 System.out.println("logIfEnabled():"
 +"\n  category="+category
 +"\n  pos=["+pos+"]"
 +"\n  warning="+warning
++"\n  wouldDiscard="+log.wouldDiscard(pos, warning)
 );
-*/
+}
 
-        analyze(category, true, true, () -> {
-            if (configAt(pos).isEnabled(category)) {
-                warningList.add(new Warning(pos, warning));
-            }
-        });
+        if (!log.wouldDiscard(pos, warning)) {
+
+            analyze(category, () -> {
+                if (configAt(pos).isEnabled(category)) {
+                    addWarning(new Warning(pos, warning));
+                }
+            });
+        }
     }
 
     /**
@@ -437,14 +448,15 @@ System.out.println("logIfEnabled():"
      * @param warning key for the localized warning message; category must be specific
      */
     public void logIfNotSuppressed(DiagnosticPosition pos, LintWarning warning) {
-        if (log.wouldDiscard(pos, warning))
-            return;
         LintCategory category = warning.getLintCategory();
-        analyze(category, true, true, () -> {
-            if (!configAt(pos).isSuppressed(category)) {
-                warningList.add(new Warning(pos, warning));
-            }
-        });
+        Assert.check(category.isSpecific());
+        if (!log.wouldDiscard(pos, warning)) {
+            analyze(category, () -> {
+                if (!configAt(pos).isSuppressed(category)) {
+                    addWarning(new Warning(pos, warning));
+                }
+            });
+        }
     }
 
     /**
@@ -482,7 +494,9 @@ System.out.println("logIfEnabled():"
      * @param analyzer callback for doing the analysis
      */
     public void ifEnabled(LintCategory category, DiagnosticPosition pos, Runnable analyzer) {
-        analyze(category, true, false, () -> {
+        Assert.check(category != null);
+        Assert.check(category.isSpecific());
+        analyze(category, () -> {
             if (configAt(pos).isEnabled(category)) {
                 analyzer.run();
             }
@@ -524,7 +538,9 @@ System.out.println("logIfEnabled():"
      * @param analyzer callback for doing the analysis
      */
     public void ifNotSuppressed(LintCategory category, DiagnosticPosition pos, Runnable analyzer) {
-        analyze(category, true, false, () -> {
+        Assert.check(category != null);
+        Assert.check(category.isSpecific());
+        analyze(category, () -> {
             if (!configAt(pos).isSuppressed(category)) {
                 analyzer.run();
             }
@@ -532,48 +548,24 @@ System.out.println("logIfEnabled():"
     }
 
     /**
-     * Perform an analysis using an initial {@link Config} appropriate for the given source file position.
+     * Perform a general purpose lint analysis.
+     *
+     * <p>
+     * For non-specific lint categories, the analysis is always executed synchonously. Otherwise, the
+     * analysis executes as soon as possible after the current source file has been mapped.
      *
      * <p>
      * <b>All warnings generated by {@code analyzer} must be in the given {@code category} (if not null)</b>.
      *
-     * @param category category for generated warnings (must be specific) or null for none
+     * @param category category for generated warnings (must be specific) or null for no restriction
      * @param analyzer callback for doing the analysis
      */
     public void analyze(LintCategory category, Runnable analyzer) {
-        analyze(category, false, false, analyzer);
-    }
-
-    /**
-     * Handle a new analysis request.
-     *
-     * <p>
-     * For non-specific lint categories, and for {@code logIfXxx()} specific lint category requests,
-     * we always execute the analysis synchonously. Otherwise, we add the analysis to the queue for
-     * the current source file. Reentrant requests must have a consistent {@code category}.
-     *
-     * @param category the expected lint category for reported warnings, or null for not restriction
-     * @param requireCategory true if {@code category} should not be null
-     * @param reentrantOK if analysis already running, execute {@code analyzer} instead of enqueuing it
-     * @param analyzer the analysis to run
-     */
-    private void analyze(LintCategory category, boolean requireCategory, boolean reentrantOK, Runnable analyzer) {
 
         // Sanity check analysis category and compare to the current analysis (if any)
-        if (category == null) {
-            Assert.check(!requireCategory);
-        } else {
-            Assert.check(currentAnalysis == null || currentAnalysis.category() == category);
-        }
-
-        // Create the analysis
-        Analysis analysis = new Analysis(category, new ConfigCalculator(), analyzer);
-
-        // Analyses with "reentrantOK" can execute immediately within an already-running analysis
-        if (currentAnalysis != null && reentrantOK) {
-            execute(analysis);
-            return;
-        }
+        Assert.check(category == null ||
+            currentSourceInfo == null ||
+            category == currentSourceInfo.currentAnalysis().category());
 
         // Get the current source file (specific lint categories only)
         JavaFileObject source = category.isSpecific() ? log.currentSourceFile() : null;
@@ -583,47 +575,60 @@ System.out.println("logIfEnabled():"
         if (source == null && category.isSpecific())
             return;
 
-        // Enqueue the analysis
-        analysisMap.computeIfAbsent(source, s -> new SourceInfo()).getAnalyses().addLast(analysis);
-    }
+        // Create the analysis
+        Analysis analysis = new Analysis(category, analyzer);
 
-    // Execute an analysis
-    private void execute(Analysis analysis) {
-        Analysis previousAnalysis = currentAnalysis;
-        currentAnalysis = analysis;
-        try {
-            analysis.task().run();
-        } finally {
-            currentAnalysis = previousAnalysis;
+        // Execute the analysis now or enqueue for later if the source file isn't mapped yet.
+        // For non-specific lint categories, we always execute synchronously.
+        SourceInfo sourceInfo = sourceMap.computeIfAbsent(source, s -> new SourceInfo());
+        if (sourceInfo.isMapped() || (category != null && !category.isSpecific())) {
+            sourceInfo.getAnalyses().push(analysis);        // insert at the head of the queue
+            executeNextAnalysis(sourceInfo);
+        } else {
+            sourceInfo.getAnalyses().addLast(analysis);     // add to the tail of the queue
         }
     }
 
+    private void addWarning(Warning warning) {
+        currentSourceInfo().getWarnings().add(warning);
+    }
+
     /**
-     * Execute all enqueued analyses for the given compilation unit and emit any resulting warnings.
+     * Emit all enqueued warnings for the given top-level class.
      *
-     * @param tree source file to analyze, or null to execute non-specific analyses
+     * <p>
+     * Invoking this method also indicates that any further analyses can be executed synchronously.
+     *
+     * <p>
+     * Generated warnings are held until the corresponding invocation of {@link #emitWarnings}.
+     *
+     * @param env The attribution environment of an outermost class
      */
-    public void analyzeAndEmitWarnings(Env<AttrContext> env) {
+    public void analyzeWarnings(Env<AttrContext> env) {
 
         // Apply sanity checks
         JavaFileObject source = env != null ? env.toplevel.sourcefile : null;
         Assert.check(Objects.equals(source, log.currentSourceFile()));
-        Assert.check(currentAnalysis == null, "reentrant invocation");
 
-boolean debug = source != null && source.toString().contains("/java/util/ImmutableCollections.java");
+//boolean debug = source != null && source.toString().contains("/java/util/ImmutableCollections.java");
+boolean debug = false;
 
-        // Find the analysis queue for the source file, if any
-        SourceInfo sourceInfo = analysisMap.get(source);
-        if (sourceInfo == null) {
-            return;
-        }
+if (debug) {
+System.out.println("ANALYZE-WARNINGS: " +(env != null ? ((JCClassDecl)env.tree).sym : "NULL")
++"\n  source="+source
++"\n  sourceInfo="+sourceMap.get(source)
+);
+}
+
+        // Find the info for the source file; if none found, install a placeholder
+        SourceInfo sourceInfo = sourceMap.computeIfAbsent(source, s -> new SourceInfo());
 
 if (debug) {
 System.out.println("ANALYZING: " + source + " with " + (int)env.toplevel.defs.stream().filter(JCClassDecl.class::isInstance).count() + " class decl's");
 }
 
-        // Scan this top-level class, but stop here if any others remain
-        if (env != null && !sourceInfo.scanClass(env.toplevel, env.enclClass)) {
+        // Scan the class for @SuppressWarnings, but stop here if there are any other remaining top-level classes
+        if (env != null && !sourceInfo.buildConfigMap(env.toplevel, env.enclClass)) {
 
 if (debug) {
 System.out.println(" -> NOT DONE");
@@ -631,43 +636,81 @@ System.out.println(" -> NOT DONE");
 
             return;
         }
-        final Deque<Analysis> analyses = sourceInfo.getAnalyses();
 
 if (debug) {
 System.out.println(" -> DONE");
 }
 
-        // Execute the analyses for the source file and collect any generated warnings
+        // Execute all analyses for this source file
         try {
-            warningList.clear();
-            while (!analyses.isEmpty()) {
-                Analysis analysis = analyses.peekFirst();
-                analysis.configCalculator().copyFrom(sourceInfo.getConfigCalculator());
-                try {
-                    execute(analysis);
-                } finally {
-                    analyses.removeFirst();
-                }
+            while (!sourceInfo.getAnalyses().isEmpty()) {
+                executeNextAnalysis(sourceInfo);
             }
         } finally {
+if (debug) {
 System.out.println("ANALYZED " + source);
 if (source == null)
     new Throwable("HERE").printStackTrace(System.out);
-            analysisMap.remove(source);
+}
+            sourceMap.remove(source);
+        }
+    }
+
+    // Execute the next enqueued analysis for the given source and remove it from the queue
+    private void executeNextAnalysis(SourceInfo sourceInfo) {
+        SourceInfo previousSourceInfo = currentSourceInfo;
+        currentSourceInfo = sourceInfo;
+        try {
+            sourceInfo.currentAnalysis().task().run();
+        } finally {
+            sourceInfo.getAnalyses().removeFirst();
+            currentSourceInfo = previousSourceInfo;
+        }
+    }
+
+    /**
+     * Emit all enqueued warnings for the given top-level class.
+     *
+     * @param env The attribution environment of an outermost class, or null to emit non-specific warnings
+     */
+    public void emitWarnings(Env<AttrContext> env) {
+
+        // Apply sanity checks
+        JavaFileObject source = env != null ? env.toplevel.sourcefile : null;
+        Assert.check(Objects.equals(source, log.currentSourceFile()));
+
+if (false) {
+System.out.println("EMIT-WARNINGS: " +(env != null ? ((JCClassDecl)env.tree).sym : "NULL")
++"\n  source="+source
++"\n  sourceInfo="+sourceMap.get(source)
+);
+}
+
+        // Find the info for the source file
+        SourceInfo sourceInfo = sourceMap.remove(source);
+        if (sourceInfo == null) {
+            return;
         }
 
         // Sort and emit the generated warnings
-        warningList.sort(Comparator.comparingInt(Warning::sortKey));
-        warningList.forEach(warning -> warning.warn(log));
-        warningList.clear();
+        List<Warning> warnings = sourceInfo.getWarnings();
+        warnings.sort(Comparator.comparingInt(Warning::sortKey));
+        warnings.forEach(warning -> warning.warn(log));
+        warnings.clear();
     }
 
 // SourceInfo
 
+    // Information about a single source file:
+    //  - @SuppressWarnings config calculator
+    //  - Whether analyses can execute synchronously yet
+    //  - Analyses waiting to be executed
+    //  - Warnings waiting to be emitted
     private class SourceInfo {
 
         private final ConfigCalculator configCalculator = new ConfigCalculator();
         private final Deque<Analysis> analyses = new ArrayDeque<>();
+        private final List<Warning> warnings = new ArrayList<>();
 
         private int remainingClassDefs = -1;
 
@@ -679,24 +722,48 @@ if (source == null)
             return analyses;
         }
 
-        boolean scanClass(JCCompilationUnit top, JCClassDecl decl) {
+        List<Warning> getWarnings() {
+            return warnings;
+        }
 
-            // First time, scan from the top down to top level classes but no further
+        Analysis currentAnalysis() {
+            Assert.check(!analyses.isEmpty());
+            return analyses.getFirst();
+        }
+
+        boolean isMapped() {
+            return remainingClassDefs == 0;
+        }
+
+        // Populate the ConfigCalculator with ranges corresponding to the given top-level class
+        boolean buildConfigMap(JCCompilationUnit top, JCClassDecl decl) {
+
+            // The first time, scan down to the top-level classes but not any further
             if (remainingClassDefs == -1) {
                 remainingClassDefs = (int)top.defs.stream().filter(JCClassDecl.class::isInstance).count();
                 configCalculator.process(top, true);
             }
 
             // Scan the specified top level class
+            Assert.check(remainingClassDefs > 0);
             configCalculator.process(decl, false);
             return --remainingClassDefs == 0;
         }
+
+        @Override
+        public String toString() {
+            return "SourceInfo"
+              + "[calculator=" + configCalculator
+              + ",analyses=" + analyses
+              + ",warnings=" + warnings
+              + "]";
+        }
     }
 
-    // Get the current analysis (it must exist)
-    private Analysis currentAnalysis() {
-        Assert.check(currentAnalysis != null, "there is no current lint analysis executing");
-        return currentAnalysis;
+    // Get the SourceInfo corresponding to the currently executing analysis
+    private SourceInfo currentSourceInfo() {
+        Assert.check(currentSourceInfo != null, "there is no current lint analysis executing");
+        return currentSourceInfo;
     }
 
     static DiagnosticPosition wrap(int pos) {
@@ -711,7 +778,7 @@ if (source == null)
 
 // Analysis
 
-    private record Analysis(LintCategory category, ConfigCalculator configCalculator, Runnable task) { }
+    private record Analysis(LintCategory category, Runnable task) { }
 
 // Warning
 
@@ -777,7 +844,7 @@ private boolean debug;
             this.stopAtClassDecl = stopAtClassDecl;
 
 if (tree instanceof JCCompilationUnit cu) {
-this.debug = cu.sourcefile != null && cu.sourcefile.toString().contains("/java/util/ImmutableCollections.java");
+//this.debug = cu.sourcefile != null && cu.sourcefile.toString().contains("/java/util/ImmutableCollections.java");
 }
 
             // Scan file to generate config ranges within tree
@@ -944,6 +1011,14 @@ System.out.println("visitDeclaration():"
             }
         }
 
+        @Override
+        public String toString() {
+            return "ConfigCalculator"
+              + "[ranges=" + ranges
+              + ",patches=" + patches
+              + "]";
+        }
+
         // Represents a range of character offsets and the corresponding lint config that applies there.
         // The end of each range is inferred from the minPos() of the next range in the list.
         private record Range(int minPos, int maxPos, Config config) {
@@ -960,11 +1035,10 @@ System.out.println("visitDeclaration():"
                 return that.minPos() >= minPos() && that.maxPos() <= maxPos();
             }
 
-@Override
-public String toString() {
-    return String.format("Range[0x%08x-0x%08x|%s]", minPos(), maxPos(), config().getDescription());
-}
-
+            @Override
+            public String toString() {
+                return String.format("Range[0x%08x-0x%08x|%s]", minPos(), maxPos(), config().getDescription());
+            }
         }
 
         // Represents a "patch" to this instance for the given range
@@ -993,14 +1067,11 @@ public String toString() {
     // The root configuration
     private Config rootConfig;
 
-    // The analysis currently executing (null if none)
-    private Analysis currentAnalysis;
+    // The SourceInfo of the currently executing analysis (null if none)
+    private SourceInfo currentSourceInfo;
 
-    // Warnings are collected here during analyses
-    private final List<Warning> warningList = new ArrayList<>();
-
-    // Maps source file to pending analyses, if any
-    private final Map<JavaFileObject, SourceInfo> analysisMap = new HashMap<>();
+    // Maps source file to enqueued analyses and warnings, if any
+    private final Map<JavaFileObject, SourceInfo> sourceMap = new HashMap<>();
 
     // Maps category name to category
     private static final Map<String, LintCategory> map = new ConcurrentHashMap<>(20);

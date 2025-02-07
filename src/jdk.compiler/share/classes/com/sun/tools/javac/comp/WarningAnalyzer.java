@@ -25,16 +25,8 @@
 
 package com.sun.tools.javac.comp;
 
-import com.sun.tools.javac.code.Lint;
-import com.sun.tools.javac.tree.JCTree.JCClassDecl;
-import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
-import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Log;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /** This pass checks for various things to warn about.
  *  It runs after attribution and flow analysis.
@@ -48,9 +40,7 @@ public class WarningAnalyzer {
 
     protected static final Context.Key<WarningAnalyzer> contextKey = new Context.Key<>();
 
-    private final Map<JCCompilationUnit, AtomicInteger> classDefCounterMap = new HashMap<>();
-
-    private final Lint lint;
+    private final Log log;
     private final ThisEscapeAnalyzer thisEscapeAnalyzer;
 
     public static WarningAnalyzer instance(Context context) {
@@ -63,16 +53,11 @@ public class WarningAnalyzer {
     @SuppressWarnings("this-escape")
     protected WarningAnalyzer(Context context) {
         context.put(contextKey, this);
-        lint = Lint.instance(context);
+        log = Log.instance(context);
         thisEscapeAnalyzer = ThisEscapeAnalyzer.instance(context);
     }
 
     public void analyzeTree(Env<AttrContext> env) {
-
-        // Enqueue various additional warnings
         thisEscapeAnalyzer.analyzeTree(env);
-
-        // Execute analyses - this should be the last step
-        lint.analyzeAndEmitWarnings(env);
     }
 }

@@ -1364,6 +1364,7 @@ public class JavaCompiler {
                                   env.toplevel.sourcefile);
         try {
             attr.attrib(env);
+            lint.analyzeWarnings(env);
             if (errorCount() > 0 && !shouldStop(CompileState.ATTR)) {
                 //if in fail-over mode, ensure that AST expression nodes
                 //are correctly initialized (e.g. they have a type/symbol)
@@ -1487,6 +1488,7 @@ public class JavaCompiler {
                                             env.toplevel.sourcefile);
         try {
             warningAnalyzer.analyzeTree(env);
+            lint.emitWarnings(env);
             compileStates.put(env, CompileState.WARN);
             results.add(env);
         }
@@ -1863,7 +1865,7 @@ public class JavaCompiler {
         }
 
     public void reportDeferredDiagnostics() {
-        lint.analyzeAndEmitWarnings(null);
+        lint.emitWarnings(null);
         if (errorCount() == 0
                 && annotationProcessingOccurred
                 && implicitSourceFilesRead

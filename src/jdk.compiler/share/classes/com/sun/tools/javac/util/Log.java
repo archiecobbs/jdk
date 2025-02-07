@@ -121,9 +121,9 @@ public class Log extends AbstractLog {
 
         @SuppressWarnings("this-escape")
         protected FilterDiagnosticHandler(Log log, Predicate<JCDiagnostic> filter, boolean passOnNonDeferrable) {
-            Predicate<JCDiagnostic> nonDeferrable =
+            Predicate<JCDiagnostic> nonDeferrableFilter =
               d -> passOnNonDeferrable && !d.isFlagSet(JCDiagnostic.DiagnosticFlag.NON_DEFERRABLE);
-            this.filter = filter != null ? nonDeferrable.and(filter) : nonDeferrable;
+            this.filter = filter != null ? filter.and(nonDeferrableFilter) : nonDeferrableFilter;
             this.passOnNonDeferrable = passOnNonDeferrable;
             install(log);
         }
