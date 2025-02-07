@@ -117,15 +117,14 @@ public class Log extends AbstractLog {
     public abstract static class FilterDiagnosticHandler extends DiagnosticHandler {
 
         private final Predicate<JCDiagnostic> filter;
-
-        public FilterDiagnosticHandler(Log log) {
-            this(log, null);
-        }
+        private final boolean passOnNonDeferrable;
 
         @SuppressWarnings("this-escape")
-        public FilterDiagnosticHandler(Log log, Predicate<JCDiagnostic> filter) {
-            Predicate<JCDiagnostic> nonDeferrable = d -> !d.isFlagSet(JCDiagnostic.DiagnosticFlag.NON_DEFERRABLE);
+        protected FilterDiagnosticHandler(Log log, Predicate<JCDiagnostic> filter, boolean passOnNonDeferrable) {
+            Predicate<JCDiagnostic> nonDeferrable =
+              d -> passOnNonDeferrable && !d.isFlagSet(JCDiagnostic.DiagnosticFlag.NON_DEFERRABLE);
             this.filter = filter != null ? nonDeferrable.and(filter) : nonDeferrable;
+            this.passOnNonDeferrable = passOnNonDeferrable;
             install(log);
         }
 
@@ -154,11 +153,15 @@ public class Log extends AbstractLog {
     public static class DiscardDiagnosticHandler extends FilterDiagnosticHandler {
 
         public DiscardDiagnosticHandler(Log log) {
-            super(log);
+            this(log, null);
         }
 
         public DiscardDiagnosticHandler(Log log, Predicate<JCDiagnostic> filter) {
-            super(log, filter);
+            this(log, filter, true);
+        }
+
+        public DiscardDiagnosticHandler(Log log, Predicate<JCDiagnostic> filter, boolean passOnNonDeferrable) {
+            super(log, filter, passOnNonDeferrable);
         }
 
         @Override
@@ -180,7 +183,11 @@ public class Log extends AbstractLog {
         }
 
         public DeferredDiagnosticHandler(Log log, Predicate<JCDiagnostic> filter) {
-            super(log, filter);
+            this(log, filter, true);
+        }
+
+        public DeferredDiagnosticHandler(Log log, Predicate<JCDiagnostic> filter, boolean passOnNonDeferrable) {
+            super(log, filter, passOnNonDeferrable);
         }
 
         @Override

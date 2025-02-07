@@ -983,8 +983,8 @@ public String toString() {
 // Internal State
 
     private final Context context;
-    private final Log log;
     private final Source source;
+    private final Log log;
 
     // These are initialized lazily to avoid dependency loops
     private Symtab syms;

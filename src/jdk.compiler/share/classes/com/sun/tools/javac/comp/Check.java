@@ -160,9 +160,12 @@ public class Check {
 
         boolean enforceMandatoryWarnings = true;
 
-        deprecationHandler = new MandatoryWarningHandler(log, lint, null, enforceMandatoryWarnings, "deprecated");
-        removalHandler = new MandatoryWarningHandler(log, lint, null, enforceMandatoryWarnings);
-        uncheckedHandler = new MandatoryWarningHandler(log, lint, null, enforceMandatoryWarnings);
+        deprecationHandler = new MandatoryWarningHandler(log, lint, null,
+                enforceMandatoryWarnings, LintCategory.DEPRECATION, "deprecated");
+        removalHandler = new MandatoryWarningHandler(log, lint, null,
+                enforceMandatoryWarnings, LintCategory.REMOVAL);
+        uncheckedHandler = new MandatoryWarningHandler(log, lint, null,
+                enforceMandatoryWarnings, LintCategory.UNCHECKED);
 
         allowModules = Feature.MODULES.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
