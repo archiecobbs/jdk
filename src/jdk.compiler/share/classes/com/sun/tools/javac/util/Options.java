@@ -240,7 +240,13 @@ public class Options {
         //System.out.println("computeIfReady("+initialized+"): \""+flag+"\" -> " + ifReady.get());
         if (initialized)
             return ifReady.get();
-        addListener(() -> Assert.check(Objects.equals(ifReady.get(), ifNotReady), () -> "ignored flag: " + flag));
+        Throwable t = new Throwable("INVOKED HERE");
+        addListener(() -> {
+            if (!Objects.equals(ifReady.get(), ifNotReady)) {
+                t.printStackTrace(System.out);
+                Assert.check(false, "ignored flag: " + flag);
+            }
+        });
         return ifNotReady;          // hopefully this is correct...
     }
 }

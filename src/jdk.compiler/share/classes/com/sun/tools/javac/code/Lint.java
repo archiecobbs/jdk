@@ -218,7 +218,8 @@ public class Lint {
      * @return root lint configuration
      */
     public Config getRootConfig() {
-        Assert.check(rootConfig != null);
+        if (rootConfig == null)
+            initializeRootConfig(options);
         return rootConfig;
     }
 
@@ -399,6 +400,8 @@ public class Lint {
         logIfEnabled(wrap(pos), warning);
     }
 
+boolean debug = false;
+
     /**
      * Log a warning in a {@linkplain LintCategory#isSpecific specific} lint category
      * if the category is enabled at the given source file position.
@@ -410,8 +413,9 @@ public class Lint {
         LintCategory category = warning.getLintCategory();
         Assert.check(category.isSpecific());
 
-if (false) {
+if (debug) {
 System.out.println("logIfEnabled():"
++"\n  source="+log.currentSourceFile()
 +"\n  category="+category
 +"\n  pos=["+pos+"]"
 +"\n  warning="+warning
@@ -422,6 +426,16 @@ System.out.println("logIfEnabled():"
         if (!log.wouldDiscard(pos, warning)) {
 
             analyze(category, () -> {
+
+if (debug) {
+System.out.println("logIfEnabled(): ANALYSIS:"
++"\n  category="+category
++"\n  pos=["+pos.getPreferredPosition()+"]"
++"\n  warning="+warning
++"\n  configAt(pos)="+configAt(pos)
+);
+}
+
                 if (configAt(pos).isEnabled(category)) {
                     addWarning(new Warning(pos, warning));
                 }
@@ -589,8 +603,50 @@ System.out.println("logIfEnabled():"
         }
     }
 
+    // Execute the next enqueued analysis for the given source and remove it from the queue
+    private void executeNextAnalysis(SourceInfo sourceInfo) {
+        SourceInfo previousSourceInfo = currentSourceInfo;
+        currentSourceInfo = sourceInfo;
+        try {
+
+if (false && debug) {
+System.out.println("executeNextAnalysis(): BEFORE"
++"\n  next analysis="+sourceInfo.currentAnalysis()
++"\n  sourceMap="+sourceMap
+);
+}
+            sourceInfo.currentAnalysis().task().run();
+        } finally {
+            sourceInfo.getAnalyses().removeFirst();
+            currentSourceInfo = previousSourceInfo;
+
+
+if (false && debug) {
+System.out.println("executeNextAnalysis(): AFTER"
++"\n  sourceMap="+sourceMap
+);
+}
+
+        }
+    }
+
     private void addWarning(Warning warning) {
+
+if (false && debug) {
+System.out.println("addWarning():"
++"\n  warning="+warning
++"\n  currentSourceInfo()="+currentSourceInfo()
+);
+}
+
         currentSourceInfo().getWarnings().add(warning);
+
+if (false && debug) {
+System.out.println("addWarning2():"
++"\n  currentSourceInfo()="+currentSourceInfo()
+);
+}
+
     }
 
     /**
@@ -609,9 +665,6 @@ System.out.println("logIfEnabled():"
         // Apply sanity checks
         JavaFileObject source = env != null ? env.toplevel.sourcefile : null;
         Assert.check(Objects.equals(source, log.currentSourceFile()));
-
-//boolean debug = source != null && source.toString().contains("/java/util/ImmutableCollections.java");
-boolean debug = false;
 
 if (debug) {
 System.out.println("ANALYZE-WARNINGS: " +(env != null ? ((JCClassDecl)env.tree).sym : "NULL")
@@ -652,19 +705,6 @@ System.out.println("ANALYZED " + source);
 if (source == null)
     new Throwable("HERE").printStackTrace(System.out);
 }
-            sourceMap.remove(source);
-        }
-    }
-
-    // Execute the next enqueued analysis for the given source and remove it from the queue
-    private void executeNextAnalysis(SourceInfo sourceInfo) {
-        SourceInfo previousSourceInfo = currentSourceInfo;
-        currentSourceInfo = sourceInfo;
-        try {
-            sourceInfo.currentAnalysis().task().run();
-        } finally {
-            sourceInfo.getAnalyses().removeFirst();
-            currentSourceInfo = previousSourceInfo;
         }
     }
 
@@ -679,7 +719,7 @@ if (source == null)
         JavaFileObject source = env != null ? env.toplevel.sourcefile : null;
         Assert.check(Objects.equals(source, log.currentSourceFile()));
 
-if (false) {
+if (debug) {
 System.out.println("EMIT-WARNINGS: " +(env != null ? ((JCClassDecl)env.tree).sym : "NULL")
 +"\n  source="+source
 +"\n  sourceInfo="+sourceMap.get(source)
@@ -687,7 +727,7 @@ System.out.println("EMIT-WARNINGS: " +(env != null ? ((JCClassDecl)env.tree).sym
 }
 
         // Find the info for the source file
-        SourceInfo sourceInfo = sourceMap.remove(source);
+        SourceInfo sourceInfo = sourceMap.get(source);
         if (sourceInfo == null) {
             return;
         }
@@ -697,6 +737,15 @@ System.out.println("EMIT-WARNINGS: " +(env != null ? ((JCClassDecl)env.tree).sym
         warnings.sort(Comparator.comparingInt(Warning::sortKey));
         warnings.forEach(warning -> warning.warn(log));
         warnings.clear();
+    }
+
+    /**
+     * Reset this instance for a new compilation task.
+     */
+    public void newRound() {
+        rootConfig = null;
+        currentSourceInfo = null;
+        sourceMap.clear();
     }
 
 // SourceInfo
@@ -741,8 +790,24 @@ System.out.println("EMIT-WARNINGS: " +(env != null ? ((JCClassDecl)env.tree).sym
             // The first time, scan down to the top-level classes but not any further
             if (remainingClassDefs == -1) {
                 remainingClassDefs = (int)top.defs.stream().filter(JCClassDecl.class::isInstance).count();
+
+if (debug) {
+System.out.println("buildConfigMap: " + top.sourcefile.toString().replaceAll("^.*/([^/]+)\\]$", "$1")
++"\n  #defs=" + remainingClassDefs
+);
+}
+
                 configCalculator.process(top, true);
+                if (remainingClassDefs == 0)            // no top level classes
+                    return true;
             }
+
+if (debug) {
+System.out.println("buildConfigMap: " + top.sourcefile.toString().replaceAll("^.*/([^/]+)\\]$", "$1")
++"\n  def="+decl.sym.name
++"\n  #defs " + remainingClassDefs + " -> " + (remainingClassDefs - 1)
+);
+}
 
             // Scan the specified top level class
             Assert.check(remainingClassDefs > 0);
@@ -778,7 +843,16 @@ System.out.println("EMIT-WARNINGS: " +(env != null ? ((JCClassDecl)env.tree).sym
 
 // Analysis
 
-    private record Analysis(LintCategory category, Runnable task) { }
+    private record Analysis(LintCategory category, Runnable task) {
+
+        @Override
+        public String toString() {
+            return "Analysis"
+              + "[" + category()
+              + "@" + task.getClass().getName()
+              + "]";
+        }
+    }
 
 // Warning
 
@@ -787,7 +861,7 @@ System.out.println("EMIT-WARNINGS: " +(env != null ? ((JCClassDecl)env.tree).sym
         // For non-specific lint categories
         Warning(LintWarning warning) {
             this(false, null, warning);
-            Assert.check(warning.getLintCategory().isSpecific());
+            Assert.check(!warning.getLintCategory().isSpecific());
         }
 
         // For specific lint categories
@@ -797,6 +871,15 @@ System.out.println("EMIT-WARNINGS: " +(env != null ? ((JCClassDecl)env.tree).sym
         }
 
         void warn(Log log) {
+
+if (false) {
+System.out.println("Warning: LOGGING"
++"\n  log="+log
++"\n  specific()="+specific()
++"\n  warning="+warning
+);
+}
+
             if (specific())
                 log.warning(pos(), warning());
             else
@@ -827,7 +910,7 @@ System.out.println("EMIT-WARNINGS: " +(env != null ? ((JCClassDecl)env.tree).sym
         // Use during scanning
         private Range parentRange;
 
-private boolean debug;
+private boolean calcDebug;
 
         ConfigCalculator() {
             ranges.add(new Range(Integer.MIN_VALUE, Integer.MAX_VALUE, getRootConfig()));
@@ -844,7 +927,7 @@ private boolean debug;
             this.stopAtClassDecl = stopAtClassDecl;
 
 if (tree instanceof JCCompilationUnit cu) {
-//this.debug = cu.sourcefile != null && cu.sourcefile.toString().contains("/java/util/ImmutableCollections.java");
+//this.calcDebug = cu.sourcefile != null && cu.sourcefile.toString().contains("/java/util/ImmutableCollections.java");
 }
 
             // Scan file to generate config ranges within tree
@@ -855,7 +938,7 @@ if (tree instanceof JCCompilationUnit cu) {
                 parentRange = null;
             }
 
-if (debug) {
+if (calcDebug) {
 String s = tree.toString();
 s = s.substring(0, Math.min(200, s.length()));
 s = s.replaceAll("\\s+", " ");
@@ -883,13 +966,6 @@ System.out.println("process("+(stopAtClassDecl?"TOP":((JCClassDecl)tree).name)+"
                 }
             }
             Assert.check(range != null);
-
-if (debug && pos >= 0xdc40 && pos < 0xdc60) {
-System.out.println("configAt():"
-+"\n  pos="+String.format("0x%08x", pos)
-+"\n  range="+range
-);
-}
 
             // Apply any applicable patches
             Config config = range.config();
@@ -951,7 +1027,7 @@ System.out.println("configAt():"
 
         private <T extends JCTree> void visitDeclaration(T decl, Symbol sym, Consumer<? super T> recursion) {
 
-if (debug) {
+if (calcDebug) {
 String s = decl.toString();
 s = s.substring(0, Math.min(200, s.length()));
 s = s.replaceAll("\\s+", " ");
@@ -1057,6 +1133,7 @@ System.out.println("visitDeclaration():"
 // Internal State
 
     private final Context context;
+    private final Options options;
     private final Source source;
     private final Log log;
 
@@ -1082,10 +1159,12 @@ System.out.println("visitDeclaration():"
         context.put(lintKey, this);
         log = Log.instance(context);
         source = Source.instance(context);
-        Options.instance(context).whenReady(this::initializeRootConfig);
+        options = Options.instance(context);
+        options.whenReady(this::initializeRootConfig);
     }
 
-    // Process command line options on demand to allow use of root Lint early during startup
+    // Process command line options to build the root Lint.Config instance.
+    // We do this "on demand" to allow use of the Lint singleton early during startup.
     private void initializeRootConfig(Options options) {
 
         // Initialize enabled categories based on "-Xlint" flags

@@ -55,6 +55,7 @@ import com.sun.source.util.TaskEvent.Kind;
 import com.sun.source.util.TaskListener;
 import com.sun.source.util.TreeScanner;
 import com.sun.tools.javac.code.Kinds;
+import com.sun.tools.javac.code.Lint;
 import com.sun.tools.javac.code.Preview;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symtab;
@@ -279,6 +280,7 @@ public class JavacTaskPool {
                 CompileStates.instance(this).clear();
                 MultiTaskListener.instance(this).clear();
                 Options.instance(this).clear();
+                Lint.instance(this).newRound();
 
                 //find if any of the roots have redefined java.* classes
                 Symtab syms = Symtab.instance(this);
