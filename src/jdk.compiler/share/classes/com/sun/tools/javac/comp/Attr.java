@@ -5270,6 +5270,8 @@ public class Attr extends JCTree.Visitor {
                 attribClass(env.tree.pos(), env.enclClass.sym);
         }
 
+        lint.readyForAnalysis(env);
+
         annotate.flush();
     }
 
@@ -5615,7 +5617,9 @@ public class Attr extends JCTree.Visitor {
 
         // Check for proper use of serialVersionUID and other
         // serialization-related fields and methods
-        chk.checkSerialStructure(tree, c);
+        if (rs.isSerializable(c.type) && !c.isAnonymous()) {
+            chk.checkSerialStructure(tree, c);
+        }
 
         // Correctly organize the positions of the type annotations
         typeAnnotations.organizeTypeAnnotationsBodies(tree);

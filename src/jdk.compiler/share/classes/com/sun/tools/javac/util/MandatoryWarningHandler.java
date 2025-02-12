@@ -33,6 +33,7 @@ import javax.tools.JavaFileObject;
 import com.sun.tools.javac.code.Lint;
 import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Source;
+import com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.JCDiagnostic.LintWarning;
 import com.sun.tools.javac.util.JCDiagnostic.Note;
@@ -150,7 +151,7 @@ public class MandatoryWarningHandler {
         Assert.check(warnKey.getLintCategory() == lintCategory);
 
         // How we report the warning depends on the lint configuration at "pos"
-        lint.analyze(lintCategory, () -> reportOrAggregate(pos, warnKey));
+        lint.analyze(lintCategory, pos, () -> reportOrAggregate(pos, warnKey));
     }
 
     private void reportOrAggregate(DiagnosticPosition pos, LintWarning warnKey) {
@@ -160,7 +161,7 @@ public class MandatoryWarningHandler {
             if (sourcesWithReportedWarnings == null)
                 sourcesWithReportedWarnings = new HashSet<>();
 
-            if (log.nwarnings < log.MaxWarnings) {
+            if (log.nwarnings + lint.getNumEnqueuedWarnings() < log.MaxWarnings) {
                 // generate message and remember the source file
                 logMandatoryWarning(pos, warnKey);
                 sourcesWithReportedWarnings.add(currentSource);
@@ -286,9 +287,9 @@ public class MandatoryWarningHandler {
      */
     private void logMandatoryWarning(DiagnosticPosition pos, LintWarning warnKey) {
         if (enforceMandatory)
-            log.mandatoryWarning(pos, warnKey);
+            lint.addWarning(pos, warnKey, DiagnosticFlag.MANDATORY);
         else
-            log.warning(pos, warnKey);
+            lint.addWarning(pos, warnKey);
         anyWarningGenerated = true;
     }
 

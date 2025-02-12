@@ -1364,7 +1364,6 @@ public class JavaCompiler {
                                   env.toplevel.sourcefile);
         try {
             attr.attrib(env);
-            lint.analyzeWarnings(env);
             if (errorCount() > 0 && !shouldStop(CompileState.ATTR)) {
                 //if in fail-over mode, ensure that AST expression nodes
                 //are correctly initialized (e.g. they have a type/symbol)
@@ -1812,6 +1811,11 @@ public class JavaCompiler {
         }
 
         JCClassDecl removeMethodBodies(JCClassDecl cdef) {
+
+System.out.println("removeMethodBodies():"
++"\n  cdef="+cdef
+);
+
             final boolean isInterface = (cdef.mods.flags & Flags.INTERFACE) != 0;
             class MethodBodyRemover extends TreeTranslator {
                 @Override

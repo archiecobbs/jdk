@@ -2924,7 +2924,7 @@ System.out.println("checkRedundantCast():"
 
     // Apply special flag "-XDwarnOnAccessToMembers" which turns on just this particular warning for all types of access
     void checkAccessFromSerializableElement(final JCTree tree, boolean isLambda) {
-        lint.analyze(LintCategory.SERIAL, () -> {
+        lint.analyze(LintCategory.SERIAL, tree.pos(), () -> {
             if (warnOnAnyAccessToMembers)
                 lint.modifyConfig(tree, config -> config.enable(LintCategory.SERIAL));
             if (warnOnAnyAccessToMembers || isLambda)
@@ -4478,7 +4478,7 @@ System.out.println("checkRedundantCast():"
             || currentExport.modules != null) //don't check classes in qualified export
             return ;
 
-        lint.analyze(LintCategory.EXPORTS, () -> new TreeScanner() {
+        lint.analyze(LintCategory.EXPORTS, check, () -> new TreeScanner() {
             boolean inSuperType;
 
             @Override
@@ -4580,7 +4580,7 @@ System.out.println("checkRedundantCast():"
         }
         private void checkVisible(DiagnosticPosition pos, Symbol what, PackageSymbol inPackage, boolean inSuperType) {
             if (!isAPISymbol(what) && !inSuperType) { //package private/private element
-                lint.logIfEnabled(LintWarnings.LeaksNotAccessible(kindName(what), what, what.packge().modle));
+                lint.logIfEnabled(pos, LintWarnings.LeaksNotAccessible(kindName(what), what, what.packge().modle));
                 return ;
             }
 
@@ -4638,7 +4638,7 @@ System.out.println("checkRedundantCast():"
 
     void checkModuleRequires(final DiagnosticPosition pos, final RequiresDirective rd) {
         if ((rd.module.flags() & Flags.AUTOMATIC_MODULE) != 0) {
-            lint.analyze(null, () -> {
+            lint.analyze(null, pos, () -> {
                 if (rd.isTransitive() && lint.configAt(pos).isEnabled(LintCategory.REQUIRES_TRANSITIVE_AUTOMATIC)) {
                     lint.logIfEnabled(pos, LintWarnings.RequiresTransitiveAutomatic);
                 } else {
@@ -5287,6 +5287,7 @@ if (decl == null) {
     +"\n  e="+e
     +"\n  class="+p.name
     +"\n  field="+field
+    +"\n  p="+p
     );
 }
 
@@ -5578,8 +5579,11 @@ if (decl == null) {
         }
 
         private <E extends Element> void runUnderLint(E symbol, JCClassDecl p, BiConsumer<E, JCClassDecl> task) {
-            if (lint.configAt(p.pos()).augment((Symbol)symbol).isEnabled(LintCategory.SERIAL)) {
+            lint.modifyConfig(p, config -> config.augment((Symbol)symbol));
+            try {
                 task.accept(symbol, p);
+            } finally {
+                lint.restoreConfig();
             }
         }
 
