@@ -112,71 +112,29 @@ public class Log extends AbstractLog {
     }
 
     /**
-     * A {@link DiagnosticHandler} that filters some diagnostics for special processing.
+     * A DiagnosticHandler that discards all diagnostics.
      */
-    public abstract static class FilterDiagnosticHandler extends DiagnosticHandler {
-
-        private final Predicate<JCDiagnostic> filter;
-        private final boolean passOnNonDeferrable;
-
+    public static class DiscardDiagnosticHandler extends DiagnosticHandler {
         @SuppressWarnings("this-escape")
-        protected FilterDiagnosticHandler(Log log, Predicate<JCDiagnostic> filter, boolean passOnNonDeferrable) {
-            Predicate<JCDiagnostic> nonDeferrableFilter =
-              d -> passOnNonDeferrable && !d.isFlagSet(JCDiagnostic.DiagnosticFlag.NON_DEFERRABLE);
-            this.filter = filter != null ? filter.and(nonDeferrableFilter) : nonDeferrableFilter;
-            this.passOnNonDeferrable = passOnNonDeferrable;
+        public DiscardDiagnosticHandler(Log log) {
             install(log);
         }
 
-        public Predicate<JCDiagnostic> getFilter() {
-            return filter;
-        }
-
         @Override
-        public void report(JCDiagnostic diag) {
-            if (filter.test(diag)) {
-                handleFiltered(diag);
-            } else {
-                prev.report(diag);
-            }
-        }
-
-        /**
-         * Process a diagnostic that matched the filter.
-         */
-        protected abstract void handleFiltered(JCDiagnostic diag);
-    }
-
-    /**
-     * A {@link FilterDiagnosticHandler} that discards all diagnostics matching the filter.
-     */
-    public static class DiscardDiagnosticHandler extends FilterDiagnosticHandler {
-
-        public DiscardDiagnosticHandler(Log log) {
-            this(log, null);
-        }
-
-        public DiscardDiagnosticHandler(Log log, Predicate<JCDiagnostic> filter) {
-            this(log, filter, true);
-        }
-
-        public DiscardDiagnosticHandler(Log log, Predicate<JCDiagnostic> filter, boolean passOnNonDeferrable) {
-            super(log, filter, passOnNonDeferrable);
-        }
-
-        @Override
-        protected void handleFiltered(JCDiagnostic diag) {
-        }
+        public void report(JCDiagnostic diag) { }
     }
 
     /**
      * A DiagnosticHandler that can defer some or all diagnostics,
      * by buffering them for later examination and/or reporting.
-     * If a diagnostic is not deferred, it will be reported to the
-     * previously active diagnostic handler.
+     * If a diagnostic is not deferred, or is subsequently reported
+     * with reportAllDiagnostics(), it will be reported to the previously
+     * active diagnostic handler.
      */
-    public static class DeferredDiagnosticHandler extends FilterDiagnosticHandler {
+    public static class DeferredDiagnosticHandler extends DiagnosticHandler {
         private Queue<JCDiagnostic> deferred = new ListBuffer<>();
+        private final Predicate<JCDiagnostic> filter;
+        private final boolean passOnNonDeferrable;
 
         public DeferredDiagnosticHandler(Log log) {
             this(log, null);
@@ -186,13 +144,23 @@ public class Log extends AbstractLog {
             this(log, filter, true);
         }
 
+        @SuppressWarnings("this-escape")
         public DeferredDiagnosticHandler(Log log, Predicate<JCDiagnostic> filter, boolean passOnNonDeferrable) {
-            super(log, filter, passOnNonDeferrable);
+            this.filter = filter;
+            this.passOnNonDeferrable = passOnNonDeferrable;
+            install(log);
         }
 
         @Override
-        protected void handleFiltered(JCDiagnostic diag) {
-            deferred.add(diag);
+        public void report(JCDiagnostic diag) {
+            boolean deferrable = !passOnNonDeferrable ||
+                                 !diag.isFlagSet(JCDiagnostic.DiagnosticFlag.NON_DEFERRABLE);
+            if (deferrable &&
+                (filter == null || filter.test(diag))) {
+                deferred.add(diag);
+            } else {
+                prev.report(diag);
+            }
         }
 
         public Queue<JCDiagnostic> getDiagnostics() {
@@ -516,22 +484,6 @@ public class Log extends AbstractLog {
     public void popDiagnosticHandler(DiagnosticHandler h) {
         Assert.check(diagnosticHandler == h);
         diagnosticHandler = h.prev;
-    }
-
-    /**
-     * Determine if the given {@link Warning} would be discarded.
-     */
-    public boolean wouldDiscard(DiagnosticPosition pos, JCDiagnostic.Warning warningKey) {
-        JCDiagnostic diag = null;
-        for (DiagnosticHandler dh = diagnosticHandler; dh != null; dh = dh.prev) {
-            if (dh instanceof DiscardDiagnosticHandler ddh) {
-                if (diag == null)
-                    diag = diags.warning(source, pos, warningKey);
-                if (ddh.getFilter().test(diag))
-                    return true;
-            }
-        }
-        return false;
     }
 
     /** Flush the logs

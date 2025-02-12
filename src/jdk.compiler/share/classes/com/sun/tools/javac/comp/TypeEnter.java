@@ -107,6 +107,7 @@ public class TypeEnter implements Completer {
     private final Annotate annotate;
     private final TypeAnnotations typeAnnotations;
     private final Types types;
+    private final Lint lint;
     private final TypeEnvs typeEnvs;
     private final Dependencies dependencies;
 
@@ -132,6 +133,7 @@ public class TypeEnter implements Completer {
         annotate = Annotate.instance(context);
         typeAnnotations = TypeAnnotations.instance(context);
         types = Types.instance(context);
+        lint = Lint.instance(context);
         typeEnvs = TypeEnvs.instance(context);
         dependencies = Dependencies.instance(context);
         Source source = Source.instance(context);
@@ -358,6 +360,7 @@ public class TypeEnter implements Completer {
 
             ImportFilter prevStaticImportFilter = staticImportFilter;
             ImportFilter prevTypeImportFilter = typeImportFilter;
+            boolean prevImmediate = lint.setImmediate(true);
             Env<AttrContext> prevEnv = this.env;
             try {
                 this.env = env;
@@ -381,13 +384,19 @@ public class TypeEnter implements Completer {
                 handleImports(tree.getImports());
 
                 if (decl != null) {
-                    //check @Deprecated:
-                    markDeprecated(decl.sym, decl.mods.annotations, env);
+                    boolean prevImmediate2 = lint.setImmediate(false);
+                    try {
+                        //check @Deprecated:
+                        markDeprecated(decl.sym, decl.mods.annotations, env);
+                    } finally {
+                        lint.setImmediate(prevImmediate2);
+                    }
                     // process module annotations
                     annotate.annotateLater(decl.mods.annotations, env, env.toplevel.modle);
                 }
             } finally {
                 this.env = prevEnv;
+                lint.setImmediate(prevImmediate);
                 this.staticImportFilter = prevStaticImportFilter;
                 this.typeImportFilter = prevTypeImportFilter;
             }

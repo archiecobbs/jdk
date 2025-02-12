@@ -2504,7 +2504,7 @@ public class Gen extends JCTree.Visitor {
                         ((JCMethodDecl) l.head).sym.code = null;
                 }
             }
-            //cdef.defs = List.nil(); // discard trees
+            cdef.defs = List.nil(); // discard trees
             return nerrs == 0;
         } finally {
             // note: this method does NOT support recursion.

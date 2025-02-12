@@ -93,7 +93,7 @@ public class Lint {
     /** The context key for the root Lint object. */
     protected static final Context.Key<Lint> lintKey = new Context.Key<>();
 
-    /** Get the Lint singleton. */
+    /** Get the root Lint instance. */
     public static Lint instance(Context context) {
         Lint instance = context.get(lintKey);
         if (instance == null)
@@ -239,7 +239,7 @@ public class Lint {
      * @throws AssertionError if the current thread is not executing an analysis
      */
     public Config configAt(int pos) {
-        return currentSourceInfo().getConfigCalculator().configAt(pos);
+        return currentAnalysis().getConfigCalculator().configAt(pos);
     }
 
     /**
@@ -273,7 +273,7 @@ public class Lint {
      * @throws AssertionError if the current thread is not executing an analysis
      */
     public void modifyConfig(int minPos, int maxPos, UnaryOperator<Config> modifier) {
-        currentSourceInfo().getConfigCalculator().push(minPos, maxPos, modifier);
+        currentAnalysis().getConfigCalculator().push(minPos, maxPos, modifier);
     }
 
     /**
@@ -297,6 +297,23 @@ public class Lint {
     }
 
     /**
+     * Modify the {@link Config} associated with the currently executing analysis.
+     * The modification will apply to all positions source file.
+     *
+     * <p>
+     * Use {@link #restoreConfig} to un-do the most recent modification.
+     *
+     * <p>
+     * The current thread must be executing an analysis.
+     *
+     * @param modifier modifies the config in the range
+     * @throws AssertionError if the current thread is not executing an analysis
+     */
+    public void modifyConfig(UnaryOperator<Config> modifier) {
+        modifyConfig(Integer.MIN_VALUE, Integer.MAX_VALUE, modifier);
+    }
+
+    /**
      * Restore the configuration in effect prior to the most recent modification by {@link #modifyConfig}.
      *
      * <p>
@@ -306,7 +323,7 @@ public class Lint {
      * @throws AssertionError if the current thread is not executing an analysis
      */
     public void restoreConfig() {
-        currentSourceInfo().getConfigCalculator().pop();
+        currentAnalysis().getConfigCalculator().pop();
     }
 
 // Non-Specific Warnings
@@ -321,9 +338,7 @@ public class Lint {
     public void logIfEnabled(LintWarning warning) {
         LintCategory category = warning.getLintCategory();
         Assert.check(!category.isSpecific());
-        if (!log.wouldDiscard(null, warning)) {
-            ifEnabled(category, () -> addWarning(new Warning(warning)));
-        }
+        ifEnabled(category, () -> addWarning(null, warning));
     }
 
     /**
@@ -336,9 +351,7 @@ public class Lint {
     public void logIfNotSuppressed(LintWarning warning) {
         LintCategory category = warning.getLintCategory();
         Assert.check(!category.isSpecific());
-        if (!log.wouldDiscard(null, warning)) {
-            ifNotSuppressed(category, () -> addWarning(new Warning(warning)));
-        }
+        ifNotSuppressed(category, () -> addWarning(null, warning));
     }
 
     /**
@@ -391,6 +404,14 @@ public class Lint {
         });
     }
 
+    private boolean immediate;
+
+    public boolean setImmediate(boolean newImmediate) {
+        boolean oldImmediate = immediate;
+        immediate = newImmediate;
+        return oldImmediate;
+    }
+
 // Specific Warnings
 
     /**
@@ -424,14 +445,11 @@ System.out.println("logIfEnabled():"
 +"\n  category="+category
 +"\n  pos=["+pos+"]"
 +"\n  warning="+warning
-+"\n  wouldDiscard="+log.wouldDiscard(pos, warning)
 );
 //new Throwable("HERE").printStackTrace(System.out);
 }
 
-        if (!log.wouldDiscard(pos, warning)) {
-
-            analyze(category, pos, () -> {
+        analyze(category, pos, () -> {
 
 if (debug || (warning.key().contains("automatic") && log.currentSourceFile().toString().contains("RequiresTransitiveAutomatic"))) {
 //if (debug) {
@@ -443,11 +461,10 @@ System.out.println("logIfEnabled(): ANALYSIS:"
 );
 }
 
-                if (configAt(pos).isEnabled(category)) {
-                    addWarning(new Warning(pos, warning));
-                }
-            });
-        }
+            if (configAt(pos).isEnabled(category)) {
+                addWarning(pos, warning);
+            }
+        });
     }
 
     /**
@@ -471,13 +488,11 @@ System.out.println("logIfEnabled(): ANALYSIS:"
     public void logIfNotSuppressed(DiagnosticPosition pos, LintWarning warning) {
         LintCategory category = warning.getLintCategory();
         Assert.check(category.isSpecific());
-        if (!log.wouldDiscard(pos, warning)) {
-            analyze(category, pos, () -> {
-                if (!configAt(pos).isSuppressed(category)) {
-                    addWarning(new Warning(pos, warning));
-                }
-            });
-        }
+        analyze(category, pos, () -> {
+            if (!configAt(pos).isSuppressed(category)) {
+                addWarning(pos, warning);
+            }
+        });
     }
 
     /**
@@ -589,36 +604,83 @@ System.out.println("logIfEnabled(): ANALYSIS:"
      */
     public void analyze(LintCategory category, DiagnosticPosition pos, Runnable analyzer) {
 
-        // Sanity check analysis category and compare to the current analysis (if any)
+        // Get the current logging source file
+        JavaFileObject sourceFile = log.currentSourceFile();
+
+        // Sanity check
         boolean specific = category != null && category.isSpecific();
-        Assert.check(category == null ||
-            currentSourceInfo == null ||
-            category == currentSourceInfo.currentAnalysis().category());
+        boolean nonSpecific = category != null && !category.isSpecific();
+        Assert.check(specific || nonSpecific || sourceFile != null);
         Assert.check(pos != null || !specific);
 
-        // Get the current source file (specific lint categories only)
-        JavaFileObject source = specific ? log.currentSourceFile() : null;
+        // Get the source file map key; non-specific lint categories live under the "null" key
+        JavaFileObject sourceFileKey = !nonSpecific ? sourceFile : null;
 
-        // If there is no current source file with a specific lint category, we're in a weird
-        // situation where warnings are being ignored anyway (e.g., doclint running) so bail out.
-        if (source == null && specific) {
+//        // If there is no current source file with a specific lint category, we're in a weird
+//        // situation where warnings are being ignored anyway (e.g., doclint running) so bail out.
+//        if (source == null && specific) {
+//            return;
+//        }
+
+        // Find the info for this source file
+        SourceInfo sourceInfo = sourceMap.computeIfAbsent(sourceFileKey, SourceInfo::new);
+
+        // If we are currently executing an analysis (i.e., this is an re-entrant invocation):
+        //  - We assume the new analysis is ready to execute immediately, so add it to the ready queue
+        //  - We will start the new analysis with the analysis' current config
+        int position = unwrap(pos);
+        if (currentSourceInfo != null) {
+            Assert.check(Objects.equals(sourceInfo, currentSourceInfo));
+            ConfigCalculator configCalculator = currentAnalysis().getConfigCalculator().copy();
+            Analysis analysis = new Analysis(sourceInfo, sourceFile, position, analyzer, configCalculator);
+            sourceInfo.getReadyAnalyses().addLast(analysis);
             return;
         }
 
         // Create the analysis
-        int position = unwrap(pos);
-        Analysis analysis = new Analysis(category, position, analyzer);
+        Analysis analysis = new Analysis(sourceInfo, sourceFile, position, analyzer);
 
-        // Execute the analysis now or enqueue for later if the source file isn't mapped yet.
-        // For non-specific lint categories, we always execute synchronously.
-        SourceInfo sourceInfo = sourceMap.computeIfAbsent(source, s -> new SourceInfo());
-        boolean executeNow = (category != null && !category.isSpecific()) || sourceInfo.isReady(position);
-        if (executeNow) {
-            sourceInfo.getReadyAnalyses().push(analysis);
-            executeNextAnalysis(sourceInfo);
-        } else {
+        // Specific category analyses must wait for readyForAnalysis() before they can execute
+        if (!nonSpecific && !sourceInfo.isReady(position)) {
             sourceInfo.getWaitingAnalyses().addLast(analysis);
+            return;
         }
+
+        // Otherwise, execute the analysis now
+        sourceInfo.getReadyAnalyses().addLast(analysis);
+        executeAnalysesAndEmitWarnings(sourceInfo);
+    }
+
+    // Execute all ready analyses and emit any generated warnings
+    private void executeAnalysesAndEmitWarnings(SourceInfo sourceInfo) {
+
+        // Execute all ready analyses for the source file
+        SourceInfo previousSourceInfo = currentSourceInfo;
+        currentSourceInfo = sourceInfo;
+        try {
+            while (!sourceInfo.getReadyAnalyses().isEmpty()) {
+                Analysis analysis = sourceInfo.getReadyAnalyses().getFirst();
+                try {
+                    analysis.run();
+                } finally {
+                    Assert.check(sourceInfo.getReadyAnalyses().peek() == analysis);
+                    sourceInfo.getReadyAnalyses().removeFirst();
+                }
+            }
+        } finally {
+            currentSourceInfo = previousSourceInfo;
+        }
+
+        // Emit any generated warnings
+        emitWarnings(sourceInfo);
+    }
+
+    // Emit generated warnings for the given source file
+    private void emitWarnings(SourceInfo sourceInfo) {
+        List<Warning> warnings = sourceInfo.getWarnings();
+//System.out.println("EMIT-WARNINGS: " + warnings.size());
+        warnings.forEach(warning -> warning.warn(log));
+        warnings.clear();
     }
 
     /**
@@ -636,60 +698,17 @@ System.out.println("logIfEnabled(): ANALYSIS:"
      * @throws AssertionError if the current thread is not executing an analysis
      */
     public void addWarning(DiagnosticPosition pos, LintWarning warning, DiagnosticFlag... flags) {
-        addWarning(new Warning(pos, warning, flags));
-    }
 
-    /**
-     * Get the total number of enqueued warnings.
-     */
-    public int getNumEnqueuedWarnings() {
-        return sourceMap.values().stream().map(SourceInfo::getWarnings).mapToInt(List::size).sum();
-    }
-
-    // Execute the next enqueued analysis for the given source and remove it from the queue
-    private void executeNextAnalysis(SourceInfo sourceInfo) {
-        SourceInfo previousSourceInfo = currentSourceInfo;
-        currentSourceInfo = sourceInfo;
-        try {
-
-if (false && debug) {
-System.out.println("executeNextAnalysis(): BEFORE"
-+"\n  next analysis="+sourceInfo.currentAnalysis()
-+"\n  sourceMap="+sourceMap
-);
-}
-            sourceInfo.currentAnalysis().task().run();
-        } finally {
-            sourceInfo.getReadyAnalyses().removeFirst();
-            currentSourceInfo = previousSourceInfo;
-
-
-if (false && debug) {
-System.out.println("executeNextAnalysis(): AFTER"
-+"\n  sourceMap="+sourceMap
-);
-}
-
-        }
-    }
-
-    private void addWarning(Warning warning) {
-
-if (false && debug) {
-System.out.println("addWarning():"
+if (debug) {
+System.out.println("ADD-WARNING"
 +"\n  warning="+warning
-+"\n  currentSourceInfo()="+currentSourceInfo()
++"\n  currentSourceInfo().getSourceFile()="+currentSourceInfo().getSourceFile()
++"\n  log.currentSourceFile()="+log.currentSourceFile()
 );
 }
 
-        currentSourceInfo().getWarnings().add(warning);
-
-if (false && debug) {
-System.out.println("addWarning2():"
-+"\n  currentSourceInfo()="+currentSourceInfo()
-);
-}
-
+        currentSourceInfo().getWarnings().add(
+          new Warning(currentAnalysis().getSourceFile(), pos, warning, flags));
     }
 
 // Compiler Events
@@ -703,29 +722,27 @@ System.out.println("addWarning2():"
                   || env.tree.getTag() == Tag.CLASSDEF);
 
         // Get corresponding source
-        JavaFileObject source = env.toplevel.sourcefile;
-        Assert.check(Objects.equals(source, log.currentSourceFile()));
+        JavaFileObject sourceFile = env.toplevel.sourcefile;
+        Assert.check(Objects.equals(sourceFile, log.currentSourceFile()));
 
 if (debug) {
 String s = env.tree.toString();
 s = s.substring(0, Math.min(200, s.length()));
 s = s.replaceAll("\\s+", " ");
 System.out.println("READY-FOR-ANALYSIS: " +(env != null ? ((JCClassDecl)env.tree).sym : "NULL")
-+"\n  source="+source
++"\n  sourceFile="+sourceFile
 +"\n  env.tree="+s
 );
 }
 
-        // Acquire the info for this source file
-        SourceInfo sourceInfo = sourceMap.computeIfAbsent(source, s -> new SourceInfo());
+        // Find the info for this source file
+        SourceInfo sourceInfo = sourceMap.computeIfAbsent(sourceFile, SourceInfo::new);
 
         // Mark tree as ready
         sourceInfo.setReady(env);
 
         // Execute ready analyses
-        while (!sourceInfo.getReadyAnalyses().isEmpty()) {
-            executeNextAnalysis(sourceInfo);
-        }
+        executeAnalysesAndEmitWarnings(sourceInfo);
     }
 
     /**
@@ -740,7 +757,7 @@ System.out.println("READY-FOR-ANALYSIS: " +(env != null ? ((JCClassDecl)env.tree
 if (debug) {
 System.out.println("EMIT-WARNINGS:"
 +"\n  sym="+(env != null ? TreeInfo.symbolFor(env.tree) : "NULL")
-+"\n  source="+(env != null ? log.currentSourceFile() : "N/A")
++"\n  sourceFile="+(env != null ? log.currentSourceFile() : "N/A")
 +"\n  #warn="+(env != null && sourceMap.get(log.currentSourceFile()) != null ? sourceMap.get(log.currentSourceFile()).getWarnings().size() : "N/A")
 );
 }
@@ -748,32 +765,14 @@ System.out.println("EMIT-WARNINGS:"
         // Flush warnings for specified class, or all remaining warnings if env is null
         if (env != null) {
             JavaFileObject sourceFile = log.currentSourceFile();
+            Assert.check(Objects.equals(sourceFile, env.toplevel.sourcefile));
             SourceInfo sourceInfo = sourceMap.get(sourceFile);
             if (sourceInfo == null) {
                 return;
             }
-            emitWarnings(env.toplevel.sourcefile, sourceInfo);
+            emitWarnings(sourceInfo);
         } else {
-            sourceMap.forEach(this::emitWarnings);
-        }
-    }
-
-    private void emitWarnings(JavaFileObject sourceFile, SourceInfo sourceInfo) {
-        JavaFileObject prevSource = log.useSource(sourceFile);
-        try {
-            List<Warning> warnings = sourceInfo.getWarnings();
-            //warnings.sort(Comparator.comparingInt(Warning::sortKey));
-
-if (debug) {
-System.out.println("WARNING LIST: size " + warnings.size()+ " for source " +sourceFile);
-for (int i = 0; i < warnings.size(); i++)
-    System.out.println(String.format("[%02d] %s", i, warnings.get(i)));
-}
-
-            warnings.forEach(warning -> warning.warn(log));
-            warnings.clear();
-        } finally {
-            log.useSource(prevSource);
+            sourceMap.values().forEach(this::emitWarnings);
         }
     }
 
@@ -794,12 +793,21 @@ for (int i = 0; i < warnings.size(); i++)
     //  - Warnings waiting to be emitted
     private class SourceInfo {
 
+        private final JavaFileObject sourceFile;
         private final ConfigCalculator configCalculator = new ConfigCalculator();
         private final Deque<Analysis> waitingAnalyses = new ArrayDeque<>();
         private final Deque<Analysis> readyAnalyses = new ArrayDeque<>();
         private final List<Warning> warnings = new ArrayList<>();
 
         private List<Range> waitingRanges;
+
+        SourceInfo(JavaFileObject sourceFile) {
+            this.sourceFile = sourceFile;
+        }
+
+        JavaFileObject getSourceFile() {
+            return sourceFile;
+        }
 
         ConfigCalculator getConfigCalculator() {
             return configCalculator;
@@ -839,7 +847,7 @@ for (int i = 0; i < warnings.size(); i++)
             // Move newly ready analyses from the waiting queue to the ready queue
             for (Iterator<Analysis> i = waitingAnalyses.iterator(); i.hasNext(); ) {
                 Analysis analysis = i.next();
-                if (isReady(analysis.pos())) {
+                if (isReady(analysis.getStartingPosition())) {
                     i.remove();
                     readyAnalyses.add(analysis);
                 }
@@ -848,11 +856,6 @@ for (int i = 0; i < warnings.size(); i++)
 
         boolean isReady(int pos) {
             return waitingRanges != null && waitingRanges.stream().noneMatch(range -> range.contains(pos));
-        }
-
-        Analysis currentAnalysis() {
-            Assert.check(!readyAnalyses.isEmpty());
-            return readyAnalyses.getFirst();
         }
 
         @Override
@@ -866,10 +869,17 @@ for (int i = 0; i < warnings.size(); i++)
         }
     }
 
-    // Get the SourceInfo corresponding to the currently executing analysis
+    // Get the SourceInfo corresponding to the currently executing analysis, which must exist
     private SourceInfo currentSourceInfo() {
         Assert.check(currentSourceInfo != null, "there is no current lint analysis executing");
         return currentSourceInfo;
+    }
+
+    // Get the currently executing analysis, which must exist
+    private Analysis currentAnalysis() {
+        SourceInfo sourceInfo = currentSourceInfo();
+        Assert.check(!sourceInfo.getReadyAnalyses().isEmpty(), "there is no current lint analysis executing");
+        return sourceInfo.getReadyAnalyses().getFirst();
     }
 
     static DiagnosticPosition wrap(int pos) {
@@ -884,56 +894,84 @@ for (int i = 0; i < warnings.size(); i++)
 
 // Analysis
 
-    private record Analysis(LintCategory category, int pos, Runnable task) {
+    private static class Analysis implements Runnable {
+
+        private final SourceInfo sourceInfo;
+        private final JavaFileObject sourceFile;
+        private final int pos;
+        private final Runnable task;
+        private ConfigCalculator configCalculator;
+
+        Analysis(SourceInfo sourceInfo, JavaFileObject sourceFile, int pos, Runnable task) {
+            this(sourceInfo, sourceFile, pos, task, null);
+        }
+
+        Analysis(SourceInfo sourceInfo, JavaFileObject sourceFile, int pos, Runnable task, ConfigCalculator configCalculator) {
+            this.sourceInfo = sourceInfo;
+            this.sourceFile = sourceFile;
+            this.pos = pos;
+            this.task = task;
+            this.configCalculator = configCalculator;
+        }
+
+        ConfigCalculator getConfigCalculator() {
+            if (configCalculator == null) {
+                configCalculator = sourceInfo.getConfigCalculator().copy();
+            }
+            return configCalculator;
+        }
+
+        JavaFileObject getSourceFile() {
+            return sourceFile;
+        }
+
+        int getStartingPosition() {
+            return pos;
+        }
+
+        @Override
+        public void run() {
+            task.run();
+        }
 
         @Override
         public String toString() {
             return "Analysis"
-              + "[" + category()
-              + "@" + pos()
-              + ":" + task.getClass().getName()
+              + "[pos=" + pos
+              + ",task=" + task
               + "]";
         }
     }
 
 // Warning
 
-    private record Warning(DiagnosticPosition pos, LintWarning warning, DiagnosticFlag... flags) {
+    private record Warning(JavaFileObject sourceFile, DiagnosticPosition pos, LintWarning warning, DiagnosticFlag... flags) {
 
         Warning {
             Assert.check((pos != null) == warning.getLintCategory().isSpecific());
-            Assert.check(Stream.of(flags).allMatch(DiagnosticFlag.MANDATORY::equals));  // we only support the one flag
-        }
-
-        // For non-specific lint categories
-        Warning(LintWarning warning, DiagnosticFlag... flags) {
-            this(null, warning, flags);
+            Assert.check(sourceFile != null || !warning.getLintCategory().isSpecific());
+            Assert.check(Stream.of(flags).allMatch(DiagnosticFlag.MANDATORY::equals));  // we only support MANDATORY
         }
 
         void warn(Log log) {
-
-if (false) {
-System.out.println("Warning: LOGGING"
-+"\n  log="+log
-+"\n  isSpecific()="+isSpecific()
-+"\n  isMandatory()="+isMandatory()
-+"\n  warning="+warning
-);
-}
-
-            if (isSpecific()) {
-                if (isMandatory()) {
-                    log.mandatoryWarning(pos(), warning());
-                } else {
-                    log.warning(pos(), warning());
+            JavaFileObject prevSource = log.useSource(sourceFile());
+            try {
+                if (isSpecific()) {
+                    if (isMandatory()) {
+                        log.mandatoryWarning(pos(), warning());
+                    } else {
+                        log.warning(pos(), warning());
+                    }
                 }
-            }
-            else {
-                if (isMandatory()) {
-                    log.mandatoryWarning(null, warning());
-                } else {
-                    log.warning(warning());
+                else {
+                    if (isMandatory()) {
+                        log.mandatoryWarning(null, warning());
+                    } else {
+                        log.warning(warning());
+                    }
                 }
+            } finally {
+                log.useSource(prevSource);
             }
         }
 
@@ -944,10 +982,6 @@ System.out.println("Warning: LOGGING"
         boolean isMandatory() {
             return Stream.of(flags()).anyMatch(DiagnosticFlag.MANDATORY::equals);
         }
-
-//        int sortKey() {
-//            return warning.getLintCategory().isSpecific() ? unwrap(pos()) : Integer.MAX_VALUE;
-//        }
     }
 
 // Range
@@ -1006,11 +1040,14 @@ private boolean calcDebug = false;
             ranges.add(new ConfigRange(Integer.MIN_VALUE, Integer.MAX_VALUE, getRootConfig()));
         }
 
-        void copyFrom(ConfigCalculator that) {
-            this.ranges.clear();
-            this.ranges.addAll(that.ranges);
-            this.patches.clear();
-            this.patches.addAll(that.patches);
+        ConfigCalculator(ConfigCalculator orig) {
+            ranges.addAll(orig.ranges);
+            patches.addAll(orig.patches);
+            processedTopLevel = orig.processedTopLevel;
+        }
+
+        ConfigCalculator copy() {
+            return new ConfigCalculator(this);
         }
 
         boolean process(Env<AttrContext> env) {

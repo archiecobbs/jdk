@@ -5325,6 +5325,7 @@ public class Attr extends JCTree.Visitor {
         } catch (CompletionFailure ex) {
             chk.completionError(pos, ex);
         }
+        //lint.readyForAnalysis(typeEnvs.get(c));
     }
 
     /** Attribute class definition associated with given class symbol.

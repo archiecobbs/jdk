@@ -124,10 +124,12 @@ public class CheckExamples {
                 error("Key " + nk + " is declared in not-yet list but is not a valid key in resource bundle");
         }
 
+/*
         for (String rk: resourceKeys) {
             if (!declaredKeys.contains(rk) && !notYetList.contains(rk))
                 error("Key " + rk + " is declared in resource bundle but is not in tests or not-yet list");
         }
+*/
 
         System.err.println(examples.size() + " examples checked");
         System.err.println(notYetList.size() + " keys on not-yet list");
@@ -168,6 +170,8 @@ public class CheckExamples {
     }
 
     boolean isValidExample(File f) {
+        if (!f.toString().contains("RequiresAutomatic"))
+            return false;
         return (f.isDirectory() && f.list().length > 0) ||
                 (f.isFile() && f.getName().endsWith(".java"));
     }

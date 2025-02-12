@@ -1812,10 +1812,6 @@ public class JavaCompiler {
 
         JCClassDecl removeMethodBodies(JCClassDecl cdef) {
 
-System.out.println("removeMethodBodies():"
-+"\n  cdef="+cdef
-);
-
             final boolean isInterface = (cdef.mods.flags & Flags.INTERFACE) != 0;
             class MethodBodyRemover extends TreeTranslator {
                 @Override
@@ -1828,8 +1824,8 @@ System.out.println("removeMethodBodies():"
                 }
                 @Override
                 public void visitVarDef(JCVariableDecl tree) {
-//                    if (tree.init != null && tree.init.type.constValue() == null)
-//                        tree.init = null;
+                    if (tree.init != null && tree.init.type.constValue() == null)
+                        tree.init = null;
                     super.visitVarDef(tree);
                 }
                 @Override

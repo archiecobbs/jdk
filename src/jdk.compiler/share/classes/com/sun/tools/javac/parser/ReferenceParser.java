@@ -119,7 +119,7 @@ public class ReferenceParser {
         Name member;
         List<JCTree> paramTypes;
 
-        CaptureFirstDiagnosticHandler dh = new CaptureFirstDiagnosticHandler(fac.log);
+        Log.DeferredDiagnosticHandler dh = new Log.DeferredDiagnosticHandler(fac.log);
 
         try {
             int slash = sig.indexOf("/");
@@ -177,7 +177,7 @@ public class ReferenceParser {
                 paramTypes = parseParams(sig, afterLparen, rparen, dh);
             }
 
-            assert dh.getFirst() == null;
+            assert dh.getDiagnostics().isEmpty();
 
         } finally {
             fac.log.popDiagnosticHandler(dh);
@@ -186,7 +186,7 @@ public class ReferenceParser {
         return new Reference(moduleName, qualExpr, member, paramTypes);
     }
 
-    private JCTree.JCExpression parseModule(String sig, int beginIndex, int endIndex, CaptureFirstDiagnosticHandler dh) throws ParseException {
+    private JCTree.JCExpression parseModule(String sig, int beginIndex, int endIndex, Log.DeferredDiagnosticHandler dh) throws ParseException {
         String s = sig.substring(beginIndex, endIndex);
         JavaFileObject prev = fac.log.useSource(null);
         try {
@@ -202,7 +202,7 @@ public class ReferenceParser {
         }
     }
 
-    private JCTree parseType(String sig, int beginIndex, int endIndex, CaptureFirstDiagnosticHandler dh) throws ParseException {
+    private JCTree parseType(String sig, int beginIndex, int endIndex, Log.DeferredDiagnosticHandler dh) throws ParseException {
         String s = sig.substring(beginIndex, endIndex);
         JavaFileObject prev = fac.log.useSource(null);
         try {
@@ -218,7 +218,7 @@ public class ReferenceParser {
         }
     }
 
-    private Name parseMember(String sig, int beginIndex, int endIndex, CaptureFirstDiagnosticHandler dh) throws ParseException {
+    private Name parseMember(String sig, int beginIndex, int endIndex, Log.DeferredDiagnosticHandler dh) throws ParseException {
         String s = sig.substring(beginIndex, endIndex);
         JavaFileObject prev = fac.log.useSource(null);
         try {
@@ -234,7 +234,7 @@ public class ReferenceParser {
         }
     }
 
-    private List<JCTree> parseParams(String sig, int beginIndex, int endIndex, CaptureFirstDiagnosticHandler dh) throws ParseException {
+    private List<JCTree> parseParams(String sig, int beginIndex, int endIndex, Log.DeferredDiagnosticHandler dh) throws ParseException {
         String s = sig.substring(beginIndex, endIndex);
         if (s.isBlank()) {
             return List.nil();
@@ -277,29 +277,10 @@ public class ReferenceParser {
         }
     }
 
-    private void checkDiags(CaptureFirstDiagnosticHandler h, int offset) throws ParseException {
-        JCDiagnostic d = h.getFirst();
+    private void checkDiags(Log.DeferredDiagnosticHandler h, int offset) throws ParseException {
+        JCDiagnostic d = h.getDiagnostics().peek();
         if (d != null) {
             throw new ParseException(offset + ((int) d.getPosition()), "dc.ref.syntax.error");
-        }
-    }
-
-    private static class CaptureFirstDiagnosticHandler extends Log.DiscardDiagnosticHandler {
-
-        private JCDiagnostic first;
-
-        CaptureFirstDiagnosticHandler(Log log) {
-            super(log);
-        }
-
-        JCDiagnostic getFirst() {
-            return first;
-        }
-
-        @Override
-        protected void handleFiltered(JCDiagnostic diag) {
-            if (first == null)
-                first = diag;
         }
     }
 

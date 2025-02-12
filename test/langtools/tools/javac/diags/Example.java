@@ -229,7 +229,11 @@ class Example implements Comparable<Example> {
                 List<String> sOpts =
                         Arrays.asList("-d", modulepathDir.getPath(),
                                       "--module-source-path", modulePath.toString());
-                new Jsr199Compiler(verbose).run(null, null, false, sOpts, modulePathFiles);
+
+System.err.println("[1] sOpts="+sOpts);
+System.err.println("[1] modulePathFiles="+modulePathFiles);
+
+                new Jsr199Compiler(true).run(null, null, false, sOpts, modulePathFiles);
             } else {
                 //automatic modules:
                 Map<String, List<Path>> module2Files =
@@ -244,13 +248,18 @@ class Example implements Comparable<Example> {
                     clean(scratchDir);
                     List<String> sOpts =
                             Arrays.asList("-d", scratchDir.getPath());
-                    new Jsr199Compiler(verbose).run(null,
+
+System.err.println("[2] sOpts="+sOpts);
+System.err.println("[2] modulePathFiles="+e.getValue().stream().map(p -> p.toFile()).collect(Collectors.toList()));
+
+                    new Jsr199Compiler(true).run(null,
                                                     null,
                                                     false,
                                                     sOpts,
                                                     e.getValue().stream()
                                                                 .map(p -> p.toFile())
                                                                 .collect(Collectors.toList()));
+
                     try (JarOutputStream jarOut =
                             new JarOutputStream(new FileOutputStream(new File(modulepathDir, e.getKey() + ".jar")))) {
                         Files.find(scratchDir.toPath(), Integer.MAX_VALUE, (p, attr) -> attr.isRegularFile())
@@ -336,8 +345,15 @@ class Example implements Comparable<Example> {
             new Jsr199Compiler(verbose).run(null, null, false, sOpts, additionalFiles);
         }
 
+System.err.println("[3] runOpts="+runOpts);
+System.err.println("[3] keys="+keys);
+System.err.println("[3] raw="+raw);
+System.err.println("[3] opts="+opts);
+System.err.println("[3] files="+files);
+System.err.println("[3] additionalFiles="+additionalFiles);
+
         try {
-            Compiler c = Compiler.getCompiler(runOpts, verbose);
+            Compiler c = Compiler.getCompiler(runOpts, true);
             c.run(out, keys, raw, opts, files);
         } catch (IllegalArgumentException e) {
             if (out != null) {

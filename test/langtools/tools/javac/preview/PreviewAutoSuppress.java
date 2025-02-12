@@ -190,12 +190,15 @@ public class PreviewAutoSuppress extends TestRunner {
                 .getOutputLines(Task.OutputKind.DIRECT);
 
         expected =
-                List.of("Use.java:7:35: compiler.warn.is.preview: preview.api.Outer",
-                        "Use.java:5:13: compiler.warn.is.preview: preview.api.Outer",
+                List.of("Use.java:5:13: compiler.warn.is.preview: preview.api.Outer",
+                        "Use.java:7:35: compiler.warn.is.preview: preview.api.Outer",
                         "2 warnings");
 
-        if (!log.equals(expected))
-            throw new Exception("expected output not found" + log);
+        if (!log.equals(expected)) {
+            throw new AssertionError("Unexpected log output:"
+                + "\n  EXPECTED: " + expected
+                + "\n    ACTUAL: " + log);
+        }
 
         checkPreviewClassfile(testClasses.resolve("test").resolve("Use.class"),
                               true);

@@ -157,11 +157,24 @@ public class MandatoryWarningHandler {
     private void reportOrAggregate(DiagnosticPosition pos, LintWarning warnKey) {
         JavaFileObject currentSource = log.currentSourceFile();
         boolean verbose = lint.configAt(pos).isEnabled(warnKey.getLintCategory());
+
+if (lintCategory == LintCategory.DEPRECATION) {
+System.out.println("DeprecationHandler:"
++"\n  pos="+pos
++"\n  lint.configAt(pos)="+lint.configAt(pos)
++"\n  verbose="+verbose
++"\n  log="+verbose
++"\n  log.nwarnings="+log.nwarnings
++"\n  log.MaxWarnings="+log.MaxWarnings
+);
+new Throwable("HERE").printStackTrace(System.out);
+}
+
         if (verbose) {
             if (sourcesWithReportedWarnings == null)
                 sourcesWithReportedWarnings = new HashSet<>();
 
-            if (log.nwarnings + lint.getNumEnqueuedWarnings() < log.MaxWarnings) {
+            if (log.nwarnings < log.MaxWarnings) {
                 // generate message and remember the source file
                 logMandatoryWarning(pos, warnKey);
                 sourcesWithReportedWarnings.add(currentSource);

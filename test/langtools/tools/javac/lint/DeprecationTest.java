@@ -81,7 +81,9 @@ public class DeprecationTest extends TestRunner {
                                         "2 warnings");
 
         if (!Objects.equals(actual, expected)) {
-            throw new AssertionError("Unexpected log output: " + actual);
+            throw new AssertionError("Unexpected log output:"
+                + "\n  EXPECTED: " + expected
+                + "\n    ACTUAL: " + actual);
         }
     }
 }

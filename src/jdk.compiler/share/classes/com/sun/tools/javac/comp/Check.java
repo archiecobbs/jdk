@@ -5579,7 +5579,7 @@ if (decl == null) {
         }
 
         private <E extends Element> void runUnderLint(E symbol, JCClassDecl p, BiConsumer<E, JCClassDecl> task) {
-            lint.modifyConfig(p, config -> config.augment((Symbol)symbol));
+            lint.modifyConfig(config -> config.augment((Symbol)symbol));
             try {
                 task.accept(symbol, p);
             } finally {

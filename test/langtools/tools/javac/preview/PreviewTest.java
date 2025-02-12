@@ -587,14 +587,20 @@ public class PreviewTest extends TestRunner {
                         "Test.java:19:11: compiler.err.is.preview: test()",
                         "Test.java:20:11: compiler.err.is.preview: test()",
                         "Test.java:21:11: compiler.err.is.preview: test()",
-                        "Test.java:24:11: compiler.warn.is.preview.reflective: test()",
                         "Test.java:29:16: compiler.err.is.preview: preview.api.Preview",
                         "Test.java:32:21: compiler.err.is.preview: test()",
                         "Test.java:36:21: compiler.err.is.preview: test()",
                         "Test.java:40:13: compiler.err.is.preview: test()",
                         "Test.java:41:21: compiler.err.is.preview: FIELD",
+                        "Test.java:24:11: compiler.warn.is.preview.reflective: test()",
                         "17 errors",
                         "1 warning");
+
+        if (!log.equals(expected)) {
+            throw new AssertionError("Unexpected log output:"
+                + "\n  EXPECTED:\n    " + expected.stream().collect(java.util.stream.Collectors.joining("\n    "))
+                + "\n    ACTUAL:\n    " + log.stream().collect(java.util.stream.Collectors.joining("\n    ")));
+        }
 
         if (!log.equals(expected))
             throw new Exception("expected output not found" + log);
