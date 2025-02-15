@@ -76,6 +76,7 @@ public class SuppressionWarningTest extends TestRunner {
       .map(category -> switch (category) {
         case AUXILIARYCLASS -> new SuppressTest(category,
             "compiler.warn.auxiliary.class.accessed.from.outside.of.its.source.file",
+            null,
             """
             public class Class1 { }
             class AuxClass { }
@@ -91,6 +92,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case CAST -> new SuppressTest(category,
             "compiler.warn.redundant.cast",
+            null,
             """
             @OUTER@
             public class Test {
@@ -104,6 +106,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case DANGLING_DOC_COMMENTS -> new SuppressTest(category,
             "compiler.warn.dangling.doc.comment",
+            null,
             """
             @OUTER@
             public class Test {
@@ -118,6 +121,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case DEPRECATION -> new SuppressTest(category,
             "compiler.warn.has.been.deprecated",
+            null,
             """
             public class Super {
                 @Deprecated
@@ -136,6 +140,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case DEP_ANN -> new SuppressTest(category,
             "compiler.warn.missing.deprecated.annotation",
+            null,
             """
             @OUTER@
             public class Test {
@@ -150,6 +155,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case DIVZERO -> new SuppressTest(category,
             "compiler.warn.div.zero",
+            null,
             """
             @OUTER@
             public class Test {
@@ -163,6 +169,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case EMPTY -> new SuppressTest(category,
             "compiler.warn.empty.if",
+            null,
             """
             @OUTER@
             public class Test {
@@ -176,6 +183,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case EXPORTS -> new SuppressTest(category,
             "compiler.warn.leaks.not.accessible",
+            null,
             """
             module mod {
                 exports pkg1;
@@ -200,6 +208,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case FALLTHROUGH -> new SuppressTest(category,
             "compiler.warn.possible.fall-through.into.case",
+            null,
             """
             @OUTER@
             public class Test {
@@ -218,6 +227,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case FINALLY -> new SuppressTest(category,
             "compiler.warn.finally.cannot.complete",
+            null,
             """
             @OUTER@
             public class Test {
@@ -237,6 +247,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case LOSSY_CONVERSIONS -> new SuppressTest(category,
             "compiler.warn.possible.loss.of.precision",
+            null,
             """
             @OUTER@
             public class Test {
@@ -251,6 +262,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case MISSING_EXPLICIT_CTOR -> new SuppressTest(category,
             "compiler.warn.missing-explicit-ctor",
+            null,
             """
             module mod {
                 exports pkg1;
@@ -271,6 +283,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case MODULE -> new SuppressTest(category,
             "compiler.warn.poor.choice.for.module.name",
+            null,
             """
             @OUTER@
             module mod0 {
@@ -280,6 +293,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case OPENS -> new SuppressTest(category,
             "compiler.warn.package.empty.or.not.found",
+            null,
             """
             @OUTER@
             module mod {
@@ -293,6 +307,7 @@ public class SuppressionWarningTest extends TestRunner {
             System.getProperty("os.name").startsWith("Mac") ?
               new SuppressTest(category,
                 "compiler.warn.output.file.clash",
+                null,
                 """
                 @OUTER@
                 public class Test {
@@ -306,6 +321,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case OVERLOADS -> new SuppressTest(category,
             "compiler.warn.potentially.ambiguous.overload",
+            null,
             """
             import java.util.function.*;
             @OUTER@
@@ -321,6 +337,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case OVERRIDES -> new SuppressTest(category,
             "compiler.warn.override.equals.but.not.hashcode",
+            null,
             """
             @OUTER@
             public class Test {
@@ -338,6 +355,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case RAW -> new SuppressTest(category,
             "compiler.warn.raw.class.use",
+            null,
             """
             @OUTER@
             public class Test {
@@ -351,6 +369,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case REMOVAL -> new SuppressTest(category,
             "compiler.warn.has.been.deprecated.for.removal",
+            null,
             """
             public class Super {
                 @Deprecated(forRemoval = true)
@@ -370,6 +389,7 @@ public class SuppressionWarningTest extends TestRunner {
         // This test case requires special support; see testSuppressWarnings()
         case REQUIRES_AUTOMATIC -> new SuppressTest(category,
             "compiler.warn.requires.automatic",
+            null,
             """
             @OUTER@
             module m1x {
@@ -381,6 +401,7 @@ public class SuppressionWarningTest extends TestRunner {
         // This test case requires special support; see testSuppressWarnings()
         case REQUIRES_TRANSITIVE_AUTOMATIC -> new SuppressTest(category,
             "compiler.warn.requires.transitive.automatic",
+            null,
             """
             @OUTER@
             module m1x {
@@ -391,6 +412,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case SERIAL -> new SuppressTest(category,
             "compiler.warn.missing.SVUID",
+            null,
             """
             @OUTER@
             public class Test {
@@ -404,6 +426,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case STATIC -> new SuppressTest(category,
             "compiler.warn.static.not.qualified.by.type",
+            null,
             """
             @OUTER@
             public class Test {
@@ -419,6 +442,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case STRICTFP -> new SuppressTest(category,
             "compiler.warn.strictfp",
+            null,
             """
             @OUTER@
             public class Test {
@@ -431,6 +455,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case SYNCHRONIZATION -> new SuppressTest(category,
             "compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class",
+            null,
             """
             @OUTER@
             public class Outer {
@@ -446,6 +471,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case TEXT_BLOCKS -> new SuppressTest(category,
             "compiler.warn.trailing.white.space.will.be.removed",
+            null,
             """
             @OUTER@
             public class Test {
@@ -461,6 +487,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case THIS_ESCAPE -> new SuppressTest(category,
             "compiler.warn.possible.this.escape",
+            null,
             """
             @OUTER@
             public class Outer {
@@ -477,6 +504,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case TRY -> new SuppressTest(category,
             "compiler.warn.try.explicit.close.call",
+            null,
             """
             import java.io.*;
             @OUTER@
@@ -493,6 +521,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case UNCHECKED -> new SuppressTest(category,
             "compiler.warn.prob.found.req: (compiler.misc.unchecked.cast.to.type)",
+            null,
             """
             @OUTER@
             public class Test {
@@ -507,6 +536,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         case VARARGS -> new SuppressTest(category,
             "compiler.warn.varargs.unsafe.use.varargs.param",
+            null,
             """
             @OUTER@
             public class Test {
@@ -521,25 +551,27 @@ public class SuppressionWarningTest extends TestRunner {
             """
         );
 
-        case PREVIEW -> null;    // skip, too hard to simluate reliably over time
-/*
+        // This test case requires special support; see testSuppressWarnings()
         case PREVIEW -> new SuppressTest(category,
             "compiler.warn.preview.feature.use",
+            new String[] {
+                "--enable-preview",
+                "-XDforcePreview"
+            },
             """
             @OUTER@
             public class Test {
                 @INNER@
-                public Test() {
-                    System.out.println();
-                    super();
+                public Test(Object x) {
+                    int value = x instanceof Integer i ? i : -1;
                 }
             }
             """
         );
-*/
 
         case RESTRICTED -> new SuppressTest(category,
             "compiler.warn.restricted.method",
+            null,
             """
             @OUTER@
             public class Test {
@@ -689,10 +721,20 @@ public class SuppressionWarningTest extends TestRunner {
                                   outerAnnotation && innerAnnotation;
                                 expectSuppressionOptionWarning = enableSuppressionOption && !enableCategory &&
                                   (outerAnnotation || innerAnnotation);
-                            } else {        // this category doesn't support @SuppressAnnotations
-                                expectCategoryWarning = enableCategory;
-                                expectSuppressionWarning = enableSuppression && (outerAnnotation || innerAnnotation);
-                                expectSuppressionOptionWarning = false;
+                            } else {        // this category doesn't support @SuppressWarnings
+
+                                // PREVIEW is special: By default, it's not enabled if the "--enable-preview" flag is given,
+                                // but the "--enable-preview" flag is required to avoid a compiler error, so the PREVIEW test
+                                // always adds it. The net result is that "-Xlint:-preview" is never useful.
+                                if (category == PREVIEW) {
+                                    expectCategoryWarning = enableCategory;
+                                    expectSuppressionWarning = enableSuppression && (outerAnnotation || innerAnnotation);
+                                    expectSuppressionOptionWarning = enableSuppressionOption && !enableCategory;
+                                } else {
+                                    expectCategoryWarning = enableCategory;
+                                    expectSuppressionWarning = enableSuppression && (outerAnnotation || innerAnnotation);
+                                    expectSuppressionOptionWarning = false;         // -Xlint:-foo is always useful
+                                }
                             }
 
                             String lintOption = String.format("-Xlint:%s%s,%s%s,%s%s,%s%s",
@@ -707,9 +749,9 @@ public class SuppressionWarningTest extends TestRunner {
                                 flags.add("--module-path");
                                 flags.add(modulePath.toString());
                             }
-                            flags.add("--enable-preview");
                             flags.add("--release");
                             flags.add(Source.DEFAULT.name);
+                            flags.addAll(test.compileFlags());
                             flags.add(lintOption);
 
                             // Logging
@@ -952,10 +994,11 @@ public class SuppressionWarningTest extends TestRunner {
     private record SuppressTest(
         LintCategory category,          // The Lint category being tested
         String warningKey,              // Expected warning message key in compiler.properties
+        List<String> compileFlags,      // Any required compilation flags
         List<String> sources            // Source files with @MODULE@, @OUTER@ and @INNER@ placeholders
     ) {
-        SuppressTest(LintCategory category, String warningKey, String... sources) {
-            this(category, warningKey, List.of(sources));
+        SuppressTest(LintCategory category, String warningKey, String[] compileFlags, String... sources) {
+            this(category, warningKey, List.of(compileFlags != null ? compileFlags : new String[0]), List.of(sources));
         }
     }
 
