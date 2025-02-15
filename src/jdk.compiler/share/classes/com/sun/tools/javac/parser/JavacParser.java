@@ -648,11 +648,11 @@ public class JavacParser implements Parser {
     void reportDanglingComments(JCTree tree, Comment dc) {
         var list = danglingComments.remove(dc);
         if (list != null) {
-            var prevPos = deferredLintHandler.setPos(tree);
+            deferredLintHandler.push(tree);
             try {
                 list.forEach(this::reportDanglingDocComment);
             } finally {
-                deferredLintHandler.setPos(prevPos);
+                deferredLintHandler.pop();
             }
         }
     }
@@ -670,7 +670,8 @@ public class JavacParser implements Parser {
             deferredLintHandler.report(lint -> {
                 if (lint.isActive(Lint.LintCategory.DANGLING_DOC_COMMENTS) &&
                         !shebang(c, pos)) {
-                    lint.logIfEnabled(log, pos, LintWarnings.DanglingDocComment);
+                    lint.logIfEnabled(
+                            pos, LintWarnings.DanglingDocComment);
                 }
             });
         }

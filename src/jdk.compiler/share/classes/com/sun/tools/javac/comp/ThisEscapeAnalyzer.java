@@ -159,7 +159,6 @@ public class ThisEscapeAnalyzer extends TreeScanner {
     private final Symtab syms;
     private final Types types;
     private final Resolve rs;
-    private final Log log;
     private       Lint lint;
 
 // These fields are scoped to the entire compilation unit
@@ -232,7 +231,6 @@ public class ThisEscapeAnalyzer extends TreeScanner {
     protected ThisEscapeAnalyzer(Context context) {
         context.put(contextKey, this);
         names = Names.instance(context);
-        log = Log.instance(context);
         syms = Symtab.instance(context);
         types = Types.instance(context);
         rs = Resolve.instance(context);
@@ -468,7 +466,7 @@ public class ThisEscapeAnalyzer extends TreeScanner {
             int remain = stack.length;
             do {
                 DiagnosticPosition pos = stack[--remain];
-                warning.lint().logIfEnabled(log, pos, key);
+                warning.lint().logIfEnabled(pos, key);
                 key = LintWarnings.PossibleThisEscapeLocation;
             } while (remain > 0);
         }

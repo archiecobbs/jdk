@@ -23,6 +23,8 @@
 # questions.
 #
 
+################################################################################
+
 DISABLED_WARNINGS_java += suppression
 
 COPY += .txt
@@ -30,3 +32,5 @@ COPY += .txt
 CLEAN_FILES += $(wildcard \
     $(TOPDIR)/src/jdk.jdeps/share/classes/com/sun/tools/jdeps/resources/*.properties \
     $(TOPDIR)/src/jdk.jdeps/share/classes/com/sun/tools/javap/resources/*.properties)
+
+################################################################################

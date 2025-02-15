@@ -23,6 +23,8 @@
 # questions.
 #
 
+################################################################################
+
 DISABLED_WARNINGS_java += dangling-doc-comments suppression
 
 DOCLINT += -Xdoclint:all/protected \
@@ -32,3 +34,5 @@ CLEAN_FILES += $(wildcard \
     $(TOPDIR)/src/java.sql.rowset/share/classes/javax/sql/rowset/*.properties)
 
 TARGETS += $(call CreateHkTargets, $(CLEAN_FILES))
+
+################################################################################

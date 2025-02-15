@@ -167,9 +167,12 @@ public class Check {
         boolean verboseUnchecked = lint.isEnabled(LintCategory.UNCHECKED, false);
         boolean enforceMandatoryWarnings = true;
 
-        deprecationHandler = new MandatoryWarningHandler(log, null, verboseDeprecated, enforceMandatoryWarnings, "deprecated");
-        removalHandler = new MandatoryWarningHandler(log, null, verboseRemoval, enforceMandatoryWarnings);
-        uncheckedHandler = new MandatoryWarningHandler(log, null, verboseUnchecked, enforceMandatoryWarnings);
+        deprecationHandler = new MandatoryWarningHandler(log, null, verboseDeprecated,
+                enforceMandatoryWarnings, LintCategory.DEPRECATION, "deprecated");
+        removalHandler = new MandatoryWarningHandler(log, null, verboseRemoval,
+                enforceMandatoryWarnings, LintCategory.REMOVAL);
+        uncheckedHandler = new MandatoryWarningHandler(log, null, verboseUnchecked,
+                enforceMandatoryWarnings, LintCategory.UNCHECKED);
 
         deferredLintHandler = DeferredLintHandler.instance(context);
 
@@ -276,7 +279,7 @@ public class Check {
      *  @param msg        A Warning describing the problem.
      */
     public void warnRestrictedAPI(DiagnosticPosition pos, Symbol sym) {
-        lint.logIfEnabled(log, pos, LintWarnings.RestrictedMethod(sym.enclClass(), sym));
+        lint.logIfEnabled(pos, LintWarnings.RestrictedMethod(sym.enclClass(), sym));
     }
 
     /** Warn about unchecked operation.
@@ -638,7 +641,7 @@ public class Check {
                 && !(ignoreAnnotatedCasts && TreeInfo.containsTypeAnnotation(tree.clazz))
                 && !is292targetTypeCast(tree)) {
             deferredLintHandler.report(_l -> {
-                lint.logIfEnabled(log, tree.pos(), LintWarnings.RedundantCast(tree.clazz.type));
+                lint.logIfEnabled(tree.pos(), LintWarnings.RedundantCast(tree.clazz.type));
             });
         }
     }
@@ -943,7 +946,7 @@ public class Check {
             }
         } else if (hasTrustMeAnno && varargElemType != null &&
                             types.isReifiable(varargElemType)) {
-            lint.logIfEnabled(log, tree, LintWarnings.VarargsRedundantTrustmeAnno(
+            lint.logIfEnabled(tree, LintWarnings.VarargsRedundantTrustmeAnno(
                                 syms.trustMeType.tsym,
                                 diags.fragment(Fragments.VarargsTrustmeOnReifiableVarargs(varargElemType))));
         }
@@ -1153,11 +1156,12 @@ public class Check {
      *  Warning: we can't use flags() here since this method
      *  is called during class enter, when flags() would cause a premature
      *  completion.
-     *  @param pos           Position to be used for error reporting.
      *  @param flags         The set of modifiers given in a definition.
      *  @param sym           The defined symbol.
+     *  @param tree          The declaration
      */
-    long checkFlags(DiagnosticPosition pos, long flags, Symbol sym, JCTree tree) {
+    long checkFlags(long flags, Symbol sym, JCTree tree) {
+        final DiagnosticPosition pos = tree.pos();
         long mask;
         long implicit = 0;
 
@@ -1201,7 +1205,7 @@ public class Check {
                 mask = MethodFlags;
             }
             if ((flags & STRICTFP) != 0) {
-                warnOnExplicitStrictfp(pos);
+                warnOnExplicitStrictfp(tree);
             }
             // Imply STRICTFP if owner has STRICTFP set.
             if (((flags|implicit) & Flags.ABSTRACT) == 0 ||
@@ -1245,7 +1249,7 @@ public class Check {
                 implicit |= FINAL;
             }
             if ((flags & STRICTFP) != 0) {
-                warnOnExplicitStrictfp(pos);
+                warnOnExplicitStrictfp(tree);
             }
             // Imply STRICTFP if owner has STRICTFP set.
             implicit |= sym.owner.flags_field & STRICTFP;
@@ -1309,12 +1313,12 @@ public class Check {
         return flags & (mask | ~ExtendedStandardFlags) | implicit;
     }
 
-    private void warnOnExplicitStrictfp(DiagnosticPosition pos) {
-        DiagnosticPosition prevLintPos = deferredLintHandler.setPos(pos);
+    private void warnOnExplicitStrictfp(JCTree tree) {
+        deferredLintHandler.push(tree);
         try {
-            deferredLintHandler.report(_ -> lint.logIfEnabled(log, pos, LintWarnings.Strictfp));
+            deferredLintHandler.report(_ -> lint.logIfEnabled(tree.pos(), LintWarnings.Strictfp));
         } finally {
-            deferredLintHandler.setPos(prevLintPos);
+            deferredLintHandler.pop();
         }
     }
 
@@ -1531,7 +1535,7 @@ public class Check {
             !TreeInfo.isDiamond(tree) &&
             !withinAnonConstr(env) &&
             tree.type.isRaw()) {
-            lint.logIfEnabled(log, tree.pos(), LintWarnings.RawClassUse(tree.type, tree.type.tsym.type));
+            lint.logIfEnabled(tree.pos(), LintWarnings.RawClassUse(tree.type, tree.type.tsym.type));
         }
     }
     //where
@@ -1855,7 +1859,7 @@ public class Check {
 
         // Optional warning if varargs don't agree
         if ((((m.flags() ^ other.flags()) & Flags.VARARGS) != 0)) {
-            lint.logIfEnabled(log, TreeInfo.diagnosticPositionFor(m, tree),
+            lint.logIfEnabled(TreeInfo.diagnosticPositionFor(m, tree),
                         ((m.flags() & Flags.VARARGS) != 0)
                         ? LintWarnings.OverrideVarargsMissing(varargsOverrides(m, other))
                         : LintWarnings.OverrideVarargsExtra(varargsOverrides(m, other)));
@@ -2202,7 +2206,8 @@ public class Check {
                 someClass, false, equalsHasCodeFilter) != hashCodeAtObject;
 
             if (overridesEquals && !overridesHashCode) {
-                lint.logIfEnabled(log, pos, LintWarnings.OverrideEqualsButNotHashcode(someClass));
+                lint.logIfEnabled(pos,
+                            LintWarnings.OverrideEqualsButNotHashcode(someClass));
             }
         }
     }
@@ -2264,7 +2269,7 @@ public class Check {
                     String moduleNameComponentString = componentName.toString();
                     int nameLength = moduleNameComponentString.length();
                     if (nameLength > 0 && Character.isDigit(moduleNameComponentString.charAt(nameLength - 1))) {
-                        lint.logIfEnabled(log, pos, LintWarnings.PoorChoiceForModuleName(componentName));
+                        lint.logIfEnabled(pos, LintWarnings.PoorChoiceForModuleName(componentName));
                     }
                 }
             }
@@ -2741,7 +2746,7 @@ public class Check {
                 tree.pos();
 
             // Log the warning
-            lint.logIfEnabled(log, pos,
+            lint.logIfEnabled(pos,
                 LintWarnings.PotentiallyAmbiguousOverload(
                     m1.asMemberOf(site, types), m1.location(),
                     m2.asMemberOf(site, types), m2.location()));
@@ -2970,11 +2975,11 @@ public class Check {
                 isEffectivelyNonPublic(sym)) {
                 if (isLambda) {
                     if (belongsToRestrictedPackage(sym)) {
-                        lint.logIfEnabled(log, tree.pos(),
+                        lint.logIfEnabled(tree.pos(),
                                     LintWarnings.AccessToMemberFromSerializableLambda(sym));
                     }
                 } else {
-                    lint.logIfEnabled(log, tree.pos(),
+                    lint.logIfEnabled(tree.pos(),
                                 LintWarnings.AccessToMemberFromSerializableElement(sym));
                 }
             }
@@ -3758,12 +3763,13 @@ public class Check {
             (s.flags() & DEPRECATED) != 0 &&
             !syms.deprecatedType.isErroneous() &&
             s.attribute(syms.deprecatedType.tsym) == null) {
-            lint.logIfEnabled(log, pos, LintWarnings.MissingDeprecatedAnnotation);
+            lint.logIfEnabled(pos, LintWarnings.MissingDeprecatedAnnotation);
         }
         // Note: @Deprecated has no effect on local variables, parameters and package decls.
         if (lint.isActive(LintCategory.DEPRECATION) && !s.isDeprecatableViaAnnotation()) {
             if (!syms.deprecatedType.isErroneous() && s.attribute(syms.deprecatedType.tsym) != null) {
-                lint.logIfEnabled(log, pos, LintWarnings.DeprecatedAnnotationHasNoEffect(Kinds.kindName(s)));
+                lint.logIfEnabled(pos,
+                            LintWarnings.DeprecatedAnnotationHasNoEffect(Kinds.kindName(s)));
             }
         }
     }
@@ -4114,7 +4120,7 @@ public class Check {
             int opc = ((OperatorSymbol)operator).opcode;
             if (opc == ByteCodes.idiv || opc == ByteCodes.imod
                 || opc == ByteCodes.ldiv || opc == ByteCodes.lmod) {
-                deferredLintHandler.report(_ -> lint.logIfEnabled(log, pos, LintWarnings.DivZero));
+                deferredLintHandler.report(_ -> lint.logIfEnabled(pos, LintWarnings.DivZero));
             }
         }
     }
@@ -4128,7 +4134,7 @@ public class Check {
     void checkLossOfPrecision(final DiagnosticPosition pos, Type found, Type req) {
         if (found.isNumeric() && req.isNumeric() && !types.isAssignable(found, req)) {
             deferredLintHandler.report(_ ->
-                lint.logIfEnabled(log, pos, LintWarnings.PossibleLossOfPrecision(found, req)));
+                lint.logIfEnabled(pos, LintWarnings.PossibleLossOfPrecision(found, req)));
         }
     }
 
@@ -4137,7 +4143,7 @@ public class Check {
      */
     void checkEmptyIf(JCIf tree) {
         if (tree.thenpart.hasTag(SKIP) && tree.elsepart == null) {
-            lint.logIfEnabled(log, tree.thenpart.pos(), LintWarnings.EmptyIf);
+            lint.logIfEnabled(tree.thenpart.pos(), LintWarnings.EmptyIf);
         }
     }
 
@@ -4284,7 +4290,7 @@ public class Check {
             rs.isAccessible(env, c) &&
             !fileManager.isSameFile(c.sourcefile, env.toplevel.sourcefile))
         {
-            lint.logIfEnabled(log, pos,
+            lint.logIfEnabled(pos,
                         LintWarnings.AuxiliaryClassAccessedFromOutsideOfItsSourceFile(c, c.sourcefile));
         }
     }
@@ -4328,7 +4334,7 @@ public class Check {
                             // annotations; check again for being
                             // enabled in the deferred context.
                             deferredLintHandler.report(_ ->
-                                lint.logIfEnabled(log, pos, LintWarnings.MissingExplicitCtor(c, pkg, modle)));
+                                lint.logIfEnabled(pos, LintWarnings.MissingExplicitCtor(c, pkg, modle)));
                         } else {
                             return;
                         }
@@ -4364,7 +4370,7 @@ public class Check {
                             method.attribute(syms.trustMeType.tsym) != null &&
                             isTrustMeAllowedOnMethod(method) &&
                             !types.isReifiable(method.type.getParameterTypes().last())) {
-                        Check.this.lint.logIfEnabled(log, pos(), LintWarnings.VarargsUnsafeUseVarargsParam(method.params.last()));
+                        Check.this.lint.logIfEnabled(pos(), LintWarnings.VarargsUnsafeUseVarargsParam(method.params.last()));
                     }
                     break;
                 default:
@@ -4619,7 +4625,7 @@ public class Check {
         }
         private void checkVisible(Lint lint, DiagnosticPosition pos, Symbol what, PackageSymbol inPackage, boolean inSuperType) {
             if (!isAPISymbol(what) && !inSuperType) { //package private/private element
-                lint.logIfEnabled(log, pos, LintWarnings.LeaksNotAccessible(kindName(what), what, what.packge().modle));
+                lint.logIfEnabled(pos, LintWarnings.LeaksNotAccessible(kindName(what), what, what.packge().modle));
                 return ;
             }
 
@@ -4628,13 +4634,13 @@ public class Check {
             ExportsDirective inExport = findExport(inPackage);
 
             if (whatExport == null) { //package not exported:
-                lint.logIfEnabled(log, pos, LintWarnings.LeaksNotAccessibleUnexported(kindName(what), what, what.packge().modle));
+                lint.logIfEnabled(pos, LintWarnings.LeaksNotAccessibleUnexported(kindName(what), what, what.packge().modle));
                 return ;
             }
 
             if (whatExport.modules != null) {
                 if (inExport.modules == null || !whatExport.modules.containsAll(inExport.modules)) {
-                    lint.logIfEnabled(log, pos, LintWarnings.LeaksNotAccessibleUnexportedQualified(kindName(what), what, what.packge().modle));
+                    lint.logIfEnabled(pos, LintWarnings.LeaksNotAccessibleUnexportedQualified(kindName(what), what, what.packge().modle));
                 }
             }
 
@@ -4656,14 +4662,14 @@ public class Check {
                     }
                 }
 
-                lint.logIfEnabled(log, pos, LintWarnings.LeaksNotAccessibleNotRequiredTransitive(kindName(what), what, what.packge().modle));
+                lint.logIfEnabled(pos, LintWarnings.LeaksNotAccessibleNotRequiredTransitive(kindName(what), what, what.packge().modle));
             }
         }
 
     void checkModuleExists(final DiagnosticPosition pos, ModuleSymbol msym) {
         if (msym.kind != MDL) {
             deferredLintHandler.report(_ ->
-                lint.logIfEnabled(log, pos, LintWarnings.ModuleNotFound(msym)));
+                lint.logIfEnabled(pos, LintWarnings.ModuleNotFound(msym)));
         }
     }
 
@@ -4671,7 +4677,7 @@ public class Check {
         if (packge.members().isEmpty() &&
             ((packge.flags() & Flags.HAS_RESOURCE) == 0)) {
             deferredLintHandler.report(_ ->
-                lint.logIfEnabled(log, pos, LintWarnings.PackageEmptyOrNotFound(packge)));
+                lint.logIfEnabled(pos, LintWarnings.PackageEmptyOrNotFound(packge)));
         }
     }
 
@@ -4679,9 +4685,9 @@ public class Check {
         if ((rd.module.flags() & Flags.AUTOMATIC_MODULE) != 0) {
             deferredLintHandler.report(_ -> {
                 if (rd.isTransitive() && lint.isEnabled(LintCategory.REQUIRES_TRANSITIVE_AUTOMATIC, true)) {
-                    lint.logIfEnabled(log, pos, LintWarnings.RequiresTransitiveAutomatic);
+                    lint.logIfEnabled(pos, LintWarnings.RequiresTransitiveAutomatic);
                 } else {
-                    lint.logIfEnabled(log, pos, LintWarnings.RequiresAutomatic);
+                    lint.logIfEnabled(pos, LintWarnings.RequiresAutomatic);
                 }
             });
         }
@@ -4979,7 +4985,7 @@ public class Check {
             }
 
             if (svuidSym == null) {
-                lint.logIfEnabled(log, p.pos(), LintWarnings.MissingSVUID(c));
+                lint.logIfEnabled(p.pos(), LintWarnings.MissingSVUID(c));
             }
 
             // Check for serialPersistentFields to gate checks for
@@ -5006,7 +5012,7 @@ public class Check {
                                     // Note per JLS arrays are
                                     // serializable even if the
                                     // component type is not.
-                                    lint.logIfEnabled(log,
+                                    lint.logIfEnabled(
                                             TreeInfo.diagnosticPositionFor(enclosed, tree),
                                                 LintWarnings.NonSerializableInstanceField);
                                 } else if (varType.hasTag(ARRAY)) {
@@ -5017,7 +5023,7 @@ public class Check {
                                         elementType = arrayType.elemtype;
                                     }
                                     if (!canBeSerialized(elementType)) {
-                                        lint.logIfEnabled(log,
+                                        lint.logIfEnabled(
                                                 TreeInfo.diagnosticPositionFor(enclosed, tree),
                                                     LintWarnings.NonSerializableInstanceFieldArray(elementType));
                                     }
@@ -5102,7 +5108,8 @@ public class Check {
                         }
                     }
                 }
-                lint.logIfEnabled(log, tree.pos(), LintWarnings.ExternalizableMissingPublicNoArgCtor);
+                lint.logIfEnabled(tree.pos(),
+                            LintWarnings.ExternalizableMissingPublicNoArgCtor);
             } else {
                 // Approximate access to the no-arg constructor up in
                 // the superclass chain by checking that the
@@ -5129,7 +5136,7 @@ public class Check {
                                     // Handle nested classes and implicit this$0
                                     (supertype.getNestingKind() == NestingKind.MEMBER &&
                                      ((supertype.flags() & STATIC) == 0)))
-                                    lint.logIfEnabled(log, tree.pos(),
+                                    lint.logIfEnabled(tree.pos(),
                                                 LintWarnings.SerializableMissingAccessNoArgCtor(supertype.getQualifiedName()));
                             }
                         }
@@ -5148,20 +5155,20 @@ public class Check {
             // fields.
              if ((svuid.flags() & (STATIC | FINAL)) !=
                  (STATIC | FINAL)) {
-                 lint.logIfEnabled(log,
+                 lint.logIfEnabled(
                          TreeInfo.diagnosticPositionFor(svuid, tree),
                              LintWarnings.ImproperSVUID((Symbol)e));
              }
 
              // check svuid has type long
              if (!svuid.type.hasTag(LONG)) {
-                 lint.logIfEnabled(log,
+                 lint.logIfEnabled(
                          TreeInfo.diagnosticPositionFor(svuid, tree),
                              LintWarnings.LongSVUID((Symbol)e));
              }
 
              if (svuid.getConstValue() == null)
-                 lint.logIfEnabled(log,
+                 lint.logIfEnabled(
                          TreeInfo.diagnosticPositionFor(svuid, tree),
                              LintWarnings.ConstantSVUID((Symbol)e));
         }
@@ -5170,19 +5177,19 @@ public class Check {
             // To be effective, serialPersisentFields must be private, static, and final.
              if ((spf.flags() & (PRIVATE | STATIC | FINAL)) !=
                  (PRIVATE | STATIC | FINAL)) {
-                 lint.logIfEnabled(log,
+                 lint.logIfEnabled(
                          TreeInfo.diagnosticPositionFor(spf, tree),
                              LintWarnings.ImproperSPF);
              }
 
              if (!types.isSameType(spf.type, OSF_TYPE)) {
-                 lint.logIfEnabled(log,
+                 lint.logIfEnabled(
                          TreeInfo.diagnosticPositionFor(spf, tree),
                              LintWarnings.OSFArraySPF);
              }
 
             if (isExternalizable((Type)(e.asType()))) {
-                lint.logIfEnabled(log,
+                lint.logIfEnabled(
                         TreeInfo.diagnosticPositionFor(spf, tree),
                             LintWarnings.IneffectualSerialFieldExternalizable);
             }
@@ -5194,7 +5201,8 @@ public class Check {
                 JCVariableDecl variableDef = (JCVariableDecl) spfDecl;
                 JCExpression initExpr = variableDef.init;
                  if (initExpr != null && TreeInfo.isNull(initExpr)) {
-                     lint.logIfEnabled(log, initExpr.pos(), LintWarnings.SPFNullInit);
+                     lint.logIfEnabled(initExpr.pos(),
+                                 LintWarnings.SPFNullInit);
                  }
             }
         }
@@ -5272,7 +5280,7 @@ public class Check {
         private void checkExternMethodRecord(JCClassDecl tree, Element e, MethodSymbol method, Type argType,
                                              boolean isExtern) {
             if (isExtern && isExternMethod(tree, e, method, argType)) {
-                lint.logIfEnabled(log,
+                lint.logIfEnabled(
                         TreeInfo.diagnosticPositionFor(method, tree),
                             LintWarnings.IneffectualExternalizableMethodRecord(method.getSimpleName().toString()));
             }
@@ -5281,13 +5289,13 @@ public class Check {
         void checkPrivateNonStaticMethod(JCClassDecl tree, MethodSymbol method) {
             var flags = method.flags();
             if ((flags & PRIVATE) == 0) {
-                lint.logIfEnabled(log,
+                lint.logIfEnabled(
                         TreeInfo.diagnosticPositionFor(method, tree),
                             LintWarnings.SerialMethodNotPrivate(method.getSimpleName()));
             }
 
             if ((flags & STATIC) != 0) {
-                lint.logIfEnabled(log,
+                lint.logIfEnabled(
                         TreeInfo.diagnosticPositionFor(method, tree),
                             LintWarnings.SerialMethodStatic(method.getSimpleName()));
             }
@@ -5312,7 +5320,7 @@ public class Check {
                     case FIELD -> {
                         var field = (VarSymbol)enclosed;
                         if (serialFieldNames.contains(name)) {
-                            lint.logIfEnabled(log,
+                            lint.logIfEnabled(
                                     TreeInfo.diagnosticPositionFor(field, tree),
                                         LintWarnings.IneffectualSerialFieldEnum(name));
                         }
@@ -5321,7 +5329,7 @@ public class Check {
                     case METHOD -> {
                         var method = (MethodSymbol)enclosed;
                         if (serialMethodNames.contains(name)) {
-                            lint.logIfEnabled(log,
+                            lint.logIfEnabled(
                                     TreeInfo.diagnosticPositionFor(method, tree),
                                         LintWarnings.IneffectualSerialMethodEnum(name));
                         }
@@ -5361,7 +5369,7 @@ public class Check {
 
         private void checkExternMethodEnum(JCClassDecl tree, Element e, MethodSymbol method, Type argType) {
             if (isExternMethod(tree, e, method, argType)) {
-                lint.logIfEnabled(log,
+                lint.logIfEnabled(
                         TreeInfo.diagnosticPositionFor(method, tree),
                             LintWarnings.IneffectualExternMethodEnum(method.getSimpleName().toString()));
             }
@@ -5393,7 +5401,7 @@ public class Check {
                         name = field.getSimpleName().toString();
                         switch(name) {
                         case "serialPersistentFields" -> {
-                            lint.logIfEnabled(log,
+                            lint.logIfEnabled(
                                     TreeInfo.diagnosticPositionFor(field, tree),
                                         LintWarnings.IneffectualSerialFieldInterface);
                         }
@@ -5433,7 +5441,7 @@ public class Check {
                                         Element e,
                                         MethodSymbol method) {
             if ((method.flags() & PRIVATE) == 0) {
-                lint.logIfEnabled(log,
+                lint.logIfEnabled(
                         TreeInfo.diagnosticPositionFor(method, tree),
                             LintWarnings.NonPrivateMethodWeakerAccess);
             }
@@ -5443,7 +5451,7 @@ public class Check {
                                              Element e,
                                              MethodSymbol method) {
             if ((method.flags() & DEFAULT) == DEFAULT) {
-                lint.logIfEnabled(log,
+                lint.logIfEnabled(
                         TreeInfo.diagnosticPositionFor(method, tree),
                             LintWarnings.DefaultIneffective);
 
@@ -5490,7 +5498,7 @@ public class Check {
                         var field = (VarSymbol)enclosed;
                         switch(name) {
                         case "serialPersistentFields" -> {
-                            lint.logIfEnabled(log,
+                            lint.logIfEnabled(
                                     TreeInfo.diagnosticPositionFor(field, tree),
                                         LintWarnings.IneffectualSerialFieldRecord);
                         }
@@ -5514,7 +5522,7 @@ public class Check {
 
                         default -> {
                             if (serialMethodNames.contains(name)) {
-                                lint.logIfEnabled(log,
+                                lint.logIfEnabled(
                                         TreeInfo.diagnosticPositionFor(method, tree),
                                             LintWarnings.IneffectualSerialMethodRecord(name));
                             }
@@ -5528,7 +5536,7 @@ public class Check {
                                          Element enclosing,
                                          MethodSymbol method) {
             if ((method.flags() & (STATIC | ABSTRACT)) != 0) {
-                    lint.logIfEnabled(log,
+                    lint.logIfEnabled(
                             TreeInfo.diagnosticPositionFor(method, tree),
                                 LintWarnings.SerialConcreteInstanceMethod(method.getSimpleName()));
             }
@@ -5545,7 +5553,7 @@ public class Check {
             // checking.
             Type rtype = method.getReturnType();
             if (!types.isSameType(expectedReturnType, rtype)) {
-                lint.logIfEnabled(log,
+                lint.logIfEnabled(
                         TreeInfo.diagnosticPositionFor(method, tree),
                             LintWarnings.SerialMethodUnexpectedReturnType(method.getSimpleName(),
                                                                       rtype, expectedReturnType));
@@ -5561,7 +5569,7 @@ public class Check {
             var parameters= method.getParameters();
 
             if (parameters.size() != 1) {
-                lint.logIfEnabled(log,
+                lint.logIfEnabled(
                         TreeInfo.diagnosticPositionFor(method, tree),
                             LintWarnings.SerialMethodOneArg(method.getSimpleName(), parameters.size()));
                 return;
@@ -5569,7 +5577,7 @@ public class Check {
 
             Type parameterType = parameters.get(0).asType();
             if (!types.isSameType(parameterType, expectedType)) {
-                lint.logIfEnabled(log,
+                lint.logIfEnabled(
                         TreeInfo.diagnosticPositionFor(method, tree),
                             LintWarnings.SerialMethodParameterType(method.getSimpleName(),
                                                                expectedType,
@@ -5590,7 +5598,7 @@ public class Check {
         private void checkNoArgs(JCClassDecl tree, Element enclosing, MethodSymbol method) {
             var parameters = method.getParameters();
             if (!parameters.isEmpty()) {
-                lint.logIfEnabled(log,
+                lint.logIfEnabled(
                         TreeInfo.diagnosticPositionFor(parameters.get(0), tree),
                             LintWarnings.SerialMethodNoArgs(method.getSimpleName()));
             }
@@ -5599,7 +5607,7 @@ public class Check {
         private void checkExternalizable(JCClassDecl tree, Element enclosing, MethodSymbol method) {
             // If the enclosing class is externalizable, warn for the method
             if (isExternalizable((Type)enclosing.asType())) {
-                lint.logIfEnabled(log,
+                lint.logIfEnabled(
                         TreeInfo.diagnosticPositionFor(method, tree),
                             LintWarnings.IneffectualSerialMethodExternalizable(method.getSimpleName()));
             }
@@ -5628,7 +5636,7 @@ public class Check {
                         }
                     }
                     if (!declared) {
-                        lint.logIfEnabled(log,
+                        lint.logIfEnabled(
                                 TreeInfo.diagnosticPositionFor(method, tree),
                                     LintWarnings.SerialMethodUnexpectedException(method.getSimpleName(),
                                                                              thrownType));

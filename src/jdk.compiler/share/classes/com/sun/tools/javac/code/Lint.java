@@ -158,6 +158,7 @@ public class Lint {
     // Compiler context
     private final Context context;
     private final Options options;
+    private final Log log;
 
     // The current symbol in scope (having @SuppressWarnings or @Deprecated), or null for global scope
     private final Symbol symbolInScope;
@@ -183,6 +184,7 @@ public class Lint {
         this.context = context;
         context.put(lintKey, this);
         options = Options.instance(context);
+        log = Log.instance(context);
         lintSuppression = LintSuppression.instance(context);
         symbolInScope = null;
     }
@@ -192,6 +194,7 @@ public class Lint {
         other.initializeRootIfNeeded();
         this.context = other.context;
         this.options = other.options;
+        this.log = other.log;
         this.syms = other.syms;
         this.names = other.names;
         this.lintSuppression = other.lintSuppression;
@@ -603,21 +606,19 @@ public class Lint {
     /**
      * Helper method. Validate a lint warning and log it if its lint category is enabled.
      *
-     * @param log warning destination
      * @param warning key for the localized warning message
      */
-    public void logIfEnabled(Log log, LintWarning warning) {
-        logIfEnabled(log, null, warning);
+    public void logIfEnabled(LintWarning warning) {
+        logIfEnabled(null, warning);
     }
 
     /**
      * Helper method. Validate a lint warning and log it if its lint category is enabled.
      *
-     * @param log warning destination
      * @param pos source position at which to report the warning
      * @param warning key for the localized warning message
      */
-    public void logIfEnabled(Log log, DiagnosticPosition pos, LintWarning warning) {
+    public void logIfEnabled(DiagnosticPosition pos, LintWarning warning) {
         if (isEnabled(warning.getLintCategory(), true)) {
             log.warning(pos, warning);
         }

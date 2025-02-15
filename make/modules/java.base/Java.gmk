@@ -23,6 +23,8 @@
 # questions.
 #
 
+################################################################################
+
 # The base module should be built with all warnings enabled. When a
 # new warning is added to javac, it can be temporarily added to the
 # disabled warnings list.
@@ -57,3 +59,5 @@ ifeq ($(call isTargetOs, windows), true)
       sun/nio/ch/SimpleAsynchronousFileChannelImpl.java \
       #
 endif
+
+################################################################################

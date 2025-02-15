@@ -23,6 +23,8 @@
 # questions.
 #
 
+################################################################################
+
 DISABLED_WARNINGS_java += this-escape suppression
 
 DOCLINT += -Xdoclint:all/protected \
@@ -32,3 +34,5 @@ CLEAN_FILES += $(wildcard \
     $(TOPDIR)/src/java.rmi/share/classes/sun/rmi/server/resources/*.properties)
 
 TARGETS += $(call CreateHkTargets, $(CLEAN_FILES))
+
+################################################################################

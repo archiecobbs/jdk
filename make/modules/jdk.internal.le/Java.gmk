@@ -23,6 +23,10 @@
 # questions.
 #
 
+################################################################################
+
 DISABLED_WARNINGS_java += dangling-doc-comments this-escape suppression
 
 COPY += .properties .caps .txt
+
+################################################################################

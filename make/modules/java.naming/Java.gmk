@@ -23,8 +23,12 @@
 # questions.
 #
 
+################################################################################
+
 DISABLED_WARNINGS_java += dangling-doc-comments this-escape suppression
 
 DOCLINT += -Xdoclint:all/protected \
     '-Xdoclint/package:java.*,javax.*'
 CLEAN += jndiprovider.properties
+
+################################################################################
