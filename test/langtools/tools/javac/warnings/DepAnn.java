@@ -35,7 +35,7 @@ class DepAnn2
         }
     }
 
-    @SuppressWarnings("dep-ann")
+    @SuppressWarnings("this annotation doesn't matter, it only serves to make the Javadoc comment dangle")
     /** @deprecated */
     void m2(int i) {
     }

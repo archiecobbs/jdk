@@ -1,6 +1,5 @@
 DepAnn.java:12:10: compiler.warn.missing.deprecated.annotation
 DepAnn.java:9:1: compiler.warn.missing.deprecated.annotation
-DepAnn.java:38:5: compiler.warn.unnecessary.warning.suppression: "dep-ann"
 DepAnn.java:59:10: compiler.warn.missing.deprecated.annotation
 DepAnn.java:56:1: compiler.warn.missing.deprecated.annotation
-5 warnings
+4 warnings
