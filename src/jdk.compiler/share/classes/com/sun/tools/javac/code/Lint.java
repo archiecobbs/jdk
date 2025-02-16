@@ -328,8 +328,11 @@ public class Lint {
 
         /**
          * Warn about use of incubating modules.
+         *
+         * <p>
+         * This category is not supported by {@code @SuppressWarnings}.
          */
-        INCUBATING("incubating"),
+        INCUBATING("incubating", false),
 
         /**
           * Warn about compiler possible lossy conversions.
