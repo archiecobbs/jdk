@@ -36,6 +36,7 @@ import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.JCDiagnostic.LintWarning;
 import com.sun.tools.javac.util.Log;
@@ -620,10 +621,19 @@ public class Lint {
      *
      * @param pos source position at which to report the warning
      * @param warning key for the localized warning message
+     * @param flags diagnostic flags, if any
      */
-    public void logIfEnabled(DiagnosticPosition pos, LintWarning warning) {
+    public void logIfEnabled(DiagnosticPosition pos, LintWarning warning, DiagnosticFlag... flags) {
         if (isEnabled(warning.getLintCategory(), true)) {
-            log.warning(pos, warning);
+            switch (flags.length) {
+            case 0:
+                log.warning(pos, warning);
+                break;
+            default:                                    // we currently only support the MANDATORY flag
+                Assert.check(flags[0] == DiagnosticFlag.MANDATORY);
+                log.mandatoryWarning(pos, warning);
+                break;
+            }
         }
     }
 

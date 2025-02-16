@@ -26,7 +26,6 @@
 package com.sun.tools.javac.code;
 
 import com.sun.tools.javac.code.Lint.LintCategory;
-import com.sun.tools.javac.code.LintSuppression;
 import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.code.Symbol.ModuleSymbol;
 import com.sun.tools.javac.jvm.Target;
@@ -35,6 +34,7 @@ import com.sun.tools.javac.resources.CompilerProperties.LintWarnings;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.JCDiagnostic.Error;
 import com.sun.tools.javac.util.JCDiagnostic.LintWarning;
@@ -69,9 +69,6 @@ public class Preview {
     /** flag: are preview features enabled */
     private final boolean enabled;
 
-    /** flag: is the "preview" lint category enabled? */
-    private final boolean verbose;
-
     /** the diag handler to manage preview feature usage diagnostics */
     private final MandatoryWarningHandler previewHandler;
 
@@ -86,7 +83,7 @@ public class Preview {
     private final Names names;
     private final Log log;
     private final Source source;
-    private final LintSuppression lintSuppression;
+    private final Lint lint;
 
     protected static final Context.Key<Preview> previewKey = new Context.Key<>();
 
@@ -106,8 +103,8 @@ public class Preview {
         enabled = options.isSet(PREVIEW);
         log = Log.instance(context);
         source = Source.instance(context);
-        lintSuppression = LintSuppression.instance(context);
-        verbose = Lint.instance(context).isEnabled(LintCategory.PREVIEW, false);
+        lint = Lint.instance(context);
+        boolean verbose = lint.isEnabled(LintCategory.PREVIEW, false);
         previewHandler = new MandatoryWarningHandler(log, source, verbose, true, LintCategory.PREVIEW);
         forcePreview = options.isSet("forcePreview");
         majorVersionToSource = initMajorVersionToSourceMap();
@@ -193,12 +190,8 @@ public class Preview {
      */
     public void warnPreview(JavaFileObject classfile, int majorVersion) {
         Assert.check(isEnabled());
-        if (verbose) {
-            log.mandatoryWarning(null,
-                    LintWarnings.PreviewFeatureUseClassfile(classfile, majorVersionToSource.get(majorVersion).name));
-        } else {
-            lintSuppression.validate(null, LintCategory.PREVIEW);       // validate suppression via "-Xlint:-preview"
-        }
+        LintWarning warning = LintWarnings.PreviewFeatureUseClassfile(classfile, majorVersionToSource.get(majorVersion).name);
+        lint.logIfEnabled(null, warning, DiagnosticFlag.MANDATORY);
     }
 
     /**
