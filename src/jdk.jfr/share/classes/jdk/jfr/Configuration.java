@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -79,7 +79,7 @@ public final class Configuration {
     }
 
     /**
-     * Returns an identifying name (for example, {@code "default" or "profile")}.
+     * Returns an identifying name (for example, {@code "default" or "profile"}).
      *
      * @return the name, or {@code null} if it doesn't exist
      */
@@ -88,7 +88,7 @@ public final class Configuration {
     }
 
     /**
-     * Returns a human-readable name (for example, {@code "Continuous" or "Profiling"}}.
+     * Returns a human-readable name (for example, {@code "Continuous" or "Profiling"}).
      *
      * @return the label, or {@code null} if it doesn't exist
      */

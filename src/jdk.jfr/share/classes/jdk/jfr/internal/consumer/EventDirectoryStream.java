@@ -46,7 +46,7 @@ import jdk.jfr.internal.util.Utils;
 import jdk.jfr.internal.management.StreamBarrier;
 
 /**
- * Implementation of an {@code EventStream}} that operates against a directory
+ * Implementation of an {@code EventStream} that operates against a directory
  * with chunk files.
  *
  */

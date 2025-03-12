@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -124,7 +124,7 @@ public abstract class SubscriberWrapper
 
     /**
      * Delivers data to be processed by this wrapper. Generated data to be sent
-     * downstream, must be provided to the {@link #outgoing(List, boolean)}}
+     * downstream, must be provided to the {@link #outgoing(List, boolean)}
      * method.
      *
      * @param buffers a List of ByteBuffers.

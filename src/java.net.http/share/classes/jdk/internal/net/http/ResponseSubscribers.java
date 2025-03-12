@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -708,7 +708,7 @@ public class ResponseSubscribers {
      * A body subscriber which receives input from an upstream subscriber
      * and maps that subscriber's body type to a new type. The upstream subscriber
      * delegates all flow operations directly to this object. The
-     * {@link CompletionStage} returned by {@link #getBody()}} takes the output
+     * {@link CompletionStage} returned by {@link #getBody()} takes the output
      * of the upstream {@code getBody()} and applies the mapper function to
      * obtain the new {@code CompletionStage} type.
      *

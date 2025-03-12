@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -230,7 +230,7 @@ public class BeansLinker implements GuardingDynamicLinker {
 
     /**
      * Returns true if the object is a Java constructor (obtained through
-     * {@link #getConstructorMethod(Class, String)}}.
+     * {@link #getConstructorMethod(Class, String)}.
      *
      * @param obj the object we want to test for being a Java constructor.
      * @return true if it is a constructor, false otherwise.
