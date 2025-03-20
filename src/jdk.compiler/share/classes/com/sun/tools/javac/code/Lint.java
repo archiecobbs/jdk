@@ -435,27 +435,6 @@ public class Lint {
     }
 
     /**
-     * Helper method. Log a lint warning if its lint category is enabled.
-     *
-     * @param warning key for the localized warning message
-     */
-    public void logIfEnabled(LintWarning warning) {
-        logIfEnabled(null, warning);
-    }
-
-    /**
-     * Helper method. Log a lint warning if its lint category is enabled.
-     *
-     * @param pos source position at which to report the warning
-     * @param warning key for the localized warning message
-     */
-    public void logIfEnabled(DiagnosticPosition pos, LintWarning warning) {
-        if (isEnabled(warning.getLintCategory())) {
-            log.warning(pos, warning);
-        }
-    }
-
-    /**
      * Obtain the set of recognized lint warning categories suppressed at the given symbol's declaration.
      *
      * <p>

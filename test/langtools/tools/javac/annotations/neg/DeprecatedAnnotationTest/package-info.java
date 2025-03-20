@@ -3,7 +3,7 @@
  * @bug 8068626
  * @summary Add javac lint warning when the Deprecated annotation is used where it is a no-op
  *
- * @compile/fail/ref=DeprecatedAnnotationTest.out -Werror -Xlint:deprecation -XDrawDiagnostics package-info.java
+ * @compile/fail/ref=DeprecatedAnnotationTest.out -Werror -XDshould-stop.ifError=WARN -Xlint:deprecation -XDrawDiagnostics package-info.java
  */
 
 @Deprecated

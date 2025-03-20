@@ -766,14 +766,34 @@ public class Log extends AbstractLog {
     }
 
     /**
+     * Report a warning if its {@link LintCategory} is enabled in the root {@link Lint}.
+     *
+     * @param key warning key
+     */
+    public void warnIfEnabled(LintWarning key) {
+        applyLint(rootLint(), diags.warning(source, null, key), this::report);
+    }
+
+    /**
      * Report a warning if its {@link LintCategory} is enabled at the position.
      *
-     * @param pos warning source position
+     * @param pos warning source position, must not be null
      * @param key warning key
      */
     public void warnIfEnabled(DiagnosticPosition pos, LintWarning key) {
         Assert.check(pos != null);
         waitForLint(pos, diags.warning(source, pos, key));
+    }
+
+    /**
+     * Get the {@link Lint} configuration that applies at the specified position.
+     * This should only be invoked after attribution.
+     *
+     * @param pos source code location in the current source file
+     * @throws IllegalStateException if not known yet
+     */
+    public Lint lintAt(DiagnosticPosition pos) {
+        return findLintAt(pos).orElseThrow(() -> new IllegalStateException("not known yet"));
     }
 
     /**
@@ -912,6 +932,15 @@ public class Log extends AbstractLog {
             Assert.check(decl.startPos >= prev.endPos || decl.startPos <= prev.startPos);
         });
 
+        // To handle various complicated swizzling that occurs with record fields, we record
+        // annotated variable declarations twice, with two different starting positions.
+        // See also section in Check.java under the comment "the section below is tricky".
+        if (tree instanceof JCVariableDecl vdef && vdef.vartype != null && vdef.vartype.pos != Position.NOPOS) {
+            int vartypePos = TreeInfo.getStartPos(vdef.vartype);
+            if (vartypePos > decl.startPos)
+                sourceInfo.decls.add(new Decl(vdef, vartypePos, endPos));
+        }
+
         // Done
         return tree;
     }
@@ -923,21 +952,18 @@ public class Log extends AbstractLog {
      * @param diagnostic the lint warning
      */
     private void waitForLint(DiagnosticPosition pos, JCDiagnostic diagnostic) {
-        Assert.check(pos != null);
+        findLintAt(pos).ifPresentOrElse(
+          lint -> applyLint(lint, diagnostic, this::report),
+          () -> diagnosticHandler.addLintWaiter(currentSourceFile(), diagnostic));
+    }
 
-        // Do we already know the Lint corresponding to "pos"? If so, report now.
+    private Optional<Lint> findLintAt(DiagnosticPosition pos) {
         JavaFileObject sourceFile = currentSourceFile();
-        SourceInfo sourceInfo = sourceInfoMap.computeIfAbsent(sourceFile, SourceInfo::new);
-        if (sourceInfo.isParsed()) {
-            Lint lint = sourceInfo.findDecl(pos).lint.get();
-            if (lint != null) {
-                applyLint(lint, diagnostic, this::report);
-                return;
-            }
-        }
-
-        // We must wait for it
-        diagnosticHandler.addLintWaiter(sourceFile, diagnostic);
+        return Optional.of(sourceInfoMap.computeIfAbsent(sourceFile, SourceInfo::new))
+          .filter(SourceInfo::isParsed)
+          .map(si -> si.findDecl(pos))
+          .map(Decl::lint)
+          .map(AtomicReference::get);
     }
 
     /**
@@ -983,8 +1009,9 @@ public class Log extends AbstractLog {
             mods = ((JCMethodDecl)tree).mods;
             break;
         case VARDEF:
-            mods = ((JCVariableDecl)tree).mods;
-            break;
+            return true;
+            //mods = ((JCVariableDecl)tree).mods;
+            //break;
         case TOPLEVEL:
             return true;
         default:
@@ -1058,7 +1085,11 @@ public class Log extends AbstractLog {
     private record Decl(Tag tag, int startPos, int endPos, AtomicReference<Lint> lint) {
 
         Decl(JCTree tree, int endPos) {
-            this(tree.getTag(), Decl.startPos(tree), endPos, new AtomicReference<>());
+            this(tree, Decl.startPos(tree), endPos);
+        }
+
+        Decl(JCTree tree, int startPos, int endPos) {
+            this(tree.getTag(), startPos, endPos, new AtomicReference<>());
         }
 
         // Does this declaration contain the given source position?

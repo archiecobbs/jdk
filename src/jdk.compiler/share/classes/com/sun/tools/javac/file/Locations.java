@@ -77,14 +77,11 @@ import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardJavaFileManager.PathFactory;
 import javax.tools.StandardLocation;
 
-import com.sun.tools.javac.code.Lint;
-import com.sun.tools.javac.resources.CompilerProperties.LintWarnings;
 import jdk.internal.jmod.JmodFile;
 
-import com.sun.tools.javac.code.Lint;
-import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
+import com.sun.tools.javac.resources.CompilerProperties.LintWarnings;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.util.DefinedBy;
 import com.sun.tools.javac.util.DefinedBy.Api;
@@ -127,11 +124,6 @@ public class Locations {
      */
     private FSInfo fsInfo;
 
-    /**
-     * The root {@link Lint} instance.
-     */
-    private Lint lint;
-
     private ModuleNameReader moduleNameReader;
 
     private PathFactory pathFactory = Paths::get;
@@ -172,9 +164,8 @@ public class Locations {
         }
     }
 
-    void update(Log log, Lint lint, FSInfo fsInfo) {
+    void update(Log log, FSInfo fsInfo) {
         this.log = log;
-        this.lint = lint;
         this.fsInfo = fsInfo;
     }
 
@@ -225,7 +216,7 @@ public class Locations {
                 try {
                     entries.add(getPath(s));
                 } catch (IllegalArgumentException e) {
-                    lint.logIfEnabled(LintWarnings.InvalidPath(s));
+                    log.warnIfEnabled(LintWarnings.InvalidPath(s));
                 }
             }
         }
@@ -319,7 +310,7 @@ public class Locations {
         private void addDirectory(Path dir, boolean warn) {
             if (!Files.isDirectory(dir)) {
                 if (warn) {
-                    lint.logIfEnabled(LintWarnings.DirPathElementNotFound(dir));
+                    log.warnIfEnabled(LintWarnings.DirPathElementNotFound(dir));
                 }
                 return;
             }
@@ -364,7 +355,7 @@ public class Locations {
             if (!fsInfo.exists(file)) {
                 /* No such file or directory exists */
                 if (warn) {
-                    lint.logIfEnabled(LintWarnings.PathElementNotFound(file));
+                    log.warnIfEnabled(LintWarnings.PathElementNotFound(file));
                 }
                 super.add(file);
                 return;
@@ -386,12 +377,12 @@ public class Locations {
                         try {
                             FileSystems.newFileSystem(file, (ClassLoader)null).close();
                             if (warn) {
-                                lint.logIfEnabled(LintWarnings.UnexpectedArchiveFile(file));
+                                log.warnIfEnabled(LintWarnings.UnexpectedArchiveFile(file));
                             }
                         } catch (IOException | ProviderNotFoundException e) {
                             // FIXME: include e.getLocalizedMessage in warning
                             if (warn) {
-                                lint.logIfEnabled(LintWarnings.InvalidArchiveFile(file));
+                                log.warnIfEnabled(LintWarnings.InvalidArchiveFile(file));
                             }
                             return;
                         }
@@ -1486,7 +1477,7 @@ public class Locations {
                 }
 
                 if (false) {  // temp disable, when enabled, massage examples.not-yet.txt suitably.
-                    log.warning(LintWarnings.LocnUnknownFileOnModulePath(p));
+                    log.warnIfEnabled(LintWarnings.LocnUnknownFileOnModulePath(p));
                 }
                 return null;
             }
@@ -1654,7 +1645,7 @@ public class Locations {
 
         void add(Map<String, List<Path>> map, Path prefix, Path suffix) {
             if (!Files.isDirectory(prefix)) {
-                lint.logIfEnabled(Files.exists(prefix) ?
+                log.warnIfEnabled(Files.exists(prefix) ?
                     LintWarnings.DirPathElementNotDirectory(prefix) :
                     LintWarnings.DirPathElementNotFound(prefix));
                 return;

@@ -90,76 +90,76 @@ public class RepeatingAnnotationsOnRecords extends TestRunner {
     }
 
     static final String SOURCE =
-            """
-            import java.lang.annotation.*;
-            import java.util.*;
-            import javax.annotation.processing.*;
-            import javax.lang.model.element.*;
+"""
+import java.lang.annotation.*;
+import java.util.*;
+import javax.annotation.processing.*;
+import javax.lang.model.element.*;
 
-            @Retention(RetentionPolicy.RUNTIME)
-            @Target({ ElementType.PARAMETER })
-            @interface ParameterContainer { Parameter[] value(); }
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ ElementType.PARAMETER })
+@interface ParameterContainer { Parameter[] value(); }
 
-            @Retention(RetentionPolicy.RUNTIME)
-            @Target({ ElementType.PARAMETER })
-            @Repeatable(ParameterContainer.class)
-            @interface Parameter {}
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ ElementType.PARAMETER })
+@Repeatable(ParameterContainer.class)
+@interface Parameter {}
 
-            @Retention(RetentionPolicy.RUNTIME)
-            @Target({ ElementType.METHOD })
-            @interface MethodContainer { Method[] value(); }
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ ElementType.METHOD })
+@interface MethodContainer { Method[] value(); }
 
-            @Retention(RetentionPolicy.RUNTIME)
-            @Target({ ElementType.METHOD })
-            @Repeatable(MethodContainer.class)
-            @interface Method {}
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ ElementType.METHOD })
+@Repeatable(MethodContainer.class)
+@interface Method {}
 
-            @Retention(RetentionPolicy.RUNTIME)
-            @Target({ ElementType.FIELD })
-            @interface FieldContainer { Field[] value(); }
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ ElementType.FIELD })
+@interface FieldContainer { Field[] value(); }
 
-            @Retention(RetentionPolicy.RUNTIME)
-            @Target({ ElementType.FIELD })
-            @Repeatable(FieldContainer.class)
-            @interface Field {}
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ ElementType.FIELD })
+@Repeatable(FieldContainer.class)
+@interface Field {}
 
-            @Retention(RetentionPolicy.RUNTIME)
-            @Target({ ElementType.RECORD_COMPONENT })
-            @interface RecComponentContainer { RecComponent[] value(); }
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ ElementType.RECORD_COMPONENT })
+@interface RecComponentContainer { RecComponent[] value(); }
 
-            @Retention(RetentionPolicy.RUNTIME)
-            @Target({ ElementType.RECORD_COMPONENT })
-            @Repeatable(RecComponentContainer.class)
-            @interface RecComponent {}
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ ElementType.RECORD_COMPONENT })
+@Repeatable(RecComponentContainer.class)
+@interface RecComponent {}
 
-            @Retention(RetentionPolicy.RUNTIME)
-            @interface AllContainer { All[] value(); }
+@Retention(RetentionPolicy.RUNTIME)
+@interface AllContainer { All[] value(); }
 
-            @Retention(RetentionPolicy.RUNTIME)
-            @Repeatable(AllContainer.class)
-            @interface All {}
+@Retention(RetentionPolicy.RUNTIME)
+@Repeatable(AllContainer.class)
+@interface All {}
 
-            @Retention(RetentionPolicy.RUNTIME)
-            @Target({ ElementType.FIELD, ElementType.RECORD_COMPONENT })
-            @interface RecComponentAndFieldContainer { RecComponentAndField[] value(); }
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ ElementType.FIELD, ElementType.RECORD_COMPONENT })
+@interface RecComponentAndFieldContainer { RecComponentAndField[] value(); }
 
-            @Retention(RetentionPolicy.RUNTIME)
-            @Target({ ElementType.FIELD, ElementType.RECORD_COMPONENT })
-            @Repeatable(RecComponentAndFieldContainer.class)
-            @interface RecComponentAndField {}
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ ElementType.FIELD, ElementType.RECORD_COMPONENT })
+@Repeatable(RecComponentAndFieldContainer.class)
+@interface RecComponentAndField {}
 
-            record R1(@Parameter @Parameter int i) {}
+record R1(@Parameter @Parameter int i) {}
 
-            record R2(@Method @Method int i) {}
+record R2(@Method @Method int i) {}
 
-            record R3(@Field @Field int i) {}
+record R3(@Field @Field int i) {}
 
-            record R4(@All @All int i) {}
+record R4(@All @All int i) {}
 
-            record R5(@RecComponent @RecComponent int i) {}
+record R5(@RecComponent @RecComponent int i) {}
 
-            record R6(@RecComponentAndField @RecComponentAndField int i) {}
-            """;
+record R6(@RecComponentAndField @RecComponentAndField int i) {}
+""";
 
     @Test
     public void testAnnoProcessing(Path base) throws Exception {

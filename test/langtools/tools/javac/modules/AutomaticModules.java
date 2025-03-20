@@ -586,11 +586,10 @@ public class AutomaticModules extends ModuleTestBase {
             .writeAll()
             .getOutputLines(Task.OutputKind.DIRECT);
 
-        expected = Arrays.asList("module-info.java:3:25: compiler.warn.requires.automatic",
-                                 "module-info.java:4:14: compiler.warn.requires.automatic",
+        expected = Arrays.asList("module-info.java:4:14: compiler.warn.requires.automatic",
                                  "- compiler.err.warnings.and.werror",
                                  "1 error",
-                                 "2 warnings");
+                                 "1 warning");
 
         if (!expected.equals(log)) {
             throw new Exception("expected output not found: " + log);

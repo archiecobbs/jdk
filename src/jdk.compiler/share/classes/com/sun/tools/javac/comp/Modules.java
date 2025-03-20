@@ -167,8 +167,6 @@ public class Modules extends JCTree.Visitor {
     private final String moduleVersionOpt;
     private final boolean sourceLauncher;
 
-    private final boolean lintOptions;
-
     private Set<ModuleSymbol> rootModules = null;
     private final Set<ModuleSymbol> warnedMissing = new HashSet<>();
 
@@ -201,8 +199,6 @@ public class Modules extends JCTree.Visitor {
         Options options = Options.instance(context);
 
         allowAccessIntoSystem = options.isUnset(Option.RELEASE);
-
-        lintOptions = options.isUnset(Option.XLINT_CUSTOM, "-" + LintCategory.OPTIONS.option);
 
         multiModuleMode = fileManager.hasLocation(StandardLocation.MODULE_SOURCE_PATH);
         ClassWriter classWriter = ClassWriter.instance(context);
@@ -790,11 +786,11 @@ public class Modules extends JCTree.Visitor {
             sym.requires = List.nil();
             sym.exports = List.nil();
             sym.opens = List.nil();
-            Lint prevLint = chk.setLint(lint.augment(sym));
+            Lint prevLint = chk.setLint(lint.augment(sym)); // %%%
             try {
-                tree.directives.forEach(t -> t.accept(this));
+                tree.directives.forEach(t -> t.accept(this)); // %%%
             } finally {
-                chk.setLint(prevLint);
+                chk.setLint(prevLint); // %%%
             }
             sym.requires = sym.requires.reverse();
             sym.exports = sym.exports.reverse();
@@ -1157,7 +1153,6 @@ public class Modules extends JCTree.Visitor {
             if (tree.directive != null && allModules().contains(tree.directive.module)) {
                 chk.checkDeprecated(tree.moduleName.pos(), msym, tree.directive.module);
                 chk.checkPreview(tree.moduleName.pos(), msym, tree.directive.module);
-                chk.checkModuleRequires(tree.moduleName.pos(), tree.directive);
                 msym.directives = msym.directives.prepend(tree.directive);
             }
         }
@@ -1261,12 +1256,9 @@ public class Modules extends JCTree.Visitor {
             }
             observable = computeTransitiveClosure(limitMods, rootModules, null);
             observable.addAll(rootModules);
-            if (lintOptions) {
-                for (ModuleSymbol msym : limitMods) {
-                    if (!observable.contains(msym)) {
-                        log.warning(
-                                LintWarnings.ModuleForOptionNotFound(Option.LIMIT_MODULES, msym));
-                    }
+            for (ModuleSymbol msym : limitMods) {
+                if (!observable.contains(msym)) {
+                    log.warnIfEnabled(LintWarnings.ModuleForOptionNotFound(Option.LIMIT_MODULES, msym));
                 }
             }
         }
@@ -1370,7 +1362,7 @@ public class Modules extends JCTree.Visitor {
                     .collect(Collectors.joining(","));
 
             if (!incubatingModules.isEmpty()) {
-                log.warning(LintWarnings.IncubatingModules(incubatingModules));
+                log.warnIfEnabled(LintWarnings.IncubatingModules(incubatingModules));
             }
         }
 
@@ -1719,10 +1711,7 @@ public class Modules extends JCTree.Visitor {
         }
 
         if (!unknownModules.contains(msym)) {
-            if (lintOptions) {
-                log.warning(
-                        LintWarnings.ModuleForOptionNotFound(Option.ADD_EXPORTS, msym));
-            }
+            log.warnIfEnabled(LintWarnings.ModuleForOptionNotFound(Option.ADD_EXPORTS, msym));
             unknownModules.add(msym);
         }
         return false;
@@ -1758,9 +1747,7 @@ public class Modules extends JCTree.Visitor {
 
             ModuleSymbol msym = syms.enterModule(names.fromString(sourceName));
             if (!allModules.contains(msym)) {
-                if (lintOptions) {
-                    log.warning(LintWarnings.ModuleForOptionNotFound(Option.ADD_READS, msym));
-                }
+                log.warnIfEnabled(LintWarnings.ModuleForOptionNotFound(Option.ADD_READS, msym));
                 continue;
             }
 
@@ -1778,9 +1765,7 @@ public class Modules extends JCTree.Visitor {
                         continue;
                     targetModule = syms.enterModule(names.fromString(targetName));
                     if (!allModules.contains(targetModule)) {
-                        if (lintOptions) {
-                            log.warning(LintWarnings.ModuleForOptionNotFound(Option.ADD_READS, targetModule));
-                        }
+                        log.warnIfEnabled(LintWarnings.ModuleForOptionNotFound(Option.ADD_READS, targetModule));
                         continue;
                     }
                 }

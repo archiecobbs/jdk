@@ -42,6 +42,10 @@ public class WarningAnalyzer {
 
     private final Log log;
     private final ThisEscapeAnalyzer thisEscapeAnalyzer;
+    private final SerializationWarnings serializationWarnings;
+    private final DeprecatedAnnotationWarnings deprecatedAnnotationWarnings;
+    private final ModuleWarnings moduleWarnings;
+    private final MethodWarnings methodWarnings;
 
     public static WarningAnalyzer instance(Context context) {
         WarningAnalyzer instance = context.get(contextKey);
@@ -55,9 +59,17 @@ public class WarningAnalyzer {
         context.put(contextKey, this);
         log = Log.instance(context);
         thisEscapeAnalyzer = ThisEscapeAnalyzer.instance(context);
+        serializationWarnings = SerializationWarnings.instance(context);
+        deprecatedAnnotationWarnings = DeprecatedAnnotationWarnings.instance(context);
+        moduleWarnings = ModuleWarnings.instance(context);
+        methodWarnings = MethodWarnings.instance(context);
     }
 
     public void analyzeTree(Env<AttrContext> env) {
         thisEscapeAnalyzer.analyzeTree(env);
+        serializationWarnings.analyze(env);
+        deprecatedAnnotationWarnings.analyze(env);
+        moduleWarnings.analyze(env);
+        methodWarnings.analyze(env);
     }
 }
