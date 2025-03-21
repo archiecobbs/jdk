@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8167000
  * @summary Refine handling of multiple maximally specific abstract methods
- * @compile/fail/ref=T8167000.out -XDrawDiagnostics -Werror -Xlint:unchecked T8167000.java
+ * @compile/fail/ref=T8167000.out -XDrawDiagnostics -Werror -Xlint:unchecked -XDshould-stop.ifError=WARN T8167000.java
  */
 
 import java.util.*;

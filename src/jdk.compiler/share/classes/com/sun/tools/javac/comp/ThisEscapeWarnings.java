@@ -147,9 +147,9 @@ import static com.sun.tools.javac.tree.JCTree.Tag.*;
  * This code and its internal interfaces are subject to change or
  * deletion without notice.</b>
  */
-public class ThisEscapeAnalyzer extends TreeScanner {
+public class ThisEscapeWarnings extends TreeScanner {
 
-    protected static final Context.Key<ThisEscapeAnalyzer> contextKey = new Context.Key<>();
+    protected static final Context.Key<ThisEscapeWarnings> contextKey = new Context.Key<>();
 
 // Other singletons we utilize
 
@@ -223,15 +223,15 @@ public class ThisEscapeAnalyzer extends TreeScanner {
 
 // Access
 
-    public static ThisEscapeAnalyzer instance(Context context) {
-        ThisEscapeAnalyzer instance = context.get(contextKey);
+    public static ThisEscapeWarnings instance(Context context) {
+        ThisEscapeWarnings instance = context.get(contextKey);
         if (instance == null)
-            instance = new ThisEscapeAnalyzer(context);
+            instance = new ThisEscapeWarnings(context);
         return instance;
     }
 
     @SuppressWarnings("this-escape")
-    protected ThisEscapeAnalyzer(Context context) {
+    protected ThisEscapeWarnings(Context context) {
         context.put(contextKey, this);
         names = Names.instance(context);
         log = Log.instance(context);
@@ -245,7 +245,7 @@ public class ThisEscapeAnalyzer extends TreeScanner {
 // Main method
 //
 
-    public void analyzeTree(Env<AttrContext> env) {
+    public void analyze(Env<AttrContext> env) {
         try {
             doAnalyzeTree(env);
         } finally {
@@ -289,7 +289,7 @@ public class ThisEscapeAnalyzer extends TreeScanner {
         // Record classes whose outer instance (if any) is non-public.
         new TreeScanner() {
 
-            private Lint lint = ThisEscapeAnalyzer.this.lint;
+            private Lint lint = ThisEscapeWarnings.this.lint;
             private JCClassDecl currentClass;
             private boolean nonPublicOuter;
 

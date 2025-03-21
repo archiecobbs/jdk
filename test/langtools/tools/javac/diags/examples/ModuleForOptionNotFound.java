@@ -24,7 +24,7 @@
 // key: compiler.warn.module.for.option.not.found
 // key: compiler.err.doesnt.exist
 
-// options: --add-exports undefModule/undefPackage=ALL-UNNAMED
+// options: -XDshould-stop.ifError=WARN --add-exports undefModule/undefPackage=ALL-UNNAMED
 
 import undefPackage.Any;
 

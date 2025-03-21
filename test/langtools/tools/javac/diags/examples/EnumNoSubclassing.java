@@ -24,5 +24,6 @@
 // key: compiler.err.enum.no.subclassing
 // key: compiler.note.unchecked.filename
 // key: compiler.note.unchecked.recompile
+// options: -XDshould-stop.ifError=WARN
 
 class EnumNoSubclassing extends Enum { }

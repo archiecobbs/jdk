@@ -573,33 +573,6 @@ public class Check {
         }
     }
 
-    /** Check for redundant casts (i.e. where source type is a subtype of target type)
-     * The problem should only be reported for non-292 cast
-     */
-    public void checkRedundantCast(Env<AttrContext> env, final JCTypeCast tree) {
-        if (!tree.type.isErroneous()
-                && types.isSameType(tree.expr.type, tree.clazz.type)
-                && !(ignoreAnnotatedCasts && TreeInfo.containsTypeAnnotation(tree.clazz))
-                && !is292targetTypeCast(tree)) {
-            log.warnIfEnabled(tree.pos(), LintWarnings.RedundantCast(tree.clazz.type));
-        }
-    }
-    //where
-        private boolean is292targetTypeCast(JCTypeCast tree) {
-            boolean is292targetTypeCast = false;
-            JCExpression expr = TreeInfo.skipParens(tree.expr);
-            if (expr.hasTag(APPLY)) {
-                JCMethodInvocation apply = (JCMethodInvocation)expr;
-                Symbol sym = TreeInfo.symbol(apply.meth);
-                is292targetTypeCast = sym != null &&
-                    sym.kind == MTH &&
-                    (sym.flags() & HYPOTHETICAL) != 0;
-            }
-            return is292targetTypeCast;
-        }
-
-        private static final boolean ignoreAnnotatedCasts = true;
-
     /** Check that a type is within some bounds.
      *
      *  Used in TypeApply to verify that, e.g., X in {@code V<X>} is a valid
@@ -1142,9 +1115,6 @@ public class Check {
             } else {
                 mask = MethodFlags;
             }
-            if ((flags & STRICTFP) != 0) {
-                log.warnIfEnabled(tree.pos(), LintWarnings.Strictfp);
-            }
             // Imply STRICTFP if owner has STRICTFP set.
             if (((flags|implicit) & Flags.ABSTRACT) == 0 ||
                 ((flags) & Flags.DEFAULT) != 0)
@@ -1185,9 +1155,6 @@ public class Check {
                 // records can't be declared abstract
                 mask &= ~ABSTRACT;
                 implicit |= FINAL;
-            }
-            if ((flags & STRICTFP) != 0) {
-                log.warnIfEnabled(tree.pos(), LintWarnings.Strictfp);
             }
             // Imply STRICTFP if owner has STRICTFP set.
             implicit |= sym.owner.flags_field & STRICTFP;
@@ -3638,24 +3605,6 @@ public class Check {
 /* *************************************************************************
  * Miscellaneous
  **************************************************************************/
-
-    /**
-     *  Check for division by integer constant zero
-     *  @param pos           Position for error reporting.
-     *  @param operator      The operator for the expression
-     *  @param operand       The right hand operand for the expression
-     */
-    void checkDivZero(final DiagnosticPosition pos, Symbol operator, Type operand) {
-        if (operand.constValue() != null
-            && operand.getTag().isSubRangeOf(LONG)
-            && ((Number) (operand.constValue())).longValue() == 0) {
-            int opc = ((OperatorSymbol)operator).opcode;
-            if (opc == ByteCodes.idiv || opc == ByteCodes.imod
-                || opc == ByteCodes.ldiv || opc == ByteCodes.lmod) {
-                log.warnIfEnabled(pos, LintWarnings.DivZero);
-            }
-        }
-    }
 
     /**
      *  Check for possible loss of precission

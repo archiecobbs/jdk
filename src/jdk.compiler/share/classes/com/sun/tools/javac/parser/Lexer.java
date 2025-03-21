@@ -28,7 +28,6 @@ package com.sun.tools.javac.parser;
 import java.util.Queue;
 
 import com.sun.tools.javac.parser.Tokens.*;
-import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.JCDiagnostic.LintWarning;
 import com.sun.tools.javac.util.Position.LineMap;
@@ -106,28 +105,6 @@ public interface Lexer {
      * token.
      */
     Queue<Comment> getDocComments();
-
-    /**
-     * Report finishing parsing a declaration that supports {@code @SuppressWarnings}.
-     *
-     * @param decl the newly parsed declaration
-     * @param endPos the ending position of {@code decl} (exclusive)
-     * @return the given {@code decl} (for fluent chaining)
-     */
-    public <T extends JCTree> T endDecl(T decl, int endPos);
-
-    /**
-     * Report finishing parsing a declaration that supports {@code @SuppressWarnings}.
-     *
-     * <p>
-     * This is a convenience method for when the ending position equals {@code prevToken().endPos}.
-     *
-     * @param decl the newly parsed declaration
-     * @return the given {@code decl} (for fluent chaining)
-     */
-    default <T extends JCTree> T endDecl(T decl) {
-        return endDecl(decl, prevToken().endPos);
-    }
 
     /**
      * Report a warning that is subject to possible suppression by {@code @SuppressWarnings}.

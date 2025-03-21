@@ -24,7 +24,7 @@
  // key: compiler.note.preview.filename
  // key: compiler.note.preview.recompile
  // key: compiler.err.cant.assign.initialized.before.ctor.called
- // options: --enable-preview  -source ${jdk.version}
+ // options: -XDshould-stop.ifError=WARN --enable-preview  -source ${jdk.version}
 
 class CantAssignInitializedBeforeCtorCalled {
     int x = 1;

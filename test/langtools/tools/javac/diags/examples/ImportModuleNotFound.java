@@ -24,7 +24,7 @@
  // key: compiler.err.import.module.not.found
  // key: compiler.note.preview.filename
  // key: compiler.note.preview.recompile
- // options: --release ${jdk.version} --enable-preview
+ // options: -XDshould-stop.ifError=WARN --release ${jdk.version} --enable-preview
 
 import module unknown;
 

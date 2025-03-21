@@ -1476,7 +1476,7 @@ public class JavaCompiler {
                                             env.enclClass.sym.sourcefile :
                                             env.toplevel.sourcefile);
         try {
-            warningAnalyzer.analyzeTree(env);
+            warningAnalyzer.analyze(env);
             compileStates.put(env, CompileState.WARN);
             results.add(env);
         }
