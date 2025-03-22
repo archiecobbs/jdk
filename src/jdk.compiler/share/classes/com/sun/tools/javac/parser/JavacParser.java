@@ -2119,7 +2119,7 @@ public class JavacParser implements Parser {
                 if (param.vartype != null
                         && restrictedTypeName(param.vartype, true) != null) {
                     checkSourceLevel(param.pos, Feature.VAR_SYNTAX_IMPLICIT_LAMBDAS);
-                    param.startPos = TreeInfo.getStartPos(param);
+                    param.startPos = TreeInfo.getStartPos(param.vartype);
                     param.vartype = null;
                 }
             }
@@ -3780,7 +3780,6 @@ public class JavacParser implements Parser {
                     startPos = TreeInfo.getStartPos(mods);
                     if (startPos == Position.NOPOS)
                         startPos = TreeInfo.getStartPos(type);
-                    pos = startPos;
                     //implicit type
                     type = null;
                 }
