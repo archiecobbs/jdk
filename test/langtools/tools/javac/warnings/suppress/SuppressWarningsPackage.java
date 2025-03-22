@@ -128,18 +128,18 @@ public class SuppressWarningsPackage extends TestRunner {
                          "module-info.java:7:14: compiler.warn.has.been.deprecated: test.Service, test",
                          "module-info.java:8:18: compiler.warn.has.been.deprecated: test.Service, test",
                          "module-info.java:8:36: compiler.warn.has.been.deprecated: test.ServiceImpl, test",
-                         "module-info.java:3:12: compiler.warn.has.been.deprecated: test.DeprecatedClass, test",
                          "package-info.java:1:2: compiler.warn.has.been.deprecated: test.DeprecatedAnn, test",
                          "package-info.java:1:16: compiler.warn.has.been.deprecated: test.DeprecatedClass, test",
                          "Use.java:2:2: compiler.warn.has.been.deprecated: test.DeprecatedAnn, test",
                          "Use.java:2:16: compiler.warn.has.been.deprecated: test.DeprecatedClass, test",
+                         "module-info.java:3:12: compiler.warn.has.been.deprecated: test.DeprecatedClass, test",
                          "10 warnings"),
             new TestCase("@SuppressWarnings(\"deprecation\")",
-                         "module-info.java:3:12: compiler.warn.has.been.deprecated: test.DeprecatedClass, test",
                          "package-info.java:1:2: compiler.warn.has.been.deprecated: test.DeprecatedAnn, test",
                          "package-info.java:1:16: compiler.warn.has.been.deprecated: test.DeprecatedClass, test",
                          "Use.java:2:2: compiler.warn.has.been.deprecated: test.DeprecatedAnn, test",
                          "Use.java:2:16: compiler.warn.has.been.deprecated: test.DeprecatedClass, test",
+                         "module-info.java:3:12: compiler.warn.has.been.deprecated: test.DeprecatedClass, test",
                          "5 warnings")
         };
         for (TestCase tc : testCases) {

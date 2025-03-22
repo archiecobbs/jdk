@@ -974,7 +974,8 @@ public class JavacParser implements Parser {
                 if (Feature.UNNAMED_VARIABLES.allowedInSource(source) && name == names.underscore) {
                     name = names.empty;
                 }
-                JCVariableDecl var = S.endDecl(toP(F.at(varPos).VarDef(mods, name, e, null)));
+                JCVariableDecl var = toP(F.at(varPos).VarDef(mods, name, e, null));
+                var.endPos = S.prevToken().endPos;
                 if (e == null) {
                     var.startPos = pos;
                     if (var.name == names.underscore && !allowVar) {
@@ -2118,7 +2119,7 @@ public class JavacParser implements Parser {
                 if (param.vartype != null
                         && restrictedTypeName(param.vartype, true) != null) {
                     checkSourceLevel(param.pos, Feature.VAR_SYNTAX_IMPLICIT_LAMBDAS);
-                    param.startPos = TreeInfo.getStartPos(param.vartype);
+                    param.startPos = TreeInfo.getStartPos(param);
                     param.vartype = null;
                 }
             }
@@ -2713,6 +2714,7 @@ public class JavacParser implements Parser {
             List<JCTree> defs = classInterfaceOrRecordBody(names.empty, false, false);
             JCModifiers mods = F.at(Position.NOPOS).Modifiers(0);
             body = toP(F.at(pos).AnonymousClassDef(mods, defs));
+            body.endPos = S.prevToken().endPos;
         }
         return toP(F.at(newpos).NewClass(encl, typeArgs, t, args, body));
     }
@@ -3778,14 +3780,16 @@ public class JavacParser implements Parser {
                     startPos = TreeInfo.getStartPos(mods);
                     if (startPos == Position.NOPOS)
                         startPos = TreeInfo.getStartPos(type);
+                    pos = startPos;
                     //implicit type
                     type = null;
                 }
             }
         }
-        JCVariableDecl result = S.endDecl(toP(F.at(pos).VarDef(mods, name, type, init, declaredUsingVar)));
+        JCVariableDecl result = toP(F.at(pos).VarDef(mods, name, type, init, declaredUsingVar));
         attach(result, dc);
         result.startPos = startPos;
+        result.endPos = S.prevToken().endPos;
         return result;
     }
 
@@ -3874,7 +3878,9 @@ public class JavacParser implements Parser {
                         log.error(token.pos, Errors.WrongReceiver);
                     }
                 }
-                return S.endDecl(toP(F.at(pos).ReceiverVarDef(mods, pn, type)));
+                JCVariableDecl result = toP(F.at(pos).ReceiverVarDef(mods, pn, type));
+                result.endPos = S.prevToken().endPos;
+                return result;
             }
         } else {
             /** if it is a lambda parameter and the token kind is not an identifier,
@@ -3899,8 +3905,10 @@ public class JavacParser implements Parser {
             name = names.empty;
         }
 
-        return S.endDecl(toP(F.at(pos).VarDef(mods, name, type, null,
-                type != null && type.hasTag(IDENT) && ((JCIdent)type).name == names.var)));
+        JCVariableDecl result = toP(F.at(pos).VarDef(mods, name, type, null,
+                type != null && type.hasTag(IDENT) && ((JCIdent)type).name == names.var));
+        result.endPos = S.prevToken().endPos;
+        return result;
     }
 
     /** Resources = Resource { ";" Resources }
@@ -3969,7 +3977,8 @@ public class JavacParser implements Parser {
             nextToken();
             JCExpression pid = qualident(false);
             accept(SEMI);
-            JCPackageDecl pd = S.endDecl(toP(F.at(packagePos).PackageDecl(annotations, pid)));
+            JCPackageDecl pd = toP(F.at(packagePos).PackageDecl(annotations, pid));
+            pd.endPos = S.prevToken().endPos;
             attach(pd, firstToken.docComment());
             consumedToplevelDoc = true;
             defs.append(pd);
@@ -4091,7 +4100,7 @@ public class JavacParser implements Parser {
             toplevel.lineMap = S.getLineMap();
         this.endPosTable.setParser(null); // remove reference to parser
         toplevel.endPositions = this.endPosTable;
-        return S.endDecl(toplevel);
+        return toplevel;
     }
 
     // Restructure top level to be an implicitly declared class.
@@ -4143,7 +4152,8 @@ public class JavacParser implements Parser {
         int endPos = S.prevToken().endPos;
         accept(EOF);
 
-        JCModuleDecl result = S.endDecl(toP(F.at(pos).ModuleDef(mods, kind, name, directives)), endPos);
+        JCModuleDecl result = toP(F.at(pos).ModuleDef(mods, kind, name, directives));
+        result.endPos = endPos;
         attach(result, dc);
         return result;
     }
@@ -4261,7 +4271,9 @@ public class JavacParser implements Parser {
             }
         } while (token.kind == DOT);
         accept(SEMI);
-        return toP(F.at(pos).Import((JCFieldAccess)pid, importStatic));
+        JCImport result = toP(F.at(pos).Import((JCFieldAccess)pid, importStatic));
+        result.endPos = S.prevToken().endPos;
+        return result;
     }
 
     /** TypeDeclaration = ClassOrInterfaceOrEnumDeclaration
@@ -4344,8 +4356,9 @@ public class JavacParser implements Parser {
         saveDanglingDocComments(dc);
 
         List<JCTree> defs = classInterfaceOrRecordBody(name, false, false);
-        JCClassDecl result = S.endDecl(toP(F.at(pos).ClassDef(
-            mods, name, typarams, extending, implementing, permitting, defs)));
+        JCClassDecl result = toP(F.at(pos).ClassDef(
+            mods, name, typarams, extending, implementing, permitting, defs));
+        result.endPos = S.prevToken().endPos;
         attach(result, dc);
         return result;
     }
@@ -4394,8 +4407,8 @@ public class JavacParser implements Parser {
             JCVariableDecl field = fields.get(i);
             defs = defs.prepend(field);
         }
-        JCClassDecl result = S.endDecl(
-            toP(F.at(pos).ClassDef(mods, name, typarams, null, implementing, defs)), endPos);
+        JCClassDecl result = toP(F.at(pos).ClassDef(mods, name, typarams, null, implementing, defs));
+        result.endPos = endPos;
         attach(result, dc);
         return result;
     }
@@ -4434,8 +4447,9 @@ public class JavacParser implements Parser {
 
         List<JCTree> defs;
         defs = classInterfaceOrRecordBody(name, true, false);
-        JCClassDecl result = S.endDecl(toP(F.at(pos).ClassDef(
-            mods, name, typarams, null, extending, permitting, defs)));
+        JCClassDecl result = toP(F.at(pos).ClassDef(
+            mods, name, typarams, null, extending, permitting, defs));
+        result.endPos = S.prevToken().endPos;
         attach(result, dc);
         return result;
     }
@@ -4481,9 +4495,10 @@ public class JavacParser implements Parser {
 
         List<JCTree> defs = enumBody(name);
         mods.flags |= Flags.ENUM;
-        JCClassDecl result = S.endDecl(toP(F.at(pos).
+        JCClassDecl result = toP(F.at(pos).
             ClassDef(mods, name, List.nil(),
-                     null, implementing, defs)));
+                     null, implementing, defs));
+        result.endPos = S.prevToken().endPos;
         attach(result, dc);
         return result;
     }
@@ -4622,10 +4637,12 @@ public class JavacParser implements Parser {
             createPos = identPos;
         JCIdent ident = F.at(identPos).Ident(enumName);
         JCNewClass create = F.at(createPos).NewClass(null, typeArgs, ident, args, body);
+        int endPos = S.prevToken().endPos;
         if (createPos != identPos)
-            storeEnd(create, S.prevToken().endPos);
+            storeEnd(create, endPos);
         ident = F.at(identPos).Ident(enumName);
-        JCTree result = S.endDecl(toP(F.at(pos).VarDef(mods, name, ident, create)));
+        JCVariableDecl result = toP(F.at(pos).VarDef(mods, name, ident, create));
+        result.endPos = endPos;
         attach(result, dc);
         return result;
     }
@@ -5052,9 +5069,10 @@ public class JavacParser implements Parser {
             }
 
             JCMethodDecl result =
-                    S.endDecl(toP(F.at(pos).MethodDef(mods, name, type, typarams,
+                    toP(F.at(pos).MethodDef(mods, name, type, typarams,
                                             receiverParam, params, thrown,
-                                            body, defaultValue)));
+                                            body, defaultValue));
+            result.endPos = S.prevToken().endPos;
             attach(result, dc);
             return result;
         } finally {

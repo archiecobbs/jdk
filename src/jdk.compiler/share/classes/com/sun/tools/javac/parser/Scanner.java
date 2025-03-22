@@ -31,7 +31,6 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Queue;
 
-import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.JCDiagnostic.LintWarning;
 import com.sun.tools.javac.util.Position.LineMap;
@@ -151,11 +150,6 @@ public class Scanner implements Lexer {
     @Override
     public Queue<Comment> getDocComments() {
         return docComments;
-    }
-
-    @Override
-    public <T extends JCTree> T endDecl(T decl, int endPos) {
-        return tokenizer.log.endDecl(decl, endPos);
     }
 
     @Override
