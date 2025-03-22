@@ -4607,7 +4607,7 @@ public class Check {
 
     void checkModuleRequires(final DiagnosticPosition pos, final RequiresDirective rd) {
         if ((rd.module.flags() & Flags.AUTOMATIC_MODULE) != 0) {
-            if (rd.isTransitive()) {
+            if (rd.isTransitive()) {    // see comment in Log.applyLint() for special logic that applies
                 log.warnIfEnabled(pos, LintWarnings.RequiresTransitiveAutomatic);
             } else {
                 log.warnIfEnabled(pos, LintWarnings.RequiresAutomatic);

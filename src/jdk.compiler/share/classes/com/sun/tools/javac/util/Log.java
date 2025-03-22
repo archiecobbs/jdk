@@ -150,7 +150,7 @@ public class Log extends AbstractLog {
          * Flush diagnostics previously deferred via {@link #addLintWaiter} and within the given declaration.
          *
          * @param sourceInfo source file info
-         * @param topDecl top level declaration with newly computed lints
+         * @param topDecl top-level declaration with newly computed lints
          */
         public void flushLintWaiters(SourceInfo sourceInfo, Decl topDecl) {
             List<JCDiagnostic> diagnostics = lintWaitersMap.get(sourceInfo.sourceFile);
@@ -825,7 +825,7 @@ public class Log extends AbstractLog {
 
     /**
      * Get the {@link Lint} configuration that applies at the specified source code position.
-     * This only works after the WARN phase has started for the containing top level declaration.
+     * This only works after the entire containing top-level declaration has been attributed.
      *
      * @param pos source code location in the current source file, or null if not specific to a source code position
      * @throws IllegalStateException if the applicable {@link Lint} has not been calculated yet
@@ -873,9 +873,9 @@ public class Log extends AbstractLog {
             }
         } else {
 
-            // Hackery for REQUIRES_AUTOMATIC vs. REQUIRES_TRANSITIVE_AUTOMATIC (see Check.checkModuleRequires())
+            // Fallback hackery for REQUIRES_TRANSITIVE_AUTOMATIC (see also Check.checkModuleRequires())
             if (diagnostic.getCode().equals("compiler.warn.requires.transitive.automatic") &&
-                    !lint.isEnabled(LintCategory.REQUIRES_TRANSITIVE_AUTOMATIC)) {
+                    !lint.isEnabled(REQUIRES_TRANSITIVE_AUTOMATIC)) {
                 diagnostic = diags.warning(diagnostic.getDiagnosticSource(),
                   diagnostic.getDiagnosticPosition(), LintWarnings.RequiresAutomatic);
                 category = diagnostic.getLintCategory();
@@ -959,10 +959,10 @@ public class Log extends AbstractLog {
     }
 
     /**
-     * Calculate the {@lint Lint} configurations for declarations in the given tree
-     * and flush any affected lint waiters.
+     * Calculate {@lint Lint} configurations for all declarations within the given top-level tree
+     * and the flush any affected lint waiters.
      *
-     * @param env top level declaration attribution environment
+     * @param env top-level declaration attribution environment
      */
     public void calculateLints(Env<AttrContext> env) {
 
@@ -970,7 +970,7 @@ public class Log extends AbstractLog {
         Assert.check(env.toplevel.sourcefile.equals(currentSourceFile()));
         SourceInfo sourceInfo = sourceInfoMap.computeIfAbsent(env.toplevel.sourcefile, SourceInfo::new);
 
-        // Create a new "ready range' and compute all the lints therein
+        // Calculate lints for this top-level tree
         Decl topDecl = new Decl(env.tree, rootLint());
         List<Decl> readyDecls = new ArrayList<>();
         new LintCalculator(readyDecls, rootLint()).scan(env.tree);
@@ -1021,7 +1021,7 @@ public class Log extends AbstractLog {
               .map(currentLint::augment)
               .orElse(currentLint);
             recursion.accept(tree);
-            if (currentLint != previousLint) {      // Lint.augment() returns the same object if there's no change
+            if (currentLint != previousLint) {          // Lint.augment() returns the same object if no change
                 decls.add(new Decl(tree, currentLint));
                 currentLint = previousLint;
             }
@@ -1034,7 +1034,7 @@ public class Log extends AbstractLog {
      * The information we track on a per-source file basis to facilitate {@code @SuppressWarnings}.
      *
      * @param sourceFile the source file
-     * @param decls the {@link Decl}s of the source file groupd by top-level declaration
+     * @param readyDeclsMap top-level declarations and their associated known {@link Lint}s
      */
     private record SourceInfo(JavaFileObject sourceFile, Map<Decl, List<Decl>> readyDeclsMap) {
 
@@ -1042,7 +1042,7 @@ public class Log extends AbstractLog {
             this(sourceFile, new HashMap<>());
         }
 
-        // Find the innermost declaration containing the given position
+        // Find the innermost declaration with a known lint containing the given position
         Optional<Decl> findDecl(DiagnosticPosition pos) {
             return readyDeclsMap.entrySet().stream()
               .filter(entry -> entry.getKey().contains(pos))
