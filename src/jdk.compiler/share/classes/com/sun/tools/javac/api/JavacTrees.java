@@ -360,9 +360,14 @@ public class JavacTrees extends DocTrees {
                 Log.DeferredDiagnosticHandler deferredDiagnosticHandler = log.new DeferredDiagnosticHandler();
                 try {
                     Env<AttrContext> env = getAttrContext(path.getTreePath());
-                    Type t = attr.attribType(dcReference.qualifierExpression, env);
-                    if (t != null && !t.isErroneous()) {
-                        return t;
+                    JavaFileObject prevSource = log.useSource(env.toplevel.sourcefile);
+                    try {
+                        Type t = attr.attribType(dcReference.qualifierExpression, env);
+                        if (t != null && !t.isErroneous()) {
+                            return t;
+                        }
+                    } finally {
+                        log.useSource(prevSource);
                     }
                 } catch (Abort e) { // may be thrown by Check.completionError in case of bad class file
                     return null;
@@ -388,7 +393,7 @@ public class JavacTrees extends DocTrees {
             return null;
         }
         Log.DeferredDiagnosticHandler deferredDiagnosticHandler = log.new DeferredDiagnosticHandler();
-        JavaFileObject prev = log.useSource(env.toplevel.sourcefile);
+        JavaFileObject prevSource = log.useSource(env.toplevel.sourcefile);
         try {
             final TypeSymbol tsym;
             final Name memberName;
@@ -510,7 +515,7 @@ public class JavacTrees extends DocTrees {
         } catch (Abort e) { // may be thrown by Check.completionError in case of bad class file
             return null;
         } finally {
-            log.useSource(prev);
+            log.useSource(prevSource);
             log.popDiagnosticHandler(deferredDiagnosticHandler);
         }
     }
