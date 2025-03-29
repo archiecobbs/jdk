@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -76,8 +76,8 @@ public class DeprecationTest extends TestRunner {
                     .writeAll()
                     .getOutputLines(Task.OutputKind.DIRECT);
 
-        List<String> expected = List.of("package-info.java:1:21: compiler.warn.deprecated.annotation.has.no.effect: kindname.package",
-                                        "Test.java:1:35: compiler.warn.has.been.deprecated: use.DeprecatedClass, use",
+        List<String> expected = List.of("Test.java:1:35: compiler.warn.has.been.deprecated: use.DeprecatedClass, use",
+                                        "package-info.java:1:21: compiler.warn.deprecated.annotation.has.no.effect: kindname.package",
                                         "2 warnings");
 
         if (!Objects.equals(actual, expected)) {

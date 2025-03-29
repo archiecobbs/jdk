@@ -59,8 +59,9 @@ import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeScanner;
 import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.Context;
-import com.sun.tools.javac.util.JCDiagnostic;
+import com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
+import com.sun.tools.javac.util.JCDiagnostic.LintWarning;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Names;
@@ -150,6 +151,9 @@ import static com.sun.tools.javac.tree.JCTree.Tag.*;
 public class ThisEscapeAnalyzer extends TreeScanner {
 
     protected static final Context.Key<ThisEscapeAnalyzer> contextKey = new Context.Key<>();
+
+    private static final DiagnosticFlag[] NO_FLAGS = new DiagnosticFlag[0];
+    private static final DiagnosticFlag[] CONTINUATION_FLAGS = new DiagnosticFlag[] { DiagnosticFlag.CONTINUATION };
 
 // Other singletons we utilize
 
@@ -459,12 +463,14 @@ public class ThisEscapeAnalyzer extends TreeScanner {
             previous = warning;
 
             // Emit warnings showing the entire stack trace
-            JCDiagnostic.Warning key = LintWarnings.PossibleThisEscape;
+            LintWarning key = LintWarnings.PossibleThisEscape;
+            DiagnosticFlag[] flags = NO_FLAGS;
             int remain = warning.length;
             do {
                 DiagnosticPosition pos = warning[--remain];
-                log.warning(pos, key);
+                log.warning(pos, key, flags);
                 key = LintWarnings.PossibleThisEscapeLocation;
+                flags = CONTINUATION_FLAGS;
             } while (remain > 0);
         }
         warningList.clear();

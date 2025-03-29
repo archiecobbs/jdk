@@ -102,6 +102,7 @@ import com.sun.tools.javac.tree.JCTree.Tag;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
@@ -167,8 +168,6 @@ public class Modules extends JCTree.Visitor {
     private final String moduleVersionOpt;
     private final boolean sourceLauncher;
 
-    private final boolean lintOptions;
-
     private Set<ModuleSymbol> rootModules = null;
     private final Set<ModuleSymbol> warnedMissing = new HashSet<>();
 
@@ -201,8 +200,6 @@ public class Modules extends JCTree.Visitor {
         Options options = Options.instance(context);
 
         allowAccessIntoSystem = options.isUnset(Option.RELEASE);
-
-        lintOptions = options.isUnset(Option.XLINT_CUSTOM, "-" + LintCategory.OPTIONS.option);
 
         multiModuleMode = fileManager.hasLocation(StandardLocation.MODULE_SOURCE_PATH);
         ClassWriter classWriter = ClassWriter.instance(context);
@@ -1261,12 +1258,9 @@ public class Modules extends JCTree.Visitor {
             }
             observable = computeTransitiveClosure(limitMods, rootModules, null);
             observable.addAll(rootModules);
-            if (lintOptions) {
-                for (ModuleSymbol msym : limitMods) {
-                    if (!observable.contains(msym)) {
-                        log.warning(
-                                LintWarnings.ModuleForOptionNotFound(Option.LIMIT_MODULES, msym));
-                    }
+            for (ModuleSymbol msym : limitMods) {
+                if (!observable.contains(msym)) {
+                    log.warning(LintWarnings.ModuleForOptionNotFound(Option.LIMIT_MODULES, msym), DiagnosticFlag.DEFAULT_ENABLED);
                 }
             }
         }
@@ -1719,10 +1713,7 @@ public class Modules extends JCTree.Visitor {
         }
 
         if (!unknownModules.contains(msym)) {
-            if (lintOptions) {
-                log.warning(
-                        LintWarnings.ModuleForOptionNotFound(Option.ADD_EXPORTS, msym));
-            }
+            log.warning(LintWarnings.ModuleForOptionNotFound(Option.ADD_EXPORTS, msym), DiagnosticFlag.DEFAULT_ENABLED);
             unknownModules.add(msym);
         }
         return false;
@@ -1758,9 +1749,7 @@ public class Modules extends JCTree.Visitor {
 
             ModuleSymbol msym = syms.enterModule(names.fromString(sourceName));
             if (!allModules.contains(msym)) {
-                if (lintOptions) {
-                    log.warning(LintWarnings.ModuleForOptionNotFound(Option.ADD_READS, msym));
-                }
+                log.warning(LintWarnings.ModuleForOptionNotFound(Option.ADD_READS, msym), DiagnosticFlag.DEFAULT_ENABLED);
                 continue;
             }
 
@@ -1778,9 +1767,8 @@ public class Modules extends JCTree.Visitor {
                         continue;
                     targetModule = syms.enterModule(names.fromString(targetName));
                     if (!allModules.contains(targetModule)) {
-                        if (lintOptions) {
-                            log.warning(LintWarnings.ModuleForOptionNotFound(Option.ADD_READS, targetModule));
-                        }
+                        log.warning(LintWarnings.ModuleForOptionNotFound(Option.ADD_READS, targetModule),
+                            DiagnosticFlag.DEFAULT_ENABLED);
                         continue;
                     }
                 }

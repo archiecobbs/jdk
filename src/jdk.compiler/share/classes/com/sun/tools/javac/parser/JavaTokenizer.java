@@ -217,7 +217,7 @@ public class JavaTokenizer extends UnicodeReader {
      */
     protected void lexWarning(int pos, JCDiagnostic.LintWarning key) {
         DiagnosticPosition dp = new SimpleDiagnosticPosition(pos) ;
-        log.warnIfEnabled(dp, key);
+        log.warning(dp, key);
     }
 
     /**

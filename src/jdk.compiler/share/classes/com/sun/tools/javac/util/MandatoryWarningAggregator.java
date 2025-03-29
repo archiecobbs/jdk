@@ -35,6 +35,7 @@ import javax.tools.JavaFileObject;
 import com.sun.tools.javac.code.Lint;
 import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Source;
+import com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.JCDiagnostic.LintWarning;
 import com.sun.tools.javac.util.JCDiagnostic.Note;
@@ -145,7 +146,7 @@ class MandatoryWarningAggregator {
         Assert.check(diagnostic.isMandatory());
         Assert.check(diagnostic.getLintCategory() == lintCategory);
         JavaFileObject currentSource = log.currentSourceFile();
-        if (!diagnostic.isAggregate()) {
+        if (!diagnostic.isFlagSet(DiagnosticFlag.AGGREGATE)) {
             if (sourcesWithReportedWarnings == null)
                 sourcesWithReportedWarnings = new HashSet<>();
             if (log.nwarnings < log.MaxWarnings) {

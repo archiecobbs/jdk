@@ -486,7 +486,7 @@ public class JavacFiler implements Filer, Closeable {
             String base = name.substring(periodIndex);
             String extn = (isSourceFile ? ".java" : ".class");
             if (base.equals(extn))
-                log.warnIfEnabled(LintWarnings.ProcSuspiciousClassName(name, extn));
+                log.warning(LintWarnings.ProcSuspiciousClassName(name, extn));
         }
         checkNameAndExistence(mod, name, isSourceFile);
         Location loc = (isSourceFile ? SOURCE_OUTPUT : CLASS_OUTPUT);
@@ -700,7 +700,7 @@ public class JavacFiler implements Filer, Closeable {
 
     private void checkName(String name, boolean allowUnnamedPackageInfo) throws FilerException {
         if (!SourceVersion.isName(name) && !isPackageInfo(name, allowUnnamedPackageInfo)) {
-            log.warnIfEnabled(LintWarnings.ProcIllegalFileName(name));
+            log.warning(LintWarnings.ProcIllegalFileName(name));
             throw new FilerException("Illegal name " + name);
         }
     }
@@ -728,11 +728,11 @@ public class JavacFiler implements Filer, Closeable {
                               initialClassNames.contains(typename) ||
                               containedInInitialInputs(typename);
         if (alreadySeen) {
-            log.warnIfEnabled(LintWarnings.ProcTypeRecreate(typename));
+            log.warning(LintWarnings.ProcTypeRecreate(typename));
             throw new FilerException("Attempt to recreate a file for type " + typename);
         }
         if (existing != null) {
-            log.warnIfEnabled(LintWarnings.ProcTypeAlreadyExists(typename));
+            log.warning(LintWarnings.ProcTypeAlreadyExists(typename));
         }
         if (!mod.isUnnamed() && !typename.contains(".")) {
             throw new FilerException("Attempt to create a type in unnamed package of a named module: " + typename);
@@ -761,7 +761,7 @@ public class JavacFiler implements Filer, Closeable {
      */
     private void checkFileReopening(FileObject fileObject, boolean forWriting) throws FilerException {
         if (isInFileObjectHistory(fileObject, forWriting)) {
-            log.warnIfEnabled(LintWarnings.ProcFileReopening(fileObject.getName()));
+            log.warning(LintWarnings.ProcFileReopening(fileObject.getName()));
             throw new FilerException("Attempt to reopen a file for path " + fileObject.getName());
         }
         if (forWriting)

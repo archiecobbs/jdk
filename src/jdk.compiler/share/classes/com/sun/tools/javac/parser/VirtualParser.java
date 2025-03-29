@@ -169,7 +169,7 @@ public class VirtualParser extends JavacParser {
         }
 
         @Override
-        public void warnIfEnabled(DiagnosticPosition pos, LintWarning key) {
+        public void lintWarning(DiagnosticPosition pos, LintWarning key) {
            // ignore
         }
     }

@@ -216,7 +216,7 @@ public class Locations {
                 try {
                     entries.add(getPath(s));
                 } catch (IllegalArgumentException e) {
-                    log.warnIfEnabled(LintWarnings.InvalidPath(s));
+                    log.warning(LintWarnings.InvalidPath(s));
                 }
             }
         }
@@ -310,7 +310,7 @@ public class Locations {
         private void addDirectory(Path dir, boolean warn) {
             if (!Files.isDirectory(dir)) {
                 if (warn) {
-                    log.warnIfEnabled(LintWarnings.DirPathElementNotFound(dir));
+                    log.warning(LintWarnings.DirPathElementNotFound(dir));
                 }
                 return;
             }
@@ -355,7 +355,7 @@ public class Locations {
             if (!fsInfo.exists(file)) {
                 /* No such file or directory exists */
                 if (warn) {
-                    log.warnIfEnabled(LintWarnings.PathElementNotFound(file));
+                    log.warning(LintWarnings.PathElementNotFound(file));
                 }
                 super.add(file);
                 return;
@@ -377,12 +377,12 @@ public class Locations {
                         try {
                             FileSystems.newFileSystem(file, (ClassLoader)null).close();
                             if (warn) {
-                                log.warnIfEnabled(LintWarnings.UnexpectedArchiveFile(file));
+                                log.warning(LintWarnings.UnexpectedArchiveFile(file));
                             }
                         } catch (IOException | ProviderNotFoundException e) {
                             // FIXME: include e.getLocalizedMessage in warning
                             if (warn) {
-                                log.warnIfEnabled(LintWarnings.InvalidArchiveFile(file));
+                                log.warning(LintWarnings.InvalidArchiveFile(file));
                             }
                             return;
                         }
@@ -1477,7 +1477,7 @@ public class Locations {
                 }
 
                 if (false) {  // temp disable, when enabled, massage examples.not-yet.txt suitably.
-                    log.warnIfEnabled(LintWarnings.LocnUnknownFileOnModulePath(p));
+                    log.warning(LintWarnings.LocnUnknownFileOnModulePath(p));
                 }
                 return null;
             }
@@ -1645,7 +1645,7 @@ public class Locations {
 
         void add(Map<String, List<Path>> map, Path prefix, Path suffix) {
             if (!Files.isDirectory(prefix)) {
-                log.warnIfEnabled(Files.exists(prefix) ?
+                log.warning(Files.exists(prefix) ?
                     LintWarnings.DirPathElementNotDirectory(prefix) :
                     LintWarnings.DirPathElementNotFound(prefix));
                 return;

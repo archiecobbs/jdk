@@ -112,5 +112,5 @@ public interface Lexer {
      * @param pos the lexical position at which the warning occurs
      * @param key the warning to report
      */
-    void warnIfEnabled(DiagnosticPosition pos, LintWarning key);
+    void lintWarning(DiagnosticPosition pos, LintWarning key);
 }

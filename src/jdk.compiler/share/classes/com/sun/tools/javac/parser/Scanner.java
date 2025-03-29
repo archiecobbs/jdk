@@ -153,8 +153,8 @@ public class Scanner implements Lexer {
     }
 
     @Override
-    public void warnIfEnabled(DiagnosticPosition pos, LintWarning key) {
-        tokenizer.log.warnIfEnabled(pos, key);
+    public void lintWarning(DiagnosticPosition pos, LintWarning key) {
+        tokenizer.log.warning(pos, key);
     }
 
     public int errPos() {

@@ -34,11 +34,13 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -120,7 +122,7 @@ public class Log extends AbstractLog {
         /**
          * Diagnostics waiting for an applicable {@link Lint} instance.
          */
-        protected Map<JavaFileObject, List<JCDiagnostic>> lintWaitersMap = new HashMap<>();
+        protected Map<JavaFileObject, List<JCDiagnostic>> lintWaitersMap = new LinkedHashMap<>();
 
         /**
          * Install this diagnostic handler as the current one,
@@ -137,50 +139,79 @@ public class Log extends AbstractLog {
         public abstract void report(JCDiagnostic diag);
 
         /**
-         * Defer a diagnostic until the {@link Lint} configurations for the source file are known.
+         * Are there any warnings ready to be reported?
+         */
+        public boolean anyWarnings() {
+            return lintWaitersMap.entrySet().stream()
+              .anyMatch(entry -> entry.getValue().stream()
+                .anyMatch(diag -> {
+                  AtomicBoolean wouldEmit = new AtomicBoolean();
+                  lintMapper.lintAt(entry.getKey(), diag.getDiagnosticPosition())
+                    .ifPresent(lint -> applyLint(lint, diag, d -> {
+                        if (!d.isFlagSet(DiagnosticFlag.AGGREGATE))
+                            wouldEmit.set(true);
+                    }));
+                  return wouldEmit.get();
+                }));
+        }
+
+        /**
+         * Defer a lint warning because we don't know the {@link Lint} configuration yet.
          *
          * @param sourceFile the source file
          * @param diagnostic waiting diagnostic
          */
         public void addLintWaiter(JavaFileObject sourceFile, JCDiagnostic diagnostic) {
+            Assert.check(sourceFile != null);
+            Assert.check(diagnostic.getDiagnosticPosition() != null);
             lintWaitersMap.computeIfAbsent(sourceFile, s -> new LinkedList<>()).add(diagnostic);
         }
 
         /**
-         * Flush diagnostics previously deferred via {@link #addLintWaiter} and within the given declaration.
-         *
-         * @param sourceInfo source file info
-         * @param topDecl top-level declaration with newly computed lints
-         */
-        public void flushLintWaiters(SourceInfo sourceInfo, Decl topDecl) {
-            List<JCDiagnostic> diagnostics = lintWaitersMap.get(sourceInfo.sourceFile);
-            if (diagnostics != null) {
-                List<Decl> readyDecls = sourceInfo.readyDeclsMap.get(topDecl);
-                for (Iterator<JCDiagnostic> i = diagnostics.iterator(); i.hasNext(); ) {
-                    JCDiagnostic diagnostic = i.next();
-                    DiagnosticPosition pos = diagnostic.getDiagnosticPosition();
-                    if (topDecl.contains(pos)) {
-                        Decl decl = SourceInfo.bestMatch(readyDecls, pos).orElse(topDecl);
-                        applyLint(decl.lint, diagnostic, this::report);
-                        i.remove();
-                    }
-                }
-            }
-        }
-
-        /**
-         * Flush all remaining diagnostics (these should be not contained by the top-level declaration).
+         * Flush deferred lint warnings using the {@link Lint} configurations provided by {@link LintMapper}.
          */
         public void flushLintWaiters() {
             lintWaitersMap.forEach((sourceFile, diagnostics) -> {
+                sortDiagnostics(diagnostics);
                 JavaFileObject prevSourceFile = useSource(sourceFile);
                 try {
-                    diagnostics.forEach(diagnostic -> applyLint(rootLint(), diagnostic, this::report));
+                    diagnostics.forEach(diag -> {
+                        Lint lint = lintMapper.lintAt(sourceFile, diag.getDiagnosticPosition())
+                          .orElseGet(Log.this::rootLint);
+                        applyLint(lint, diag, this::report);
+                    });
                 } finally {
                     useSource(prevSourceFile);
                 }
             });
             lintWaitersMap.clear();
+        }
+
+        // Sort warnings while respecting any CONTINUATION flags
+        private void sortDiagnostics(List<JCDiagnostic> diags) {
+
+            // Extract the CONTINUATION followers from the list, replacing them with their initial diagnostic
+            HashMap<JCDiagnostic, JCDiagnostic> followerMap = new HashMap<>();
+            JCDiagnostic prev = null;
+            for (int i = 0; i < diags.size(); i++) {
+                JCDiagnostic diag = diags.get(i);
+                if (diag.isFlagSet(DiagnosticFlag.CONTINUATION)) {
+                    followerMap.put(prev, diag);
+                    diags.set(i, diags.get(i - 1));
+                }
+                prev = diag;
+            }
+
+            // Sort the list; the sort is stable, so the identical follower slots will stay together
+            diags.sort(Comparator.comparingInt(d -> d.getDiagnosticPosition().getStartPosition()));
+
+            // Put the followers back in
+            for (int i = 0; i < diags.size(); i++) {
+                JCDiagnostic diag = diags.get(i);
+                JCDiagnostic next = followerMap.remove(diag);
+                if (next != null)
+                    diags.set(i + 1, next);
+            }
         }
     }
 
@@ -194,9 +225,6 @@ public class Log extends AbstractLog {
 
         @Override
         public void addLintWaiter(JavaFileObject sourceFile, JCDiagnostic diagnostic) { }
-
-        @Override
-        public void flushLintWaiters(SourceInfo sourceInfo, Decl readySpan) { }
     }
 
     /**
@@ -245,12 +273,6 @@ public class Log extends AbstractLog {
             } else {
                 prev.addLintWaiter(sourceFile, diag);
             }
-        }
-
-        @Override
-        public void flushLintWaiters(SourceInfo sourceInfo, Decl readySpan) {
-            prev.flushLintWaiters(sourceInfo, readySpan);
-            super.flushLintWaiters(sourceInfo, readySpan);
         }
 
         public List<JCDiagnostic> getDiagnostics() {
@@ -341,6 +363,16 @@ public class Log extends AbstractLog {
      * The compilation context.
      */
     private final Context context;
+
+    /**
+     * The {@link Options} singleton.
+     */
+    private final Options options;
+
+    /**
+     * The lint positions table.
+     */
+    private final LintMapper lintMapper;
 
     /**
      * The root {@link Lint} singleton.
@@ -445,6 +477,8 @@ public class Log extends AbstractLog {
         super(JCDiagnostic.Factory.instance(context));
         context.put(logKey, this);
         this.context = context;
+        this.options = Options.instance(context);
+        this.lintMapper = LintMapper.instance(context);
         this.writers = writers;
 
         @SuppressWarnings("unchecked") // FIXME
@@ -464,7 +498,6 @@ public class Log extends AbstractLog {
         this.diagFormatter = new BasicDiagnosticFormatter(messages);
 
         // Once Options is ready, complete the initialization
-        final Options options = Options.instance(context);
         options.whenReady(this::initOptions);
     }
     // where
@@ -786,53 +819,10 @@ public class Log extends AbstractLog {
     }
 
     /**
-     * Report a warning if its {@link LintCategory} is enabled in the root {@link Lint}.
-     *
-     * @param key warning key
+     * Have any warnings been reported?
      */
-    public void warnIfEnabled(LintWarning key) {
-        warnIfEnabled(null, key);
-    }
-
-    /**
-     * Report a warning if its {@link LintCategory} is enabled at the position.
-     *
-     * @param pos warning source position, or null if not specific to a source code position
-     * @param key warning key
-     */
-    public void warnIfEnabled(DiagnosticPosition pos, LintWarning key) {
-        waitForLint(pos, diags.warning(source, pos, key));
-    }
-
-    /**
-     * Report a mandatory warning if its {@link LintCategory} is enabled in the root {@link Lint}.
-     *
-     * @param key warning key
-     */
-    public void mandatoryWarnIfEnabled(LintWarning key) {
-        mandatoryWarnIfEnabled(null, key);
-    }
-
-    /**
-     * Report a mandatory warning if its {@link LintCategory} is enabled at the position.
-     *
-     * @param pos warning source position, or null if not specific to a source code position
-     * @param key warning key
-     */
-    public void mandatoryWarnIfEnabled(DiagnosticPosition pos, LintWarning key) {
-        waitForLint(pos, diags.mandatoryWarning(source, pos, key));
-    }
-
-    /**
-     * Get the {@link Lint} configuration that applies at the specified source code position.
-     * This only works after the entire containing top-level declaration has been attributed.
-     *
-     * @param pos source code location in the current source file, or null if not specific to a source code position
-     * @throws IllegalStateException if the applicable {@link Lint} has not been calculated yet
-     */
-    public Lint lintAt(DiagnosticPosition pos) {
-        return findLintAt(pos).orElseThrow(() -> new AssertionError(
-            String.format("lints not computed for %d in %s", pos.getStartPosition(), currentSourceFile())));
+    public boolean anyWarnings() {
+        return nwarnings > 0 || diagnosticHandler.anyWarnings();
     }
 
     /**
@@ -841,7 +831,24 @@ public class Log extends AbstractLog {
      */
     @Override
     public void report(JCDiagnostic diagnostic) {
-        diagnosticHandler.report(diagnostic);
+
+        // We defer position-specific lint warnings until reportOutstandingWarnings() is invoked.
+        // This ensures Lint configurations are known and also allows us to sort them by position.
+        LintCategory category = diagnostic.getLintCategory();
+        if (category != null) {
+            if (category.annotationSuppression && diagnostic.getDiagnosticPosition() != null)
+                diagnosticHandler.addLintWaiter(currentSourceFile(), diagnostic);
+            else
+                applyLint(rootLint(), diagnostic, diagnosticHandler::report);
+        } else
+            diagnosticHandler.report(diagnostic);
+    }
+
+    /**
+     * Report any remaining unreported lint warnings.
+     */
+    public void reportOutstandingWarnings() {
+        diagnosticHandler.flushLintWaiters();
     }
 
     /**
@@ -849,7 +856,6 @@ public class Log extends AbstractLog {
      */
     public void clear() {
         sourceMap.clear();
-        sourceInfoMap.clear();
         nerrors = 0;
         nwarnings = 0;
         nsuppressederrors = 0;
@@ -866,6 +872,8 @@ public class Log extends AbstractLog {
     private void applyLint(Lint lint, JCDiagnostic diagnostic, Consumer<? super JCDiagnostic> downstream) {
         LintCategory category = diagnostic.getLintCategory();
         if (diagnostic.isMandatory()) {
+
+            // Mandatory warnings are enabled by default
             if (!lint.isSuppressed(category)) {
                 if (!lint.isEnabled(category))
                     diagnostic.setFlag(DiagnosticFlag.AGGREGATE);
@@ -881,8 +889,13 @@ public class Log extends AbstractLog {
                 category = diagnostic.getLintCategory();
             }
 
-            // Now check category enablement
-            if (lint.isEnabled(category))
+            // Determine whether to emit the diagnostic, and emit if so
+            boolean emit = !diagnostic.isFlagSet(DiagnosticFlag.DEFAULT_ENABLED) ?
+                lint.isEnabled(category) :
+                category.annotationSuppression ?
+                  !lint.isSuppressed(category) :                                // suppression via @SuppressWarnings
+                  options.isUnset(Option.XLINT_CUSTOM, "-" + category.option);  // suppression via -Xlint:-category
+            if (emit)
                 downstream.accept(diagnostic);
         }
     }
@@ -908,20 +921,16 @@ public class Log extends AbstractLog {
     }
 
     /**
-     * Report any remaining unreported warnings and aggregated mandatory warning notes.
+     * Report any remaining unreported aggregated mandatory warning notes.
      */
-    public void reportFinalWarningsAndNotes() {
-
-        // Flush remaining warnings not contained by the top-level declaration
-        diagnosticHandler.flushLintWaiters();
-
-        // Flush mandatory warning aggregation notes
+    public void reportOutstandingNotes() {
         aggregators.entrySet().stream()
           .filter(entry -> !suppressedDeferredMandatory.contains(entry.getKey()))
           .map(Map.Entry::getValue)
           .map(MandatoryWarningAggregator::aggregationNotes)
           .flatMap(List::stream)
           .forEach(this::report);
+        aggregators.clear();
     }
 
     private MandatoryWarningAggregator aggregatorFor(LintCategory lc) {
@@ -931,175 +940,6 @@ public class Log extends AbstractLog {
         case REMOVAL, UNCHECKED -> aggregators.computeIfAbsent(lc, c -> new MandatoryWarningAggregator(this, null, c));
         case null, default -> null;
         };
-    }
-
-// Deferred Lint Warnings
-
-    protected final Map<JavaFileObject, SourceInfo> sourceInfoMap = new HashMap<>();
-
-    /**
-     * Report the given diagnostic once the applicable {@link Lint} is known.
-     *
-     * @param pos source code position, or null if not specific to a source code position
-     * @param diagnostic the lint warning
-     */
-    private void waitForLint(DiagnosticPosition pos, JCDiagnostic diagnostic) {
-        findLintAt(pos).ifPresentOrElse(
-          lint -> applyLint(lint, diagnostic, this::report),
-          () -> diagnosticHandler.addLintWaiter(currentSourceFile(), diagnostic));
-    }
-
-    private Optional<Lint> findLintAt(DiagnosticPosition pos) {
-        if (pos == null)
-            return Optional.of(rootLint());
-        return Optional.of(currentSourceFile())
-          .map(sourceInfoMap::get)
-          .flatMap(sourceInfo -> sourceInfo.findDecl(pos))
-          .map(Decl::lint);
-    }
-
-    /**
-     * Calculate {@lint Lint} configurations for all declarations within the given top-level tree
-     * and the flush any affected lint waiters.
-     *
-     * @param env top-level declaration attribution environment
-     */
-    public void calculateLints(Env<AttrContext> env) {
-
-        // Get/create SourceInfo for this source file
-        Assert.check(env.toplevel.sourcefile.equals(currentSourceFile()));
-        SourceInfo sourceInfo = sourceInfoMap.computeIfAbsent(env.toplevel.sourcefile, SourceInfo::new);
-
-        // Calculate lints for this top-level tree
-        Decl topDecl = new Decl(env.tree, rootLint());
-        List<Decl> readyDecls = new ArrayList<>();
-        new LintCalculator(readyDecls, rootLint()).scan(env.tree);
-        sourceInfo.readyDeclsMap.put(topDecl, readyDecls);
-
-        // Release any affected lint waiters
-        diagnosticHandler.flushLintWaiters(sourceInfo, topDecl);
-    }
-
-    private static class LintCalculator extends TreeScanner {
-
-        private final List<Decl> decls;
-        private Lint currentLint;
-
-        LintCalculator(List<Decl> decls, Lint rootLint) {
-            this.decls = decls;
-            this.currentLint = rootLint;
-        }
-
-        @Override
-        public void visitModuleDef(JCModuleDecl tree) {
-            scanDecl(tree, tree.sym, super::visitModuleDef);
-        }
-
-        @Override
-        public void visitPackageDef(JCPackageDecl tree) {
-            scanDecl(tree, tree.packge, super::visitPackageDef);
-        }
-
-        @Override
-        public void visitClassDef(JCClassDecl tree) {
-            scanDecl(tree, tree.sym, super::visitClassDef);
-        }
-
-        @Override
-        public void visitMethodDef(JCMethodDecl tree) {
-            scanDecl(tree, tree.sym, super::visitMethodDef);
-        }
-
-        @Override
-        public void visitVarDef(JCVariableDecl tree) {
-            scanDecl(tree, tree.sym, super::visitVarDef);
-        }
-
-        private <T extends JCTree> void scanDecl(T tree, Symbol symbol, Consumer<? super T> recursion) {
-            Lint previousLint = currentLint;
-            currentLint = Optional.ofNullable(symbol)   // symbol can be null if there were earlier errors
-              .map(currentLint::augment)
-              .orElse(currentLint);
-            recursion.accept(tree);
-            if (currentLint != previousLint) {          // Lint.augment() returns the same object if no change
-                decls.add(new Decl(tree, currentLint));
-                currentLint = previousLint;
-            }
-        }
-    }
-
-// SourceInfo
-
-    /**
-     * The information we track on a per-source file basis to facilitate {@code @SuppressWarnings}.
-     *
-     * @param sourceFile the source file
-     * @param readyDeclsMap top-level declarations and their associated known {@link Lint}s
-     */
-    private record SourceInfo(JavaFileObject sourceFile, Map<Decl, List<Decl>> readyDeclsMap) {
-
-        SourceInfo(JavaFileObject sourceFile) {
-            this(sourceFile, new HashMap<>());
-        }
-
-        // Find the innermost declaration with a known lint containing the given position
-        Optional<Decl> findDecl(DiagnosticPosition pos) {
-            return readyDeclsMap.entrySet().stream()
-              .filter(entry -> entry.getKey().contains(pos))
-              .findFirst()
-              .map(entry -> bestMatch(entry.getValue(), pos).orElseGet(entry::getKey));
-        }
-
-        static Optional<Decl> bestMatch(List<Decl> decls, DiagnosticPosition pos) {
-            int position = pos.getStartPosition();
-            Assert.check(position != Position.NOPOS);
-            Decl best = null;
-            for (Decl decl : decls) {
-                if (decl.contains(position) && (best == null || best.contains(decl))) {
-                    best = decl;
-                }
-            }
-            return Optional.ofNullable(best);
-        }
-    }
-
-// Decl
-
-    /**
-     * Represents a {@code @SuppressWarnings}-capable declaration covering some lexical range.
-     *
-     * @param tag tree node type (for debug only)
-     * @param startPos starting position (inclusive)
-     * @param endPos ending position (exclusive)
-     * @param lint the applicable {@link Lint} configuration
-     */
-    private record Decl(Tag tag, int startPos, int endPos, Lint lint) {
-
-        Decl(JCTree tree, Lint lint) {
-            this(tree.getTag(), TreeInfo.getStartPos(tree), TreeInfo.endPos(tree), lint);
-        }
-
-        boolean contains(int pos) {
-            return pos == startPos || (pos > startPos && pos < endPos);
-        }
-
-        boolean contains(DiagnosticPosition pos) {
-            return contains(pos.getStartPosition());
-        }
-
-        boolean contains(Decl that) {
-            return this.startPos <= that.startPos && this.endPos >= that.endPos;
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            return obj == this;
-        }
-
-        @Override
-        public int hashCode() {
-            return System.identityHashCode(this);
-        }
     }
 
 // DefaultDiagnosticHandler
