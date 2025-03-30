@@ -222,19 +222,14 @@ public class Check {
      */
     void warnDeprecated(DiagnosticPosition pos, Symbol sym) {
         Assert.check(!importSuppression);
-        if (sym.isDeprecatedForRemoval()) {
-            if (sym.kind == MDL) {
-                log.mandatoryWarning(pos, LintWarnings.HasBeenDeprecatedForRemovalModule(sym));
-            } else {
-                log.mandatoryWarning(pos, LintWarnings.HasBeenDeprecatedForRemoval(sym, sym.location()));
-            }
-        } else {
-            if (sym.kind == MDL) {
-                log.mandatoryWarning(pos, LintWarnings.HasBeenDeprecatedModule(sym));
-            } else {
-                log.mandatoryWarning(pos, LintWarnings.HasBeenDeprecated(sym, sym.location()));
-            }
-        }
+        LintWarning warningKey = sym.isDeprecatedForRemoval() ?
+            (sym.kind == MDL ?
+                LintWarnings.HasBeenDeprecatedForRemovalModule(sym) :
+                LintWarnings.HasBeenDeprecatedForRemoval(sym, sym.location())) :
+            (sym.kind == MDL ?
+                LintWarnings.HasBeenDeprecatedModule(sym) :
+                LintWarnings.HasBeenDeprecated(sym, sym.location()));
+        log.mandatoryWarning(pos, warningKey, DiagnosticFlag.AGGREGATE);
     }
 
     /** Log a preview warning.
@@ -243,7 +238,7 @@ public class Check {
      */
     public void warnPreviewAPI(DiagnosticPosition pos, LintWarning warnKey) {
         if (!importSuppression) {
-            log.mandatoryWarning(pos, warnKey);
+            log.mandatoryWarning(pos, warnKey, DiagnosticFlag.AGGREGATE);
         }
     }
 
@@ -252,7 +247,7 @@ public class Check {
      *  @param msg        A string describing the problem.
      */
     public void warnUnchecked(DiagnosticPosition pos, LintWarning warnKey) {
-        log.mandatoryWarning(pos, warnKey);
+        log.mandatoryWarning(pos, warnKey, DiagnosticFlag.AGGREGATE);
     }
 
     /** Report a failure to complete a class.
@@ -260,7 +255,7 @@ public class Check {
      *  @param ex         The failure to report.
      */
     public Type completionError(DiagnosticPosition pos, CompletionFailure ex) {
-        log.error(JCDiagnostic.DiagnosticFlag.NON_DEFERRABLE, pos, Errors.CantAccess(ex.sym, ex.getDetailValue()));
+        log.error(DiagnosticFlag.NON_DEFERRABLE, pos, Errors.CantAccess(ex.sym, ex.getDetailValue()));
         return syms.errType;
     }
 

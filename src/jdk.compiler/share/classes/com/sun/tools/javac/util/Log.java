@@ -63,12 +63,12 @@ import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeScanner;
-import com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticInfo;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticType;
 import com.sun.tools.javac.util.JCDiagnostic.LintWarning;
 
+import static com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag.*;
 import static com.sun.tools.javac.code.Lint.LintCategory.*;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
 
@@ -148,7 +148,7 @@ public class Log extends AbstractLog {
                   AtomicBoolean wouldEmit = new AtomicBoolean();
                   lintMapper.lintAt(entry.getKey(), diag.getDiagnosticPosition())
                     .ifPresent(lint -> applyLint(lint, diag, d -> {
-                        if (!d.isFlagSet(DiagnosticFlag.AGGREGATE))
+                        if (!d.isFlagSet(AGGREGATE))
                             wouldEmit.set(true);
                     }));
                   return wouldEmit.get();
@@ -195,7 +195,7 @@ public class Log extends AbstractLog {
             JCDiagnostic prev = null;
             for (int i = 0; i < diags.size(); i++) {
                 JCDiagnostic diag = diags.get(i);
-                if (diag.isFlagSet(DiagnosticFlag.CONTINUATION)) {
+                if (diag.isFlagSet(CONTINUATION)) {
                     followerMap.put(prev, diag);
                     diags.set(i, diags.get(i - 1));
                 }
@@ -254,7 +254,7 @@ public class Log extends AbstractLog {
         }
 
         private boolean deferrable(JCDiagnostic diag) {
-            return !(diag.isFlagSet(DiagnosticFlag.NON_DEFERRABLE) && passOnNonDeferrable) && filter.test(diag);
+            return !(diag.isFlagSet(NON_DEFERRABLE) && passOnNonDeferrable) && filter.test(diag);
         }
 
         @Override
@@ -661,7 +661,7 @@ public class Log extends AbstractLog {
         if (!shouldReport(file, d.getIntPosition()))
             return false;
 
-        if (!d.isFlagSet(DiagnosticFlag.SOURCE_LEVEL))
+        if (!d.isFlagSet(SOURCE_LEVEL))
             return true;
 
         Pair<JavaFileObject, List<String>> coords = new Pair<>(file, getCode(d));
@@ -869,35 +869,32 @@ public class Log extends AbstractLog {
     }
 
     // Apply the given Lint configuration to the diagnostic and, if it survives, pass on downstream
-    private void applyLint(Lint lint, JCDiagnostic diagnostic, Consumer<? super JCDiagnostic> downstream) {
-        LintCategory category = diagnostic.getLintCategory();
-        if (diagnostic.isMandatory()) {
+    private void applyLint(Lint lint, JCDiagnostic diag, Consumer<? super JCDiagnostic> downstream) {
+        LintCategory category = diag.getLintCategory();
 
-            // Mandatory warnings are enabled by default
-            if (!lint.isSuppressed(category)) {
-                if (!lint.isEnabled(category))
-                    diagnostic.setFlag(DiagnosticFlag.AGGREGATE);
-                downstream.accept(diagnostic);
-            }
-        } else {
-
-            // Fallback hackery for REQUIRES_TRANSITIVE_AUTOMATIC (see also Check.checkModuleRequires())
-            if (diagnostic.getCode().equals("compiler.warn.requires.transitive.automatic") &&
-                    !lint.isEnabled(REQUIRES_TRANSITIVE_AUTOMATIC)) {
-                diagnostic = diags.warning(diagnostic.getDiagnosticSource(),
-                  diagnostic.getDiagnosticPosition(), LintWarnings.RequiresAutomatic);
-                category = diagnostic.getLintCategory();
-            }
-
-            // Determine whether to emit the diagnostic, and emit if so
-            boolean emit = !diagnostic.isFlagSet(DiagnosticFlag.DEFAULT_ENABLED) ?
-                lint.isEnabled(category) :
-                category.annotationSuppression ?
-                  !lint.isSuppressed(category) :                                // suppression via @SuppressWarnings
-                  options.isUnset(Option.XLINT_CUSTOM, "-" + category.option);  // suppression via -Xlint:-category
-            if (emit)
-                downstream.accept(diagnostic);
+        // Fallback hackery for REQUIRES_TRANSITIVE_AUTOMATIC (see also Check.checkModuleRequires())
+        if (diag.getCode().equals("compiler.warn.requires.transitive.automatic") &&
+                !lint.isEnabled(REQUIRES_TRANSITIVE_AUTOMATIC)) {
+            diag = diags.warning(diag.getDiagnosticSource(), diag.getDiagnosticPosition(), LintWarnings.RequiresAutomatic);
+            category = diag.getLintCategory();
         }
+
+        // Determine whether this diagnostic should be emitted at all
+        if (diag.isFlagSet(DEFAULT_ENABLED) ? isExplicitlySuppressed(lint, category) : !lint.isEnabled(category))
+            return;
+
+        // Configure verbose logging (or not) for diagnostics going through a mandatory warning aggregator
+        if (diag.isFlagSet(AGGREGATE) && lint.isEnabled(category))
+            diag.setFlag(AGGREGATE_VERBOSE);
+
+        // Emit the warning
+        downstream.accept(diag);
+    }
+
+    private boolean isExplicitlySuppressed(Lint lint, LintCategory category) {
+        return category.annotationSuppression ?
+            lint.isSuppressed(category) :                               // suppression happens via @SuppressWarnings
+            options.isSet(Option.XLINT_CUSTOM, "-" + category.option);  // suppression happens via -Xlint:-category
     }
 
     // Obtain root Lint singleton lazily to avoid init loops
@@ -975,10 +972,10 @@ public class Log extends AbstractLog {
 
             case WARNING:
 
-                // We aggregate mandatory warnings in certain categories
-                if (diagnostic.isMandatory()) {
-                    MandatoryWarningAggregator aggregator = aggregatorFor(diagnostic.getLintCategory());
-                    if (aggregator != null && aggregator.aggregate(diagnostic))
+                // Apply the appropriate mandatory warning aggregator, if needed
+                if (diagnostic.isFlagSet(AGGREGATE)) {
+                    boolean verbose = diagnostic.isFlagSet(AGGREGATE_VERBOSE);
+                    if (!aggregatorFor(diagnostic.getLintCategory()).aggregate(diagnostic, verbose))
                         break;
                 }
 
@@ -994,8 +991,7 @@ public class Log extends AbstractLog {
                 break;
 
             case ERROR:
-                if (diagnostic.isFlagSet(DiagnosticFlag.API) ||
-                     shouldReport(diagnostic)) {
+                if (diagnostic.isFlagSet(API) || shouldReport(diagnostic)) {
                     if (nerrors < MaxErrors) {
                         writeDiagnostic(diagnostic);
                         nerrors++;
@@ -1005,7 +1001,7 @@ public class Log extends AbstractLog {
                 }
                 break;
             }
-            if (diagnostic.isFlagSet(DiagnosticFlag.COMPRESSED)) {
+            if (diagnostic.isFlagSet(COMPRESSED)) {
                 compressedOutput = true;
             }
         }

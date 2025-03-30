@@ -413,7 +413,6 @@ public class JavacTaskImpl extends BasicJavacTask {
             }
         } finally {
             compiler.log.reportOutstandingWarnings();
-            compiler.log.reportOutstandingNotes();
             compiler.log.flush();
         }
         return results;
@@ -487,7 +486,6 @@ public class JavacTaskImpl extends BasicJavacTask {
         finally {
             if (compiler != null) {
                 compiler.log.reportOutstandingWarnings();
-                compiler.log.reportOutstandingNotes();
                 compiler.log.flush();
             }
         }

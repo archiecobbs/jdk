@@ -189,12 +189,17 @@ public abstract class AbstractLog {
         report(diags.create(flagSet, source, pos, warningKey));
     }
 
-    /** Report a warning.
+    /** Report a mandatory warning.
      *  @param pos    The source position at which to report the warning.
      *  @param warningKey    The key for the localized warning message.
+     *  @param flags         Any additional flags required
      */
-    public void mandatoryWarning(DiagnosticPosition pos, Warning warningKey) {
-        report(diags.mandatoryWarning(source, pos, warningKey));
+    public void mandatoryWarning(DiagnosticPosition pos, Warning warningKey, DiagnosticFlag... flags) {
+        DiagnosticFlag[] flags2 = new DiagnosticFlag[flags.length + 2];
+        System.arraycopy(flags, 0, flags2, 0, flags.length);
+        flags2[flags.length + 0] = DiagnosticFlag.MANDATORY;
+        flags2[flags.length + 1] = DiagnosticFlag.DEFAULT_ENABLED;
+        warning(pos, warningKey, flags2);
     }
 
     /** Provide a non-fatal notification, unless suppressed by the -nowarn option.

@@ -35,7 +35,6 @@ import javax.tools.JavaFileObject;
 import com.sun.tools.javac.code.Lint;
 import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Source;
-import com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.JCDiagnostic.LintWarning;
 import com.sun.tools.javac.util.JCDiagnostic.Note;
@@ -137,23 +136,24 @@ class MandatoryWarningAggregator {
     }
 
     /**
-     * Possibly aggregate a mandatory warning.
+     * Aggregate a mandatory warning and determine whether to emit it.
      *
      * @param diagnostic the mandatory warning
-     * @return true if diagnostic has been aggregated, false if it should be emitted
+     * @param verbose whether the warning's lint category is enabled
+     * @return true if diagnostic should be emitted, otherwise false
      */
-    public boolean aggregate(JCDiagnostic diagnostic) {
+    public boolean aggregate(JCDiagnostic diagnostic, boolean verbose) {
         Assert.check(diagnostic.isMandatory());
         Assert.check(diagnostic.getLintCategory() == lintCategory);
         JavaFileObject currentSource = log.currentSourceFile();
-        if (!diagnostic.isFlagSet(DiagnosticFlag.AGGREGATE)) {
+        if (verbose) {
             if (sourcesWithReportedWarnings == null)
                 sourcesWithReportedWarnings = new HashSet<>();
             if (log.nwarnings < log.MaxWarnings) {
                 // generate message and remember the source file
                 sourcesWithReportedWarnings.add(currentSource);
                 anyWarningEmitted = true;
-                return false;
+                return true;
             } else if (deferredDiagnosticKind == null) {
                 // set up deferred message
                 if (sourcesWithReportedWarnings.contains(currentSource)) {
@@ -185,7 +185,7 @@ class MandatoryWarningAggregator {
                 deferredDiagnosticArg = null;
             }
         }
-        return true;
+        return false;
     }
 
     /**
