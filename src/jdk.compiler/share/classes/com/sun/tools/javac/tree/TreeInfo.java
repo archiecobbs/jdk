@@ -535,9 +535,6 @@ public class TreeInfo {
         case VARDEF:
             endPos = ((JCVariableDecl) tree).endPos;
             break;
-        case IMPORT:
-            endPos = ((JCImport) tree).endPos;
-            break;
         default:
             return tree.pos;
         }

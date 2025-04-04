@@ -691,8 +691,6 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         /** The imported class(es). */
         public JCFieldAccess qualid;
         public com.sun.tools.javac.code.Scope importScope;
-        /** Position of closing semicolon, optional. */
-        public int endPos = Position.NOPOS;
         protected JCImport(JCFieldAccess qualid, boolean importStatic) {
             this.qualid = qualid;
             this.staticImport = importStatic;
