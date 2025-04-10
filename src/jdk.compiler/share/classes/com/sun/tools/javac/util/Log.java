@@ -68,6 +68,7 @@ import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticType;
 import com.sun.tools.javac.util.JCDiagnostic.LintWarning;
 
+import static com.sun.tools.javac.main.Option.*;
 import static com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag.*;
 import static com.sun.tools.javac.code.Lint.LintCategory.*;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
@@ -139,23 +140,6 @@ public class Log extends AbstractLog {
         public abstract void report(JCDiagnostic diag);
 
         /**
-         * Are there any warnings ready to be reported?
-         */
-        public boolean anyWarnings() {
-            return lintWaitersMap.entrySet().stream()
-              .anyMatch(entry -> entry.getValue().stream()
-                .anyMatch(diag -> {
-                  AtomicBoolean wouldEmit = new AtomicBoolean();
-                  lintMapper.lintAt(entry.getKey(), diag.getDiagnosticPosition())
-                    .ifPresent(lint -> applyLint(lint, diag, d -> {
-                        if (!d.isFlagSet(AGGREGATE))
-                            wouldEmit.set(true);
-                    }));
-                  return wouldEmit.get();
-                }));
-        }
-
-        /**
          * Defer a lint warning because we don't know the {@link Lint} configuration yet.
          *
          * @param sourceFile the source file
@@ -164,53 +148,43 @@ public class Log extends AbstractLog {
         public void addLintWaiter(JavaFileObject sourceFile, JCDiagnostic diagnostic) {
             Assert.check(sourceFile != null);
             Assert.check(diagnostic.getDiagnosticPosition() != null);
+            Assert.check(diagnostic.getLintCategory() != null);
+            Assert.check(diagnostic.getLintCategory().annotationSuppression);
             lintWaitersMap.computeIfAbsent(sourceFile, s -> new LinkedList<>()).add(diagnostic);
         }
 
         /**
-         * Flush deferred lint warnings using the {@link Lint} configurations provided by {@link LintMapper}.
+         * Flush any lint waiters whose {@link Lint} configurations are now known.
          */
         public void flushLintWaiters() {
-            lintWaitersMap.forEach((sourceFile, diagnostics) -> {
-                sortDiagnostics(diagnostics);
+            for (Iterator<Map.Entry<JavaFileObject, List<JCDiagnostic>>> i = lintWaitersMap.entrySet().iterator(); i.hasNext(); ) {
+                Map.Entry<JavaFileObject, List<JCDiagnostic>> entry = i.next();
+
+                // Is the file no longer recognized? If so, discard warnings (this can happen with JShell)
+                JavaFileObject sourceFile = entry.getKey();
+                if (!lintMapper.isKnown(sourceFile)) {
+                    i.remove();
+                    continue;
+                }
+
+                // Flush those diagnostics for which we know the Lint that applies
+                List<JCDiagnostic> diagnostics = entry.getValue();
                 JavaFileObject prevSourceFile = useSource(sourceFile);
                 try {
-                    diagnostics.forEach(diag -> {
-                        Lint lint = lintMapper.lintAt(sourceFile, diag.getDiagnosticPosition())
-                          .orElseGet(Log.this::rootLint);
-                        applyLint(lint, diag, this::report);
-                    });
+                    for (Iterator<JCDiagnostic> j = diagnostics.iterator(); j.hasNext(); ) {
+                        JCDiagnostic diag = j.next();
+                        lintMapper.lintAt(sourceFile, diag.getDiagnosticPosition()).ifPresent(lint -> {
+                            applyLint(lint, diag, this::report);
+                            j.remove();
+                        });
+                    }
                 } finally {
                     useSource(prevSourceFile);
                 }
-            });
-            lintWaitersMap.clear();
-        }
 
-        // Sort warnings while respecting any CONTINUATION flags
-        private void sortDiagnostics(List<JCDiagnostic> diags) {
-
-            // Extract the CONTINUATION followers from the list, replacing them with their initial diagnostic
-            HashMap<JCDiagnostic, JCDiagnostic> followerMap = new HashMap<>();
-            JCDiagnostic prev = null;
-            for (int i = 0; i < diags.size(); i++) {
-                JCDiagnostic diag = diags.get(i);
-                if (diag.isFlagSet(CONTINUATION)) {
-                    followerMap.put(prev, diag);
-                    diags.set(i, diags.get(i - 1));
-                }
-                prev = diag;
-            }
-
-            // Sort the list; the sort is stable, so the identical follower slots will stay together
-            diags.sort(Comparator.comparingInt(d -> d.getDiagnosticPosition().getStartPosition()));
-
-            // Put the followers back in
-            for (int i = 0; i < diags.size(); i++) {
-                JCDiagnostic diag = diags.get(i);
-                JCDiagnostic next = followerMap.remove(diag);
-                if (next != null)
-                    diags.set(i + 1, next);
+                // Discard list if now empty
+                if (diagnostics.isEmpty())
+                    i.remove();
             }
         }
     }
@@ -247,7 +221,6 @@ public class Log extends AbstractLog {
             this(filter, true);
         }
 
-        @SuppressWarnings("this-escape")
         public DeferredDiagnosticHandler(Predicate<JCDiagnostic> filter, boolean passOnNonDeferrable) {
             this.filter = Optional.ofNullable(filter).orElse(d -> true);
             this.passOnNonDeferrable = passOnNonDeferrable;
@@ -502,12 +475,12 @@ public class Log extends AbstractLog {
     }
     // where
         private void initOptions(Options options) {
-            this.dumpOnError = options.isSet(Option.DOE);
-            this.promptOnError = options.isSet(Option.PROMPT);
-            this.emitWarnings = options.isUnset(Option.XLINT_CUSTOM, "none");
+            this.dumpOnError = options.isSet(DOE);
+            this.promptOnError = options.isSet(PROMPT);
+            this.emitWarnings = options.isUnset(XLINT_CUSTOM, "none");
             this.suppressNotes = options.isSet("suppressNotes");
-            this.MaxErrors = getIntOption(options, Option.XMAXERRS, getDefaultMaxErrors());
-            this.MaxWarnings = getIntOption(options, Option.XMAXWARNS, getDefaultMaxWarnings());
+            this.MaxErrors = getIntOption(options, XMAXERRS, getDefaultMaxErrors());
+            this.MaxWarnings = getIntOption(options, XMAXWARNS, getDefaultMaxWarnings());
 
             boolean rawDiagnostics = options.isSet("rawDiagnostics");
             this.diagFormatter = rawDiagnostics ? new RawDiagnosticFormatter(options) :
@@ -819,25 +792,15 @@ public class Log extends AbstractLog {
     }
 
     /**
-     * Have any warnings been reported?
-     */
-    public boolean anyWarnings() {
-        return nwarnings > 0 || diagnosticHandler.anyWarnings();
-    }
-
-    /**
      * Primary method to report a diagnostic.
      * @param diagnostic
      */
     @Override
     public void report(JCDiagnostic diagnostic) {
-
-        // We defer position-specific lint warnings until reportOutstandingWarnings() is invoked.
-        // This ensures Lint configurations are known and also allows us to sort them by position.
         LintCategory category = diagnostic.getLintCategory();
         if (category != null) {
             if (category.annotationSuppression && diagnostic.getDiagnosticPosition() != null)
-                diagnosticHandler.addLintWaiter(currentSourceFile(), diagnostic);
+                diagnosticHandler.addLintWaiter(currentSourceFile(), diagnostic);   // subject to @SuppressWarnings
             else
                 applyLint(rootLint(), diagnostic, diagnosticHandler::report);
         } else
@@ -845,7 +808,7 @@ public class Log extends AbstractLog {
     }
 
     /**
-     * Report any remaining unreported lint warnings.
+     * Report unreported lint warnings for which the applicable {@link Lint} configuration is now known.
      */
     public void reportOutstandingWarnings() {
         diagnosticHandler.flushLintWaiters();
@@ -855,13 +818,12 @@ public class Log extends AbstractLog {
      * Reset the state of this instance.
      */
     public void clear() {
+        recorded.clear();
         sourceMap.clear();
         nerrors = 0;
         nwarnings = 0;
         nsuppressederrors = 0;
         nsuppressedwarns = 0;
-        recorded.clear();
-        recordedSourceLevelErrors.clear();
         while (diagnosticHandler.prev != null)
             popDiagnosticHandler(diagnosticHandler);
         aggregators.values().forEach(MandatoryWarningAggregator::clear);
@@ -894,7 +856,7 @@ public class Log extends AbstractLog {
     private boolean isExplicitlySuppressed(Lint lint, LintCategory category) {
         return category.annotationSuppression ?
             lint.isSuppressed(category) :                               // suppression happens via @SuppressWarnings
-            options.isSet(Option.XLINT_CUSTOM, "-" + category.option);  // suppression happens via -Xlint:-category
+            options.isSet(XLINT_CUSTOM, "-" + category.option);         // suppression happens via -Xlint:-category
     }
 
     // Obtain root Lint singleton lazily to avoid init loops

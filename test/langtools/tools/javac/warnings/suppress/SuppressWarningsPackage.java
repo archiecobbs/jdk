@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,10 +64,10 @@ public class SuppressWarningsPackage extends TestRunner {
         Path classes = Files.createDirectories(base.resolve("classes"));
         TestCase[] testCases = new TestCase[] {
             new TestCase("",
-                         "Use.java:2:2: compiler.warn.has.been.deprecated: test.DeprecatedAnn, test",
-                         "Use.java:2:16: compiler.warn.has.been.deprecated: test.DeprecatedClass, test",
                          "package-info.java:1:2: compiler.warn.has.been.deprecated: test.DeprecatedAnn, test",
                          "package-info.java:1:16: compiler.warn.has.been.deprecated: test.DeprecatedClass, test",
+                         "Use.java:2:2: compiler.warn.has.been.deprecated: test.DeprecatedAnn, test",
+                         "Use.java:2:16: compiler.warn.has.been.deprecated: test.DeprecatedClass, test",
                          "4 warnings"),
             new TestCase("@SuppressWarnings(\"deprecation\")",
                          "Use.java:2:2: compiler.warn.has.been.deprecated: test.DeprecatedAnn, test",
@@ -123,8 +123,6 @@ public class SuppressWarningsPackage extends TestRunner {
         Path classes = Files.createDirectories(base.resolve("classes"));
         TestCase[] testCases = new TestCase[] {
             new TestCase("",
-                         "Use.java:2:2: compiler.warn.has.been.deprecated: test.DeprecatedAnn, test",
-                         "Use.java:2:16: compiler.warn.has.been.deprecated: test.DeprecatedClass, test",
                          "module-info.java:3:12: compiler.warn.has.been.deprecated: test.DeprecatedClass, test",
                          "module-info.java:4:2: compiler.warn.has.been.deprecated: test.DeprecatedAnn, test",
                          "module-info.java:4:16: compiler.warn.has.been.deprecated: test.DeprecatedClass, test",
@@ -133,13 +131,15 @@ public class SuppressWarningsPackage extends TestRunner {
                          "module-info.java:8:36: compiler.warn.has.been.deprecated: test.ServiceImpl, test",
                          "package-info.java:1:2: compiler.warn.has.been.deprecated: test.DeprecatedAnn, test",
                          "package-info.java:1:16: compiler.warn.has.been.deprecated: test.DeprecatedClass, test",
-                         "10 warnings"),
-            new TestCase("@SuppressWarnings(\"deprecation\")",
                          "Use.java:2:2: compiler.warn.has.been.deprecated: test.DeprecatedAnn, test",
                          "Use.java:2:16: compiler.warn.has.been.deprecated: test.DeprecatedClass, test",
+                         "10 warnings"),
+            new TestCase("@SuppressWarnings(\"deprecation\")",
                          "module-info.java:3:12: compiler.warn.has.been.deprecated: test.DeprecatedClass, test",
                          "package-info.java:1:2: compiler.warn.has.been.deprecated: test.DeprecatedAnn, test",
                          "package-info.java:1:16: compiler.warn.has.been.deprecated: test.DeprecatedClass, test",
+                         "Use.java:2:2: compiler.warn.has.been.deprecated: test.DeprecatedAnn, test",
+                         "Use.java:2:16: compiler.warn.has.been.deprecated: test.DeprecatedClass, test",
                          "5 warnings")
         };
         for (TestCase tc : testCases) {

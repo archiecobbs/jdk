@@ -424,9 +424,6 @@ public class JCDiagnostic implements Diagnostic<JavaFileObject> {
          *  is not explicitly enabled, as long as it is not explicitly suppressed.
          */
         DEFAULT_ENABLED,
-        /** Flag for diagnostics that are a continuation of the previous diagnostic.
-         */
-        CONTINUATION,
         /** Flags mandatory warnings that should pass through a mandatory warning aggregator.
          */
         AGGREGATE,
