@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
@@ -122,7 +123,7 @@ public class Lint {
      * @return lint instance with new warning suppressions applied, or this instance if none
      */
     public Lint augment(Symbol sym) {
-        EnumSet<LintCategory> suppressions = suppressionsFrom(sym);
+        EnumSet<LintCategory> suppressions = suppressionsFrom(sym, false);
         if (!suppressions.isEmpty()) {
             Lint lint = new Lint(this, sym);
             lint.values.removeAll(suppressions);
@@ -483,11 +484,8 @@ public class Lint {
 
         /**
          * Warn about use of preview features.
-         *
-         * <p>
-         * This category is not supported by {@code @SuppressWarnings}.
          */
-        PREVIEW("preview", false),
+        PREVIEW("preview"),
 
         /**
          * Warn about use of restricted methods.
@@ -644,14 +642,12 @@ public class Lint {
      * This set can be non-empty only if the symbol is annotated with either
      * {@code @SuppressWarnings} or {@code @Deprecated}.
      *
-     * <p>
-     * Note: The result may include categories that don't support suppression via {@code @SuppressWarnings}.
-     *
      * @param symbol symbol corresponding to a possibly-annotated declaration
+     * @param includeAll true to include all categories, false to filter out those not supporting {@code @SuppressWarnings}
      * @return new warning suppressions applied to sym
      */
-    public EnumSet<LintCategory> suppressionsFrom(Symbol symbol) {
-        EnumSet<LintCategory> suppressions = suppressionsFrom(symbol.getDeclarationAttributes().stream());
+    public EnumSet<LintCategory> suppressionsFrom(Symbol symbol, boolean includeAll) {
+        EnumSet<LintCategory> suppressions = suppressionsFrom(symbol.getDeclarationAttributes().stream(), includeAll);
         if (symbol.isDeprecated() && symbol.isDeprecatableViaAnnotation())
             suppressions.add(LintCategory.DEPRECATION);
         return suppressions;
@@ -664,34 +660,37 @@ public class Lint {
      * Note: The result may include categories that don't support suppression via {@code @SuppressWarnings}.
      *
      * @param annotation {@code @SuppressWarnings} annotation, or null
+     * @param includeAll true to include all categories, false to filter out those not supporting {@code @SuppressWarnings}
      * @return set of lint categories, possibly empty but never null
      */
-    EnumSet<LintCategory> suppressionsFrom(JCAnnotation annotation) {
+    EnumSet<LintCategory> suppressionsFrom(JCAnnotation annotation, boolean includeAll) {
         initializeSymbolsIfNeeded();
         if (annotation == null)
             return LintCategory.newEmptySet();
         Assert.check(annotation.attribute.type.tsym == syms.suppressWarningsType.tsym);
-        return suppressionsFrom(Stream.of(annotation).map(anno -> anno.attribute));
+        return suppressionsFrom(Stream.of(annotation).map(anno -> anno.attribute), includeAll);
     }
 
     // Find the @SuppressWarnings annotation in the given stream and extract the recognized suppressions
-    private EnumSet<LintCategory> suppressionsFrom(Stream<Attribute.Compound> attributes) {
+    private EnumSet<LintCategory> suppressionsFrom(Stream<Attribute.Compound> attributes, boolean includeAll) {
         initializeSymbolsIfNeeded();
         EnumSet<LintCategory> result = LintCategory.newEmptySet();
         attributes
           .filter(attribute -> attribute.type.tsym == syms.suppressWarningsType.tsym)
-          .map(this::suppressionsFrom)
+          .map(attribute -> suppressionsFrom(attribute, includeAll))
           .forEach(result::addAll);
         return result;
     }
 
     // Given a @SuppressWarnings annotation, extract the recognized suppressions
-    private EnumSet<LintCategory> suppressionsFrom(Attribute.Compound suppressWarnings) {
+    private EnumSet<LintCategory> suppressionsFrom(Attribute.Compound suppressWarnings, boolean includeAll) {
         EnumSet<LintCategory> result = LintCategory.newEmptySet();
         Attribute.Array values = (Attribute.Array)suppressWarnings.member(names.value);
+        Predicate<LintCategory> categoryFilter = includeAll ? lc -> true : lc -> lc.annotationSuppression;
         for (Attribute value : values.values) {
             Optional.of((String)((Attribute.Constant)value).value)
               .flatMap(LintCategory::get)
+              .filter(categoryFilter)
               .ifPresent(result::add);
         }
         return result;

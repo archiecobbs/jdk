@@ -374,10 +374,10 @@ public class LintSuppression {
         // Visit a tree node declaring some symbol possibly annotated with @SuppressWarnings and/or @Deprecated
         private <T extends JCTree> void scanDecl(T tree, Symbol symbol, JCAnnotation annotation, Consumer<? super T> recursion) {
 
-            // We only need to create a node here if Lint.augment(symbol) would have created a new
-            // Lint instance here (using "symbol" as its new "symbolInScope"). That happens when the
-            // set of lint categories suppressed at the given symbol's declaration is non-empty.
-            EnumSet<LintCategory> suppressed = rootLint.suppressionsFrom(symbol);
+            // We only need to create a node here if the set of lint categories suppressed at the given
+            // symbol's declaration is non-empty. For this calculation, we also include categories that don't
+            // support @SuppressedWarnings because those unnecessary suppressions should be reported as well.
+            EnumSet<LintCategory> suppressed = rootLint.suppressionsFrom(symbol, true);
             if (suppressed.isEmpty()) {
                 recursion.accept(tree);
                 return;
@@ -389,7 +389,7 @@ public class LintSuppression {
             // Note "annotation" can be null here when the symbol has @Deprecated but not @SuppressedWarnings.
             if (suppressed.contains(DEPRECATION)) {             // might have come from @Deprecated, so we need to rescan
                 suppressed = Optional.ofNullable(annotation)
-                                .map(rootLint::suppressionsFrom)
+                                .map(anno -> rootLint.suppressionsFrom(anno, true))
                                 .orElseGet(LintCategory::newEmptySet);
             }
 

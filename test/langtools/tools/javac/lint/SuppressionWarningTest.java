@@ -721,20 +721,19 @@ public class SuppressionWarningTest extends TestRunner {
                                   outerAnnotation && innerAnnotation;
                                 expectSuppressionOptionWarning = enableSuppressionOption && !enableCategory &&
                                   (outerAnnotation || innerAnnotation);
-                            } else {        // this category doesn't support @SuppressWarnings
 
-                                // PREVIEW is special: By default, it's not enabled if the "--enable-preview" flag is given,
-                                // but the "--enable-preview" flag is required to avoid a compiler error, so the PREVIEW test
-                                // always adds it. The net result is that "-Xlint:-preview" is never useful.
+                                // PREVIEW is special: It's enabled by default iff the "--enable-preview" flag is not given.
+                                // But the "--enable-preview" flag is required to avoid a compiler error, so the PREVIEW test
+                                // always adds it. So we assume here the warning is always disabled by default.
                                 if (category == PREVIEW) {
                                     expectCategoryWarning = enableCategory;
                                     expectSuppressionWarning = enableSuppression && (outerAnnotation || innerAnnotation);
                                     expectSuppressionOptionWarning = enableSuppressionOption && !enableCategory;
-                                } else {
-                                    expectCategoryWarning = enableCategory;
-                                    expectSuppressionWarning = enableSuppression && (outerAnnotation || innerAnnotation);
-                                    expectSuppressionOptionWarning = false;         // -Xlint:-foo is always useful
                                 }
+                            } else {        // this category doesn't support @SuppressWarnings
+                                expectCategoryWarning = enableCategory;
+                                expectSuppressionWarning = enableSuppression && (outerAnnotation || innerAnnotation);
+                                expectSuppressionOptionWarning = false;         // -Xlint:-foo is always useful
                             }
 
                             String lintOption = String.format("-Xlint:%s%s,%s%s,%s%s,%s%s",
