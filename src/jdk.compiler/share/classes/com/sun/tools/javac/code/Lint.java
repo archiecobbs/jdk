@@ -420,7 +420,7 @@ public class Lint {
             optionList.add(option);
             Stream.of(aliases).forEach(optionList::add);
             this.optionList = Collections.unmodifiableList(optionList);
-            this.optionList.forEach(string -> map.put(string, this));
+            this.optionList.forEach(ident -> map.put(ident, this));
         }
 
         /**
@@ -445,8 +445,6 @@ public class Lint {
 
         /** Does this category support being suppressed by the {@code @SuppressWarnings} annotation? */
         public final boolean annotationSuppression;
-
-        public String alias;
     }
 
     /**
