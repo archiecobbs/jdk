@@ -494,12 +494,10 @@ public enum Option {
                               String.format(LINT_KEY_FORMAT,
                                             LINT_CUSTOM_ALL,
                                             log.localize(PrefixKind.JAVAC, "opt.Xlint.all")));
-            for (LintCategory lc : LintCategory.values()) {
-                lc.optionList.forEach(ident -> log.printRawLines(WriterKind.STDOUT,
-                                  String.format(LINT_KEY_FORMAT,
-                                                ident,
-                                                log.localize(PrefixKind.JAVAC, "opt.Xlint.desc." + ident))));
-            }
+            LintCategory.options().forEach(ident -> log.printRawLines(WriterKind.STDOUT,
+                              String.format(LINT_KEY_FORMAT,
+                                            ident,
+                                            log.localize(PrefixKind.JAVAC, "opt.Xlint.desc." + ident))));
             log.printRawLines(WriterKind.STDOUT,
                               String.format(LINT_KEY_FORMAT,
                                             LINT_CUSTOM_NONE,
@@ -1386,8 +1384,7 @@ public enum Option {
     private static Set<String> getXLintChoices() {
         Set<String> choices = new LinkedHashSet<>();
         choices.add(LINT_CUSTOM_ALL);
-        Stream.of(Lint.LintCategory.values())
-          .flatMap(lc -> lc.optionList.stream())
+        Lint.LintCategory.options().stream()
           .flatMap(ident -> Stream.of(ident, "-" + ident))
           .forEach(choices::add);
         choices.add(LINT_CUSTOM_NONE);

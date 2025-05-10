@@ -176,10 +176,7 @@ public class CheckResourceKeys {
             //check lint description keys:
             if (s.startsWith("opt.Xlint.desc.")) {
                 String option = s.substring(15);
-                boolean found = Stream.of(LintCategory.values())
-                  .flatMap(lc -> lc.optionList.stream())
-                  .anyMatch(option::equals);
-                if (found)
+                if (LintCategory.options().contains(option))
                     continue;
             }
 
