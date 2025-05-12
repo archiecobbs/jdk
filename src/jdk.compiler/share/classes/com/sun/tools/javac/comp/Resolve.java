@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,6 +62,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
@@ -2022,11 +2023,8 @@ public class Resolve {
     Symbol findFun(Env<AttrContext> env, Name name,
                    List<Type> argtypes, List<Type> typeargtypes,
                    boolean allowBoxing, boolean useVarargs) {
-        Symbol bestSoFar = methodNotFound;
-        Env<AttrContext> env1 = env;
-        boolean staticOnly = false;
-        while (env1.outer != null) {
-            if (isStatic(env1)) staticOnly = true;
+        AtomicReference<Symbol> bestSoFarRef = new AtomicReference<>(methodNotFound);
+        Symbol foundSym = searchOuter(env, (env1, staticOnly) -> {
             Assert.check(env1.info.preferredTreeForDiagnostics == null);
             env1.info.preferredTreeForDiagnostics = env.tree;
             try {
@@ -2044,20 +2042,22 @@ public class Resolve {
                     }
                     return sym;
                 } else {
-                    bestSoFar = bestOf(bestSoFar, sym);
+                    bestSoFarRef.updateAndGet(s -> bestOf(s, sym));
                 }
             } finally {
                 env1.info.preferredTreeForDiagnostics = null;
             }
-            if ((env1.enclClass.sym.flags() & STATIC) != 0) staticOnly = true;
-            env1 = env1.outer;
-        }
+            return null;
+        });
+        if (foundSym != null)
+            return foundSym;
 
         Symbol sym = findMethod(env, syms.predefClass.type, name, argtypes,
                                 typeargtypes, allowBoxing, useVarargs);
         if (sym.exists())
             return sym;
 
+        Symbol bestSoFar = bestSoFarRef.get();
         for (Symbol currentSym : env.toplevel.namedImportScope.getSymbolsByName(name)) {
             Symbol origin = env.toplevel.namedImportScope.getOrigin(currentSym).owner;
             if (currentSym.kind == MTH) {
@@ -3793,6 +3793,28 @@ public class Resolve {
     }
 
     /**
+     * Traverses up the class containment hierarchy looking for a symbol.
+     *
+     * @param env starting environment
+     * @param looker environment inspector that returns symbol if found, otherwise null
+     * @return symbol found, or null if none
+     */
+    public static Symbol searchOuter(Env<AttrContext> env, BiFunction<Env<AttrContext>, Boolean, Symbol> looker) {
+        boolean staticOnly = false;
+        while (env.outer != null) {
+            if (isStatic(env))
+                staticOnly = true;
+            Symbol sym = looker.apply(env, staticOnly);
+            if (sym != null)
+                return sym;
+            if ((env.enclClass.sym.flags() & STATIC) != 0)
+                staticOnly = true;
+            env = env.outer;
+        }
+        return null;
+    }
+
+    /**
      * Find a "valid" reference to an enclosing 'A.this' such that A is a subclass of the provided class symbol.
      * A reference to an enclosing 'A.this' is "valid" if (a) we're not in the early-construction context for A
      * and (b) if the current class is not an inner class of A.
@@ -3801,10 +3823,7 @@ public class Resolve {
                     Env<AttrContext> env,
                     TypeSymbol c,
                     boolean isSuper) {
-        Env<AttrContext> env1 = isSuper ? env.outer : env;
-        boolean staticOnly = false;
-        while (env1.outer != null) {
-            if (isStatic(env1)) staticOnly = true;
+        Symbol foundSym = searchOuter(isSuper ? env.outer : env, (env1, staticOnly) -> {
             if (env1.enclClass.sym.isSubClass(c, types)) {
                 Symbol sym = env1.info.scope.findFirst(names._this);
                 if (sym != null) {
@@ -3820,10 +3839,9 @@ public class Resolve {
                     }
                 }
             }
-            if ((env1.enclClass.sym.flags() & STATIC) != 0) staticOnly = true;
-            env1 = env1.outer;
-        }
-        return varNotFound;
+            return null;
+        });
+        return foundSym != null ? foundSym : varNotFound;
     }
 
     /**
@@ -3863,10 +3881,7 @@ public class Resolve {
                        TypeSymbol c,
                        Name name) {
         Assert.check(name == names._this || name == names._super);
-        Env<AttrContext> env1 = env;
-        boolean staticOnly = false;
-        while (env1.outer != null) {
-            if (isStatic(env1)) staticOnly = true;
+        Symbol foundSym = searchOuter(env, (env1, staticOnly) -> {
             if (env1.enclClass.sym == c) {
                 Symbol sym = env1.info.scope.findFirst(name);
                 if (sym != null) {
@@ -3878,9 +3893,10 @@ public class Resolve {
                             name, true);
                 }
             }
-            if ((env1.enclClass.sym.flags() & STATIC) != 0) staticOnly = true;
-            env1 = env1.outer;
-        }
+            return null;
+        });
+        if (foundSym != null)
+            return foundSym;
         if (c.isInterface() &&
                 name == names._super && !isStatic(env) &&
                 types.isDirectSuperInterface(c, env.enclClass.sym)) {
