@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,6 +52,10 @@ public class AttrContext {
     /** Are we in the 'prologue' part of a constructor, prior to an explicit this()/super()?
      */
     boolean ctorPrologue = false;
+
+    /** Are we currently attributing a receiver parameter?
+     */
+    boolean checkingReceiver = false;
 
     /** Are we evaluating the selector of a `super' or type name?
      */
@@ -137,6 +141,7 @@ public class AttrContext {
         info.scope = scope;
         info.staticLevel = staticLevel;
         info.ctorPrologue = ctorPrologue;
+        info.checkingReceiver = checkingReceiver;
         info.selectSuper = selectSuper;
         info.pendingResolutionPhase = pendingResolutionPhase;
         info.lint = lint;

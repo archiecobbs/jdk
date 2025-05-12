@@ -329,7 +329,13 @@ public class MemberEnter extends JCTree.Visitor {
         }
     }
     void checkReceiver(JCVariableDecl tree, Env<AttrContext> localEnv) {
-        attr.attribExpr(tree.nameexpr, localEnv);
+        boolean checkingReceiverPrev = localEnv.info.checkingReceiver;
+        localEnv.info.checkingReceiver = true;
+        try {
+            attr.attribExpr(tree.nameexpr, localEnv);
+        } finally {
+            localEnv.info.checkingReceiver = checkingReceiverPrev;
+        }
         MethodSymbol m = localEnv.enclMethod.sym;
         if (m.isConstructor()) {
             Type outertype = m.owner.owner.type;
