@@ -329,7 +329,50 @@ public class MemberEnter extends JCTree.Visitor {
         }
     }
     void checkReceiver(JCVariableDecl tree, Env<AttrContext> localEnv) {
-        attr.attribExpr(tree.nameexpr, localEnv);
+
+        // Determine the receiver parameter's declared type
+        attr.attribType(tree.vartype, localEnv);
+
+        // Determine the receiver parameter's name's type (and check for static contexts)
+        Symbol receiverSym;
+        switch (tree.nameexpr.getTag()) {
+        case IDENT:
+            JCIdent ident = (JCIdent)tree.nameexpr;
+            Assert.check(ident.name == names._this);
+            receiverSym = localEnv.info.scope.findFirst(ident.name);
+            if (Resolve.isStatic(localEnv)) {
+                log.error(tree.nameexpr.pos, Errors.NonStaticCantBeRef(KindName.VAR, receiverSym));
+                receiverSym = syms.errSymbol;
+            }
+            ident.sym = receiverSym;
+            break;
+        case SELECT:
+            JCFieldAccess select = (JCFieldAccess)tree.nameexpr;
+            Assert.check(select.name == names._this);
+            attr.attribType(select.selected, localEnv);
+            receiverSym = Resolve.searchOuter(localEnv, (env1, staticOnly) -> {
+                if (env1.enclClass.sym == select.selected.type.tsym) {
+                    Symbol sym = env1.info.scope.findFirst(select.name);
+                    if (sym != null) {
+                        if (staticOnly) {
+                            log.error(tree.nameexpr.pos, Errors.NonStaticCantBeRef(KindName.VAR, sym));
+                            sym = syms.errSymbol;
+                        }
+                        return sym;
+                    }
+                }
+                return null;
+            });
+            if (receiverSym == null)
+                receiverSym = syms.errSymbol;
+            select.sym = receiverSym;
+            break;
+        default:
+            throw new AssertionError();
+        }
+        tree.nameexpr.type = receiverSym.type;
+
+        // Verify both types
         MethodSymbol m = localEnv.enclMethod.sym;
         if (m.isConstructor()) {
             Type outertype = m.owner.owner.type;
