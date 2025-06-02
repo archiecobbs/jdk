@@ -122,6 +122,7 @@
   static_field(CompilerToVM::Data,             cardtable_shift,                        int)                                          \
                                                                                                                                      \
   X86_ONLY(static_field(CompilerToVM::Data,    L1_line_size,                           int))                                         \
+  X86_ONLY(static_field(CompilerToVM::Data,    supports_avx512_simd_sort,              bool))                                        \
                                                                                                                                      \
   static_field(CompilerToVM::Data,             vm_page_size,                           size_t)                                       \
                                                                                                                                      \
@@ -140,6 +141,7 @@
   static_field(CompilerToVM::Data,             dcos,                                   address)                                      \
   static_field(CompilerToVM::Data,             dtan,                                   address)                                      \
   static_field(CompilerToVM::Data,             dtanh,                                  address)                                      \
+  static_field(CompilerToVM::Data,             dcbrt,                                  address)                                      \
   static_field(CompilerToVM::Data,             dexp,                                   address)                                      \
   static_field(CompilerToVM::Data,             dlog,                                   address)                                      \
   static_field(CompilerToVM::Data,             dlog10,                                 address)                                      \
@@ -494,6 +496,12 @@
 
 #define VM_INT_CONSTANTS(declare_constant, declare_constant_with_value, declare_preprocessor_constant) \
   declare_preprocessor_constant("ASSERT", DEBUG_ONLY(1) NOT_DEBUG(0))     \
+                                                                          \
+  declare_preprocessor_constant("INCLUDE_SERIALGC", INCLUDE_SERIALGC)     \
+  declare_preprocessor_constant("INCLUDE_PARALLELGC", INCLUDE_PARALLELGC) \
+  declare_preprocessor_constant("INCLUDE_G1GC", INCLUDE_G1GC)             \
+  declare_preprocessor_constant("INCLUDE_ZGC", INCLUDE_ZGC)               \
+  declare_preprocessor_constant("INCLUDE_SHENANDOAHGC", INCLUDE_SHENANDOAHGC) \
                                                                           \
   declare_constant(CompLevel_none)                                        \
   declare_constant(CompLevel_simple)                                      \
