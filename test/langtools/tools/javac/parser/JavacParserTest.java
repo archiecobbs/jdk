@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 7073631 7159445 7156633 8028235 8065753 8205418 8205913 8228451 8237041 8253584 8246774 8256411 8256149 8259050 8266436 8267221 8271928 8275097 8293897 8295401 8304671 8310326 8312093 8312204 8315452 8337976 8324859 8344706
+ * @bug 7073631 7159445 7156633 8028235 8065753 8205418 8205913 8228451 8237041 8253584 8246774 8256411 8256149 8259050 8266436 8267221 8271928 8275097 8293897 8295401 8304671 8310326 8312093 8312204 8315452 8337976 8324859 8344706 8358604
  * @summary tests error and diagnostics positions
  * @author  Jan Lahoda
  * @modules jdk.compiler/com.sun.tools.javac.api
@@ -1052,7 +1052,7 @@ public class JavacParserTest extends TestCase {
         assertEquals("the error message is not correct, actual: " + actualErrors, expectedErrors, actualErrors);
     }
 
-    @Test //JDK-821742
+    @Test //JDK-821742, JDK-8358604
     void testCompDeclVarType() throws IOException {
         String code = "package test; public class Test {"
                 + "private void test() {"
@@ -1070,8 +1070,8 @@ public class JavacParserTest extends TestCase {
         VariableTree stmt2 = (VariableTree) method.getBody().getStatements().get(1);
         Tree v1Type = stmt1.getType();
         Tree v2Type = stmt2.getType();
-        assertEquals("Implicit type for v1 is not correct: ", Kind.PRIMITIVE_TYPE, v1Type.getKind());
-        assertEquals("Implicit type for v2 is not correct: ", Kind.PRIMITIVE_TYPE, v2Type.getKind());
+        assertEquals("Implicit type for v1 is not correct: ", Kind.IDENTIFIER, v1Type.getKind());
+        assertEquals("Implicit type for v2 is not correct: ", Kind.IDENTIFIER, v2Type.getKind());
     }
 
     @Test
@@ -3028,8 +3028,9 @@ public class JavacParserTest extends TestCase {
                     System.out.println(m.getName() + ": OK");
                     passed++;
                 } catch (Throwable ex) {
-                    System.out.printf("Test %s failed: %s %n", m, ex.getCause());
+                    System.err.printf("Test %s failed: %s %n", m, ex.getCause());
                     failed++;
+                    throw new AssertionError("HERE");
                 }
             }
         }

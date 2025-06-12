@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,6 +58,7 @@ import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCCase;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
 import com.sun.tools.javac.tree.JCTree.JCModuleDecl;
+import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.tree.JCTree.TypeBoundKind;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Pair;
@@ -160,6 +161,11 @@ public class SourceTreeScannerTest extends AbstractTreeScannerTest {
                                    f.getName().equals("stats")) {
                             //value case, visit value:
                             reflectiveScan(((JCCase) tree).getBody());
+                        } else if (tree instanceof JCVariableDecl v &&
+                          v.declaredUsingVar() &&
+                          f.getName().equals("vartype")) {
+                            // In this case "vartype" is null (not inferred yet) but JCVariableDecl.getType()
+                            // is going to return a "var" identifier placeholder, so add that now
                         } else {
                             reflectiveScan(f.get(tree));
                         }

@@ -463,15 +463,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
     /** Set position field and return this tree.
      */
     public JCTree setPos(int pos) {
-        return setPos(pos, Position.NOPOS, null);
-    }
-
-    /** Set start and end position and return this tree.
-     */
-    public JCTree setPos(int pos, int endPos, EndPosTable endPosTable) {
         this.pos = pos;
-        if (endPos != Position.NOPOS && endPosTable != null)
-            endPosTable.storeEnd(this, endPos);
         return this;
     }
 
@@ -1091,7 +1083,13 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         @DefinedBy(Api.COMPILER_TREE)
         public JCExpression getNameExpression() { return nameexpr; }
         @DefinedBy(Api.COMPILER_TREE)
-        public JCTree getType() { return vartype; }
+        public JCTree getType() {
+            return switch (declKind) {
+                case EXPLICIT -> vartype;
+                case IMPLICIT -> null;
+                case VAR -> name != null ? new JCIdent(name.table.names.var, sym) : null;
+            };
+        }
         @DefinedBy(Api.COMPILER_TREE)
         public JCExpression getInitializer() {
             return init;

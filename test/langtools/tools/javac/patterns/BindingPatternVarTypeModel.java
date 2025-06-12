@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8332725 8341901
+ * @bug 8332725 8341901 8358604
  * @summary Verify the AST model works correctly for binding patterns with var
  */
 
@@ -83,7 +83,7 @@ public class BindingPatternVarTypeModel {
         new TreeScanner<Void, Void>() {
             @Override
             public Void visitBindingPattern(BindingPatternTree node, Void p) {
-                if (node.getVariable().getType().getKind() != Tree.Kind.PRIMITIVE_TYPE) {
+                if (node.getVariable().getType().getKind() != Tree.Kind.IDENTIFIER) {
                     throw new AssertionError("Unexpected type for var: " +
                                              node.getVariable().getType().getKind() +
                                              ":" + node.getVariable().getType());
@@ -146,7 +146,8 @@ public class BindingPatternVarTypeModel {
 
             @Override
             public Void visitIdentifier(IdentifierTree node, Void p) {
-                checkType();
+                if (!node.getName().contentEquals("var"))
+                    checkType();
                 return super.visitIdentifier(node, p);
             }
 
