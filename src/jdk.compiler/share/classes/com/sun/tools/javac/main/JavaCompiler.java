@@ -1855,7 +1855,7 @@ public class JavaCompiler {
         log.reportOutstandingWarnings();
         log.reportOutstandingNotes();
         if (log.compressedOutput) {
-            log.mandatoryNote(null, Notes.CompressedDiags);
+            log.note(Notes.CompressedDiags);
         }
     }
 
