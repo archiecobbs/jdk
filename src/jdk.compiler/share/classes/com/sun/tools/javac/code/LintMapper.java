@@ -56,13 +56,7 @@ import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.Log;
-import com.sun.tools.javac.util.Names;
 import com.sun.tools.javac.util.Options;
-
-import static com.sun.tools.javac.code.Lint.LintCategory.DEPRECATION;
-import static com.sun.tools.javac.code.Lint.LintCategory.OPTIONS;
-import static com.sun.tools.javac.code.Lint.LintCategory.SUPPRESSION;
-import static com.sun.tools.javac.code.Lint.LintCategory.SUPPRESSION_OPTION;
 
 /**
  * Maps source code positions to the applicable {@link Lint} instance.
@@ -79,35 +73,38 @@ import static com.sun.tools.javac.code.Lint.LintCategory.SUPPRESSION_OPTION;
  *
  * <p>
  * This class also tracks which {@code @SuppressWarnings} and {@code -Xlint:-key} suppressions actually
- * suppress something. Those that don't are unnecessary and trigger warnings in the {@code "suppression"}
- * and {@code "suppression-option"} lint categories. For this to work, this class must be notified any
- * time a warning that is currently suppressed would have been reported; this is termed the "validation"
- * of the suppression. That notification happens via {@link #validateSuppression}.
+ * suppress something; any that don't are unnecessary and will generate warnings in the {@code "suppression"}
+ * or {@code "suppression-option"} lint category (respectively). For this to work, this class must be notified
+ * any time a warning that is currently suppressed <i>would have</i> been reported; this is termed the
+ * "validation" of the suppression. That notification happens by invoking {@link #validateSuppression}.
  *
  * <p>
- * Validation events "bubble up" the source tree until they are "caught" by a {@code @SuppressWarnings}
- * annotation or they escape the file entirely, in which case they may be "caught" by a {@code -Xlint:key}
- * flag. That validates the suppression. A suppression that is never validated is unnecessary.
+ * Validation events "bubble up" the source tree until either they are "caught" by a {@code @SuppressWarnings}
+ * annotation, or they escape the file entirely, in which case they may be "caught" by a {@code -Xlint:key} flag.
+ * Being "caught" validates the corresponding suppression. A suppression that is never caught (i.e., never validated)
+ * is unnecessary.
  *
  * <p>
- * Additional observations and corner cases:
+ * Some additional nuances:
  * <ul>
  *  <li>Lint warnings can be suppressed at a module, package, class, method, or variable declaration
- *      (via {@code @SuppressWarnings}), or globally (via {@code -Xlint:-key}).
- *  <li>Consequently, an unnecessary suppression warning can only be emitted at one of those declarations,
- *      or globally at the end of compilation.
- *  <li>Some categories (e.g., {@code classfile}) don't support suppression via {@code @SuppressWarnings}.
- *      These can only generate warnings at the global level (and therefore any {@code @SuppressWarnings}
- *      annotation is always unnecessary).
- *  <li>Some categories are never tracked for suppression, e.g., {@code options}, {@code path}, and the
- *      suppression categories {@code "suppression"} and {@code "suppression-option"} themselves.
- *  <li>{@code @SuppressWarnings("suppression")} is perfectly valid: it means unnecessary suppression
- *      warnings will never be reported for any lint category suppressed by that annotation or by any
- *      {@code @SuppressWarnings} annotation nested within the scope of its declaration.
+ *      (via {@code @SuppressWarnings}), or globally on the command line via {@code -Xlint:-key}.
+ *  <li>Consequently, unnecessary suppression warnings can only be emitted at {@code @SuppressWarnings}
+ *      annotations or globally at the end of compilation due to unnecessary {@code -Xlint:-key} flags.
+ *  <li>Some lint categories don't support suppression via the {@code @SuppressWarnings} annotations
+ *      (e.g., {@code "classfile"}). Specifying such a category in a {@code @SuppressWarnings} annotation
+ *      is always unnecessary and will trigger an unnecessary suppression warning (if enabled).
+ *  <li>{@code @SuppressWarnings("suppression")} is normal and valid: it means unnecessary suppression
+ *      warnings won't occur for that annotation or any other {@code @SuppressWarnings} annotations within
+ *      the scope of the annotated declaration.
+ *  <li>Some lint categories are exempt from unnecessary {@code -Xlint:-key} warnings; see
+ *      {@link LintCategory#supportsSuppressionOption}.
  * </ul>
  *
- * <p><b>This is NOT part of any supported API. If you write code that depends on this, you do so at your
- * own risk. This code and its internal interfaces are subject to change or deletion without notice.</b>
+ * <p><b>This is NOT part of any supported API.
+ * If you write code that depends on this, you do so at your own risk.
+ * This code and its internal interfaces are subject to change or
+ * deletion without notice.</b>
  */
 public class LintMapper {
 
@@ -124,10 +121,10 @@ public class LintMapper {
     private final Context context;
 
     // These are initialized lazily; see initializeIfNeeded()
-    private Log log;
     private Lint rootLint;
     private Symtab syms;
     private Options options;
+    private Log log;
 
     /**
      * Obtain the {@link LintMapper} context singleton.
@@ -151,10 +148,10 @@ public class LintMapper {
     // Lazy initialization to avoid dependency loops
     private void initializeIfNeeded() {
         if (rootLint == null) {
-            log = Log.instance(context);
             rootLint = Lint.instance(context);
             syms = Symtab.instance(context);
             options = Options.instance(context);
+            log = Log.instance(context);
         }
     }
 
@@ -192,7 +189,7 @@ public class LintMapper {
      */
     public void calculateLints(JavaFileObject sourceFile, JCTree tree, EndPosTable endPositions) {
         Assert.check(rootLint != null);
-        fileInfoMap.get(sourceFile).afterAttr(syms, tree, endPositions);
+        fileInfoMap.get(sourceFile).afterAttr(tree, endPositions, syms);
     }
 
     /**
@@ -224,10 +221,10 @@ public class LintMapper {
 // Suppression Tracking
 
     /**
-     * Validate the given lint category within the scope of the given symbol's declaration (or globally if symbol is null).
+     * Validate the given lint category within the scope of the given symbol's declaration.
      *
      * <p>
-     * This is to indicate that, if the category is being suppressed, a warning would have otherwise been generated.
+     * This indicates that any suppression of {@code category} currently in scope is necesssary.
      *
      * @param symbol innermost {@code @SuppressWarnings}-annotated symbol in scope, or null for global scope
      * @param category lint category to validate
@@ -242,29 +239,31 @@ public class LintMapper {
      * Warn about unnecessary {@code @SuppressWarnings} suppressions within the given top-level declaration.
      *
      * <p>
-     * This step must be done after the given source file has been warned about.
+     * All warnings within {@code tree} must have already been calculated when this method is invoked.
      *
      * @param sourceFile source file
      * @param tree top level declaration
      */
     public void reportUnnecessarySuppressionAnnotations(JavaFileObject sourceFile, JCTree tree) {
+
+        // Anything to do here?
         initializeIfNeeded();
+        if (!rootLint.isEnabled(LintCategory.SUPPRESSION, false) && !rootLint.isEnabled(LintCategory.SUPPRESSION_OPTION, false))
+            return;
 
         // Find the LintRange corresponding to "tree"
         FileInfo fileInfo = fileInfoMap.get(sourceFile);
         LintRange lintRange = fileInfo.rootRange.findChild(tree.pos());
 
-        // Propagate validations within the top-level declaration to determine which suppressions never got validated.
-        // Any that escape validate the corresponding "Xlint:-foo" suppression.
+        // Propagate validations within "tree" to determine which suppressions therein never got validated
+        // and then allow any that escape to validate the corresponding "Xlint:-foo" suppression (if any).
         optionFlagValidations.addAll(fileInfo.propagateValidations(lintRange));
 
-        // Report them if needed
-        if (rootLint.isEnabled(SUPPRESSION, false)) {
-            lintRange.stream()
-              .filter(node -> node.lint.isEnabled(SUPPRESSION, false))
-              .forEach(node -> report(node.unvalidated, name -> "\"" + name + "\"",
-                names -> log.warning(node.annotation.pos(), LintWarnings.UnnecessaryWarningSuppression(names))));
-        }
+        // Report unvalidated suppresions, except where SUPPRESSION is itself suppressed
+        lintRange.stream()
+          .filter(node -> node.lint.isEnabled(LintCategory.SUPPRESSION, false))
+          .forEach(node -> report(node.unvalidated, name -> "\"" + name + "\"",
+            names -> log.warning(node.annotation.pos(), LintWarnings.UnnecessaryWarningSuppression(names))));
     }
 
     /**
@@ -275,8 +274,8 @@ public class LintMapper {
      */
     public void reportUnnecessarySuppressionOptions() {
         initializeIfNeeded();
-        if (rootLint.isEnabled(SUPPRESSION_OPTION, false) &&
-            rootLint.isEnabled(OPTIONS, false) &&
+        if (rootLint.isEnabled(LintCategory.SUPPRESSION_OPTION, false) &&
+            rootLint.isEnabled(LintCategory.OPTIONS, false) &&
             !options.isSet(Option.XLINT) &&                     // if "-Xlint:all" appears, all "-foo" suppressions are valid
             !options.isSet(Option.XLINT_CUSTOM, "all")) {
 
@@ -291,6 +290,9 @@ public class LintMapper {
             EnumSet<LintCategory> unvalidated = rootLint.getOptionFlagSuppressions();
             unvalidated.removeAll(optionFlagValidations);
 
+            // Eliminate categories that are exempt from unnecessary -Xlint:-key suppression warnings
+            unvalidated.removeIf(category -> !category.supportsSuppressionOption());
+
             // Report them
             report(unvalidated, name -> "-" + name, names -> log.warning(LintWarnings.UnnecessaryLintWarningSuppression(names)));
         }
@@ -301,7 +303,6 @@ public class LintMapper {
 
     private void report(EnumSet<LintCategory> unvalidated, Function<String, String> formatter, Consumer<String> logger) {
         String names = unvalidated.stream()
-          .filter(lc -> lc.suppressionTracking)
           .map(category -> category.option)
           .map(formatter)
           .collect(Collectors.joining(", "));
@@ -336,10 +337,10 @@ public class LintMapper {
         }
 
         // After attribution: Discard the span from "unmappedDecls" and populate the declaration's subtree under "rootRange"
-        void afterAttr(Symtab syms, JCTree tree, EndPosTable endPositions) {
+        void afterAttr(JCTree tree, EndPosTable endPositions, Symtab syms) {
             for (Iterator<Span> i = unmappedDecls.iterator(); i.hasNext(); ) {
                 if (i.next().contains(tree.pos())) {
-                    rootRange.populateSubtree(this, syms, tree, endPositions);
+                    rootRange.populateSubtree(this, tree, endPositions, syms);
                     i.remove();
                     return;
                 }
@@ -358,7 +359,8 @@ public class LintMapper {
             return validationsMap.computeIfAbsent(symbol, s -> LintCategory.newEmptySet());
         }
 
-        // Combine the validation sets for two variable symbols that are declared together
+        // Merge the validation sets for two variables declared together, thereby sharing any @SuppressWarnings annotation.
+        // See "annotationRepresentativeSymbolMap" below for more detail on why this is needed.
         void mergeValidations(VarSymbol symbol1, VarSymbol symbol2) {
             EnumSet<LintCategory> validations1 = validationsFor(symbol1);
             EnumSet<LintCategory> validations2 = validationsFor(symbol2);
@@ -410,22 +412,22 @@ public class LintMapper {
         Span span,                                      // declaration's lexical range
         Lint lint,                                      // the Lint configuration that applies at this declaration
         Symbol symbol,                                  // declaration symbol (null for root range)
-        List<LintRange> children,                       // the nested declarations one level below this node
         JCAnnotation annotation,                        // the @SuppressWarnings on this declaration, if any
-        EnumSet<LintCategory> suppressions,             // categories suppressed by @SuppressWarnings, if any
-        EnumSet<LintCategory> unvalidated               // categories in "suppressions" that were never validated
+        EnumSet<LintCategory> suppressions,             // categories suppressed by @SuppressWarnings
+        EnumSet<LintCategory> unvalidated,              // categories suppressed by @SuppressWarnings that were never validated
+        List<LintRange> children                        // the nested declarations one level below this node
     ) {
 
         // Create a node representing the entire file, using the root lint configuration
         LintRange(Lint rootLint) {
-            this(Span.MAXIMAL, rootLint, null, new ArrayList<>(), null, LintCategory.newEmptySet(), LintCategory.newEmptySet());
+            this(Span.MAXIMAL, rootLint, null, null, LintCategory.newEmptySet(), LintCategory.newEmptySet(), new ArrayList<>());
         }
 
         // Create a node representing the given declaration and its corresponding Lint configuration
         LintRange(JCTree tree, EndPosTable endPositions, Lint lint, Symbol symbol,
           JCAnnotation annotation, EnumSet<LintCategory> suppressions) {
-            this(new Span(tree, endPositions), lint, symbol, new ArrayList<>(),
-              annotation, suppressions, EnumSet.copyOf(suppressions));
+            this(new Span(tree, endPositions), lint, symbol,
+              annotation, suppressions, EnumSet.copyOf(suppressions), new ArrayList<>());
         }
 
         // Find the most specific node in this tree (including me) that contains the given position, if any
@@ -452,7 +454,7 @@ public class LintMapper {
 
         // Calculate the unvalidated suppressions in the subtree rooted at this node. We do this by recursively
         // propagating validations upward until they are "caught" by some matching suppression; this validates
-        // the suppression. Validations that are never caught and "escape" are returned to the caller.
+        // the suppression. Validations that are never caught "escape" and are returned to the caller.
         public EnumSet<LintCategory> propagateValidations(Map<Symbol, EnumSet<LintCategory>> validationsMap) {
 
             // Recurse on subtrees first and gather their uncaught validations
@@ -475,20 +477,20 @@ public class LintMapper {
                 return false;
             });
 
-            // Propagate the remaining validations that weren't caught upward
+            // Any remaining validations "escape" and propagate upward
             return validations;
         }
 
         // Populate a sparse subtree corresponding to the given nested declaration.
         // Only "interesting" declarations are included:
-        //  - Declarations that have a different Lint configuration than their parent
+        //  - Declarations that have a different Lint configuration from their parent
         //  - Declarations with a @SuppressWarnings annotation
-        void populateSubtree(FileInfo fileInfo, Symtab syms, JCTree tree, EndPosTable endPositions) {
+        void populateSubtree(FileInfo fileInfo, JCTree tree, EndPosTable endPositions, Symtab syms) {
             new TreeScanner() {
 
-                // Variables declared together (separated by commas) share their @SuppressWarnings annotation, so they must also
-                // share the set of validated suppressions: the suppression of a category is valid if *any* of the variables
-                // validates it. We detect that situation using this map and, when found, invoke FileInfo.mergeValidations().
+                // Variables declared together (separated by commas) share any @SuppressWarnings annotation, so they must also
+                // share the set of validated suppressions. That is, the suppression of a lint category is valid if a warning
+                // would have been generated by *any* of the variables. We detect this particular scenario using this map.
                 private final Map<JCAnnotation, VarSymbol> annotationRepresentativeSymbolMap = new HashMap<>();
 
                 private LintRange currentNode = LintRange.this;

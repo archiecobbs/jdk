@@ -76,7 +76,7 @@ public class SuppressionWarningTest extends TestRunner {
 
     // Test cases for testSuppressWarnings()
     public static final List<SuppressTest> SUPPRESS_WARNINGS_TEST_CASES = Stream.of(LintCategory.values())
-      .filter(category -> category.suppressionTracking)
+      .filter(category -> category.annotationSuppression)
       .map(category -> switch (category) {
         case AUXILIARYCLASS -> new SuppressTest(category,
             "compiler.warn.auxiliary.class.accessed.from.outside.of.its.source.file",
@@ -105,8 +105,6 @@ public class SuppressionWarningTest extends TestRunner {
             }
             """
         );
-
-        case CLASSFILE -> null; // skip, too hard to simluate
 
         case DANGLING_DOC_COMMENTS -> new SuppressTest(category,
             "compiler.warn.dangling.doc.comment",
@@ -246,8 +244,6 @@ public class SuppressionWarningTest extends TestRunner {
             }
             """
         );
-
-        case INCUBATING -> null; // skip, too hard to simluate reliably over time
 
         case LOSSY_CONVERSIONS -> new SuppressTest(category,
             "compiler.warn.possible.loss.of.precision",
@@ -457,6 +453,8 @@ public class SuppressionWarningTest extends TestRunner {
             """
         );
 
+        case SUPPRESSION -> null;       // special case, excluded from suppression warnings
+
         case IDENTITY -> new SuppressTest(category,
             "compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class",
             null,
@@ -607,11 +605,8 @@ public class SuppressionWarningTest extends TestRunner {
         test.runTestsMulti(m -> switch (m.getName()) {
           case "testSuppressWarnings" ->        SUPPRESS_WARNINGS_TEST_CASES.stream()
                                                   .map(testCase -> new Object[] { testCase });
-          case "testUselessAnnotation" ->       Stream.of(LintCategory.values())
-                                                  .filter(category -> category.suppressionTracking)
-                                                  .map(category -> new Object[] { category });
-          case "testUselessLintFlag" ->         Stream.of(LintCategory.values())
-                                                  .filter(category -> category.suppressionTracking)
+          case "testUselessAnnotation",
+               "testUselessLintFlag" ->         Stream.of(LintCategory.values())
                                                   .map(category -> new Object[] { category });
           case "testSelfSuppression" ->         Stream.of(RAW, SUPPRESSION)
                                                   .map(category -> new Object[] { category });
@@ -816,8 +811,11 @@ public class SuppressionWarningTest extends TestRunner {
     // Test a @SuppressWarning annotation that suppresses nothing
     @Test
     public void testUselessAnnotation(LintCategory category) throws Exception {
-        compileAndExpectWarning(
-          "compiler.warn.unnecessary.warning.suppression",
+        compileAndExpect(
+          switch (category) {
+            case SUPPRESSION -> null;
+            default -> "compiler.warn.unnecessary.warning.suppression";
+          },
           String.format(
             """
                 @SuppressWarnings(\"%s\")
@@ -830,11 +828,10 @@ public class SuppressionWarningTest extends TestRunner {
     // Test a -Xlint:-foo flag that suppresses nothing
     @Test
     public void testUselessLintFlag(LintCategory category) throws Exception {
-        compileAndExpectWarning(
-          "compiler.warn.unnecessary.lint.warning.suppression",
+        compileAndExpect(
+          category.supportsSuppressionOption() ? "compiler.warn.unnecessary.lint.warning.suppression" : null,
           """
-              public class Test {
-              }
+              public class Test { }
           """,
           String.format("-Xlint:%s", OPTIONS.option),
           String.format("-Xlint:%s", SUPPRESSION_OPTION.option),
@@ -910,6 +907,13 @@ public class SuppressionWarningTest extends TestRunner {
           """,
           String.format("-Xlint:%s", THIS_ESCAPE.option),
           String.format("-Xlint:%s", SUPPRESSION.option));
+    }
+
+    public void compileAndExpect(String errorKey, String source, String... flags) throws Exception {
+        if (errorKey != null)
+            compileAndExpectWarning(errorKey, source, flags);
+        else
+            compileAndExpectSuccess(source, flags);
     }
 
     public void compileAndExpectWarning(String errorKey, String source, String... flags) throws Exception {
