@@ -470,11 +470,11 @@ public class Lint {
             return EnumSet.noneOf(LintCategory.class);
         }
 
-        /** Determine whether we generate unnecessary {@code -Xlint:-key} flag warnings for this category. */
-        public final boolean supportsSuppressionOption() {
+        /** Determine whether the SUPPRESSION_OPTION warning specifically exempts this category. */
+        public final boolean suppressionOptionExempt() {
             return switch (this) {
-                case OPTIONS, PATH, SUPPRESSION_OPTION -> false;
-                default -> true;
+                case OPTIONS, PATH, SUPPRESSION_OPTION -> true;
+                default -> false;
             };
         }
 

@@ -50,6 +50,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -76,7 +77,6 @@ public class SuppressionWarningTest extends TestRunner {
 
     // Test cases for testSuppressWarnings()
     public static final List<SuppressTest> SUPPRESS_WARNINGS_TEST_CASES = Stream.of(LintCategory.values())
-      .filter(category -> category.annotationSuppression)
       .map(category -> switch (category) {
         case AUXILIARYCLASS -> new SuppressTest(category,
             "compiler.warn.auxiliary.class.accessed.from.outside.of.its.source.file",
@@ -105,6 +105,8 @@ public class SuppressionWarningTest extends TestRunner {
             }
             """
         );
+
+        case CLASSFILE -> null; // skip, too hard to simluate
 
         case DANGLING_DOC_COMMENTS -> new SuppressTest(category,
             "compiler.warn.dangling.doc.comment",
@@ -245,6 +247,8 @@ public class SuppressionWarningTest extends TestRunner {
             """
         );
 
+        case INCUBATING -> null; // skip, too hard to simluate reliably over time
+
         case LOSSY_CONVERSIONS -> new SuppressTest(category,
             "compiler.warn.possible.loss.of.precision",
             null,
@@ -302,6 +306,19 @@ public class SuppressionWarningTest extends TestRunner {
             """
         );
 
+        case OPTIONS -> new SuppressTest(category,
+            "compiler.warn.addopens.ignored",
+            new String[] { "--add-opens", "foo/bar=ALL-UNNAMED" },
+            """
+            @OUTER@
+            public class Test {
+                @INNER@
+                public class Test2 {
+                }
+            }
+            """
+        );
+
         // This test case only works on MacOS
         case OUTPUT_FILE_CLASH ->
             System.getProperty("os.name").startsWith("Mac") ?
@@ -346,6 +363,19 @@ public class SuppressionWarningTest extends TestRunner {
                     public boolean equals(Object obj) {
                         return false;
                     }
+                }
+            }
+            """
+        );
+
+        case PATH -> new SuppressTest(category,
+            "compiler.warn.path.element.not.found",
+            new String[] { "-classpath", "/nonigzistint" },
+            """
+            @OUTER@
+            public class Test {
+                @INNER@
+                public class Test2 {
                 }
             }
             """
@@ -453,7 +483,36 @@ public class SuppressionWarningTest extends TestRunner {
             """
         );
 
-        case SUPPRESSION -> null;       // special case, excluded from suppression warnings
+        case SUPPRESSION -> new SuppressTest(category,
+            "compiler.warn.unnecessary.warning.suppression",
+            null,
+            """
+            @OUTER@
+            public class Test {
+                @INNER@
+                public class Inner1 {
+                    @SuppressWarnings("unchecked")
+                    public void foo() {
+                    }
+                }
+            }
+            """
+        );
+
+        case SUPPRESSION_OPTION -> new SuppressTest(category,
+            "compiler.warn.unnecessary.lint.warning.suppression",
+            new String[] { "-Xlint:-unchecked" },
+            """
+            @OUTER@
+            public class Test {
+                @INNER@
+                public class Inner1 {
+                    public void foo() {
+                    }
+                }
+            }
+            """
+        );
 
         case IDENTITY -> new SuppressTest(category,
             "compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class",
@@ -626,7 +685,7 @@ public class SuppressionWarningTest extends TestRunner {
 
         // Detect if any modules are being compiled; if so we need to create an extra source directory level
         Pattern moduleDecl = Pattern.compile("module\\s+(\\S*).*");
-        Set<String> moduleNames = test.sources().stream()
+        Set<String> moduleNames = test.sources.stream()
           .flatMap(source -> Stream.of(source.split("\\n")))
           .map(moduleDecl::matcher)
           .filter(Matcher::matches)
@@ -636,7 +695,7 @@ public class SuppressionWarningTest extends TestRunner {
         // Special JAR file support for REQUIRES_AUTOMATIC and REQUIRES_TRANSITIVE_AUTOMATIC
         Path modulePath = base.resolve("modules");
         resetDirectory(modulePath);
-        LintCategory category = test.category();
+        LintCategory category = test.category;
         switch (category) {
         case REQUIRES_AUTOMATIC:
         case REQUIRES_TRANSITIVE_AUTOMATIC:
@@ -667,8 +726,8 @@ public class SuppressionWarningTest extends TestRunner {
         String annotation = String.format("@SuppressWarnings(\"%s\")", category.option);
 
         // See which annotation substitutions this test supports
-        boolean hasOuterAnnotation = test.sources().stream().anyMatch(source -> source.contains("@OUTER@"));
-        boolean hasInnerAnnotation = test.sources().stream().anyMatch(source -> source.contains("@INNER@"));
+        boolean hasOuterAnnotation = test.sources.stream().anyMatch(source -> source.contains("@OUTER@"));
+        boolean hasInnerAnnotation = test.sources.stream().anyMatch(source -> source.contains("@INNER@"));
 
         // Try all combinations of inner and outer @SuppressWarnings
         boolean[] booleans = new boolean[] { false, true };
@@ -679,7 +738,7 @@ public class SuppressionWarningTest extends TestRunner {
               continue;
 
           // Insert or comment out the @SuppressWarnings annotations in the source templates
-          String[] sources = test.sources().stream()
+          String[] sources = test.sources.stream()
             .map(source -> source.replace("@OUTER@",
               String.format("%s@SuppressWarnings(\"%s\")", outerAnnotation ? "" : "//", category.option)))
             .map(source -> source.replace("@INNER@",
@@ -706,19 +765,28 @@ public class SuppressionWarningTest extends TestRunner {
             for (boolean enableSuppression : booleans) {                    // [-]suppression
               for (boolean enableSuppressionOption : booleans) {            // [-]suppression-option
 
-                // Should we expect the warning to be emitted?
+                // Special case when category is SUPPRESSION or SUPPRESSION-OPTION: avoid a contradiction
+                if (category == LintCategory.SUPPRESSION && enableCategory != enableSuppression)
+                    continue;
+                if (category == LintCategory.SUPPRESSION_OPTION && enableCategory != enableSuppressionOption)
+                    continue;
+
+                // Should we expect the "test.warningKey" warning to be emitted?
                 boolean expectCategoryWarning = category.annotationSuppression ?
                   enableCategory && !outerAnnotation && !innerAnnotation : enableCategory;
 
-                // Should we expect the SUPPRESSION warning to be emitted?
+                // Should we expect the SUPPRESSION warning to be emitted? (this is ignored for category SUPPRESSION)
                 boolean expectSuppressionWarning = category.annotationSuppression ?
                   enableSuppression && outerAnnotation && innerAnnotation :   // only if both, outer is redundant
                   enableSuppression && (outerAnnotation || innerAnnotation);  // either one is always redundant
 
                 // Should we expect the SUPPRESSION_OPTION warning to be emitted?
-                boolean expectSuppressionOptionWarning = category.annotationSuppression ?
-                  enableSuppressionOption && !enableCategory && (outerAnnotation || innerAnnotation) :
-                  false;
+                boolean expectSuppressionOptionWarning =
+                  !enableCategory &&                                        // there must be a "-Xlint:-category" flag
+                  enableSuppressionOption &&                                // there must be a "-Xlint:suppress-option" flag
+                  !category.suppressionOptionExempt() &&                    // category is supported by "-Xlint:suppress-option"
+                  category.annotationSuppression &&                         // @SuppressWarnings("category") is supported
+                  (outerAnnotation || innerAnnotation);                     // there is at least one @SuppressWarnings("category")
 
                 // Prepare command line flags
                 ArrayList<String> flags = new ArrayList<>();
@@ -726,11 +794,14 @@ public class SuppressionWarningTest extends TestRunner {
                     flags.add("--module-path");
                     flags.add(modulePath.toString());
                 }
-                flags.add("--release");
-                flags.add(Source.DEFAULT.name);
-                flags.addAll(test.compileFlags());
+                if (!test.compileFlags.contains("--release")) {
+                    flags.add("--release");
+                    flags.add(Source.DEFAULT.name);
+                }
+                flags.addAll(test.compileFlags);
 
-                ArrayList<String> lints = new ArrayList<>();
+                // Add the -Xlint flag (if any)
+                LinkedHashSet<String> lints = new LinkedHashSet<>();
                 lints.add(String.format("%s%s", enableCategory ? "" : "-", category.option));
                 if (enableSuppression)
                     lints.add(SUPPRESSION.option);
@@ -751,51 +822,57 @@ public class SuppressionWarningTest extends TestRunner {
                 PrintWriter log = new PrintWriter(buf);
                 try {
 
-                  // Logging
-                  log.println(String.format(">>> Test  START: %s", description));
-                  Stream.of(sources).forEach(log::println);
-                  log.println(String.format(">>> expectCategoryWarning=%s", expectCategoryWarning));
-                  log.println(String.format(">>> expectSuppressionWarning=%s", expectSuppressionWarning));
-                  log.println(String.format(">>> expectSuppressionOptionWarning=%s", expectSuppressionOptionWarning));
+                    // Logging
+                    log.println(String.format(">>> Test  START: %s", description));
+                    Stream.of(sources).forEach(log::println);
+                    log.println(String.format(">>> expectCategoryWarning=%s", expectCategoryWarning));
+                    log.println(String.format(">>> expectSuppressionWarning=%s", expectSuppressionWarning));
+                    log.println(String.format(">>> expectSuppressionOptionWarning=%s", expectSuppressionOptionWarning));
 
-                  // Compile sources and get log output
-                  List<String> output = compile(base, Task.Expect.SUCCESS, flags.toArray(new String[0]));
+                    // Compile sources and get log output
+                    List<String> output = compile(base, Task.Expect.SUCCESS, flags.toArray(new String[0]));
 
-                  // Scrub insignificant log output
-                  output.removeIf(line -> line.matches("[0-9]+ (error|warning)s?"));
-                  output.removeIf(line -> line.contains("compiler.err.warnings.and.werror"));
-                  output.removeIf(line -> line.matches("- compiler\\.note\\..*"));   // mandatory warning "recompile" etc.
+                    // Scrub insignificant log output
+                    output.removeIf(line -> line.matches("[0-9]+ (error|warning)s?"));
+                    output.removeIf(line -> line.contains("compiler.err.warnings.and.werror"));
+                    output.removeIf(line -> line.matches("- compiler\\.note\\..*"));   // mandatory warning "recompile" etc.
 
-                  // See which warnings appeared
-                  boolean foundSuppressionWarning = output.removeIf(
-                    line -> line.contains("compiler.warn.unnecessary.warning.suppression"));
-                  boolean foundSuppressionOptionWarning = output.removeIf(
-                    line -> line.contains("compiler.warn.unnecessary.lint.warning.suppression"));
-                  boolean foundCategoryWarning = output.removeIf(line -> line.contains(test.warningKey()));
+                    // See if the category warning appeared as expected
+                    boolean foundCategoryWarning = output.removeIf(line -> line.contains(test.warningKey));
+                    if (foundCategoryWarning != expectCategoryWarning) {
+                        throw new AssertionError(String.format("%s: category warning: found=%s but expected=%s",
+                          description, foundCategoryWarning, expectCategoryWarning));
+                    }
 
-                  // Compare that vs. expectations
-                  if (foundCategoryWarning != expectCategoryWarning) {
-                      throw new AssertionError(String.format("%s: category warning: found=%s but expected=%s",
-                        description, foundCategoryWarning, expectCategoryWarning));
-                  }
-                  if (foundSuppressionWarning != expectSuppressionWarning) {
-                      throw new AssertionError(String.format("%s: \"%s\" warning: found=%s but expected=%s",
-                        description, SUPPRESSION.option, foundSuppressionWarning, expectSuppressionWarning));
-                  }
-                  if (foundSuppressionOptionWarning != expectSuppressionOptionWarning) {
-                      throw new AssertionError(String.format("%s: \"%s\" warning: found=%s but expected=%s",
-                        description, SUPPRESSION_OPTION.option, foundSuppressionOptionWarning,
-                        expectSuppressionOptionWarning));
-                  }
+                    // See if the suppression warning appeared as expected (but skip redundant check for SUPPRESSION)
+                    if (category != LintCategory.SUPPRESSION) {
+                        boolean foundSuppressionWarning = output.removeIf(
+                          line -> line.contains("compiler.warn.unnecessary.warning.suppression"));
+                        if (foundSuppressionWarning != expectSuppressionWarning) {
+                            throw new AssertionError(String.format("%s: \"%s\" warning: found=%s but expected=%s",
+                              description, SUPPRESSION.option, foundSuppressionWarning, expectSuppressionWarning));
+                        }
+                    }
 
-                  // There shouldn't be any other warnings
-                  if (!output.isEmpty()) {
-                      throw new AssertionError(String.format(
-                        "%s: %d unexpected warning(s): %s", description, output.size(), output));
-                  }
+                    // See if the suppression-option warning appeared as expected (but skip if redundant)
+                    if (category != LintCategory.SUPPRESSION_OPTION) {
+                        boolean foundSuppressionOptionWarning = output.removeIf(
+                          line -> line.contains("compiler.warn.unnecessary.lint.warning.suppression"));
+                        if (foundSuppressionOptionWarning != expectSuppressionOptionWarning) {
+                            throw new AssertionError(String.format("%s: \"%s\" warning: found=%s but expected=%s",
+                              description, SUPPRESSION_OPTION.option, foundSuppressionOptionWarning,
+                              expectSuppressionOptionWarning));
+                        }
+                    }
 
-                  // Done
-                  log.println(String.format("<<< Test PASSED: %s", description));
+                    // There shouldn't be any other warnings
+                    if (!output.isEmpty()) {
+                        throw new AssertionError(String.format(
+                          "%s: %d unexpected warning(s): %s", description, output.size(), output));
+                    }
+
+                    // Done
+                    log.println(String.format("<<< Test PASSED: %s", description));
                 } catch (AssertionError e) {
                     log.println(String.format("<<< Test FAILED: %s", description));
                     log.flush();
@@ -811,11 +888,10 @@ public class SuppressionWarningTest extends TestRunner {
     // Test a @SuppressWarning annotation that suppresses nothing
     @Test
     public void testUselessAnnotation(LintCategory category) throws Exception {
+        String warningKey = category != LintCategory.SUPPRESSION ?      // @SuppressWarnings("suppression") can never be useless!
+          "compiler.warn.unnecessary.warning.suppression" : null;
         compileAndExpect(
-          switch (category) {
-            case SUPPRESSION -> null;
-            default -> "compiler.warn.unnecessary.warning.suppression";
-          },
+          warningKey,
           String.format(
             """
                 @SuppressWarnings(\"%s\")
@@ -828,8 +904,10 @@ public class SuppressionWarningTest extends TestRunner {
     // Test a -Xlint:-foo flag that suppresses nothing
     @Test
     public void testUselessLintFlag(LintCategory category) throws Exception {
+        String warningKey = !category.suppressionOptionExempt() ?
+          "compiler.warn.unnecessary.lint.warning.suppression" : null;
         compileAndExpect(
-          category.supportsSuppressionOption() ? "compiler.warn.unnecessary.lint.warning.suppression" : null,
+          warningKey,
           """
               public class Test { }
           """,

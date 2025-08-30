@@ -80,8 +80,8 @@ import com.sun.tools.javac.util.Options;
  *
  * <p>
  * Validation events "bubble up" the source tree until either they are "caught" by a {@code @SuppressWarnings}
- * annotation, or they escape the file entirely, in which case they may be "caught" by a {@code -Xlint:key} flag.
- * Being "caught" validates the corresponding suppression. A suppression that is never caught (i.e., never validated)
+ * annotation, or they escape the file entirely, in which case they may be caught by a {@code -Xlint:-key} flag.
+ * Being caught validates the corresponding suppression. A suppression that is never caught (i.e., never validated)
  * is unnecessary.
  *
  * <p>
@@ -97,8 +97,8 @@ import com.sun.tools.javac.util.Options;
  *  <li>{@code @SuppressWarnings("suppression")} is normal and valid: it means unnecessary suppression
  *      warnings won't occur for that annotation or any other {@code @SuppressWarnings} annotations within
  *      the scope of the annotated declaration.
- *  <li>Some lint categories are exempt from unnecessary {@code -Xlint:-key} warnings; see
- *      {@link LintCategory#supportsSuppressionOption}.
+ *  <li>A few lint categories are exempt from unnecessary {@code -Xlint:-key} warnings; see
+ *      {@link LintCategory#suppressionOptionExempt}.
  * </ul>
  *
  * <p><b>This is NOT part of any supported API.
@@ -230,9 +230,10 @@ public class LintMapper {
      * @param category lint category to validate
      */
     public void validateSuppression(Symbol symbol, LintCategory category) {
-        EnumSet<LintCategory> validations = symbol != null ?
-          fileInfoMap.get(log.currentSourceFile()).validationsFor(symbol) : optionFlagValidations;
-        validations.add(category);
+        if (symbol != null)
+            fileInfoMap.get(log.currentSourceFile()).validationsFor(symbol).add(category);
+        else
+            optionFlagValidations.add(category);
     }
 
     /**
@@ -256,7 +257,7 @@ public class LintMapper {
         LintRange lintRange = fileInfo.rootRange.findChild(tree.pos());
 
         // Propagate validations within "tree" to determine which suppressions therein never got validated
-        // and then allow any that escape to validate the corresponding "Xlint:-foo" suppression (if any).
+        // and then any validations that "escape" will validate any corresponding "Xlint:-foo" suppression
         optionFlagValidations.addAll(fileInfo.propagateValidations(lintRange));
 
         // Report unvalidated suppresions, except where SUPPRESSION is itself suppressed
@@ -274,10 +275,7 @@ public class LintMapper {
      */
     public void reportUnnecessarySuppressionOptions() {
         initializeIfNeeded();
-        if (rootLint.isEnabled(LintCategory.SUPPRESSION_OPTION, false) &&
-            rootLint.isEnabled(LintCategory.OPTIONS, false) &&
-            !options.isSet(Option.XLINT) &&                     // if "-Xlint:all" appears, all "-foo" suppressions are valid
-            !options.isSet(Option.XLINT_CUSTOM, "all")) {
+        if (rootLint.isEnabled(LintCategory.SUPPRESSION_OPTION, false) && rootLint.isEnabled(LintCategory.OPTIONS, false)) {
 
             // If a file has errors, we may never get a call to reportUnnecessaryAnnotations(), which means validations
             // in that file may never propagate to the global level, which means possible bogus "suppression-option" warnings.
@@ -290,8 +288,8 @@ public class LintMapper {
             EnumSet<LintCategory> unvalidated = rootLint.getOptionFlagSuppressions();
             unvalidated.removeAll(optionFlagValidations);
 
-            // Eliminate categories that are exempt from unnecessary -Xlint:-key suppression warnings
-            unvalidated.removeIf(category -> !category.supportsSuppressionOption());
+            // Eliminate those categories that are exempt from SUPPRESSION_OPTION warnings
+            unvalidated.removeIf(LintCategory::suppressionOptionExempt);
 
             // Report them
             report(unvalidated, name -> "-" + name, names -> log.warning(LintWarnings.UnnecessaryLintWarningSuppression(names)));
@@ -476,6 +474,15 @@ public class LintMapper {
                 }
                 return false;
             });
+
+            // Now we know if a SUPPRESSION warning happens here; validate and propagate suppressions of SUPPRESSION as well
+            boolean suppressionWarningHere = !unvalidated.isEmpty();
+            if (suppressionWarningHere) {
+                if (suppressions.contains(LintCategory.SUPPRESSION))
+                    unvalidated.remove(LintCategory.SUPPRESSION);
+                else
+                    validations.add(LintCategory.SUPPRESSION);
+            }
 
             // Any remaining validations "escape" and propagate upward
             return validations;
