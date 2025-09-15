@@ -489,8 +489,13 @@ public class Lint {
     }
 
     /**
-     * Determine whether warnings in the given category should be calculated, because either
-     * (a) the category is enabled, or (b) one of {@code "suppression"} or {@code "suppression-option"} is enabled.
+     * Determine whether warnings in the given category need to be calculated within the current delcaration
+     * because either (a) the category is enabled, or (b) one of {@code "suppression"} or {@code "suppression-option"}
+     * is enabled.
+     *
+     * <p>
+     * In case (b), warnings don't need to be calculated unless/until the category is actually suppressed,
+     * but that might not happen until some nested declaration, so we can't include a test for that here.
      *
      * <p>
      * Use of this method is never required; it simply helps avoid potentially useless work.
