@@ -179,17 +179,19 @@ public class LintMapper {
         final LintRange rootRange;                              // the root LintRange (covering the entire source file)
         final List<Span> unmappedDecls = new LinkedList<>();    // unmapped top-level declarations awaiting attribution
 
-        // After parsing: Add top-level declarations to our "unmappedDecls" list
+        // After parsing: Add top-level declarations to our "unmappedDecls" list if it needs to wait for attribution
         FileInfo(Lint rootLint, JCCompilationUnit tree) {
             rootRange = new LintRange(rootLint);
             for (JCTree decl : tree.defs) {
-                if (isTopLevelDecl(decl))
+                if (needsToWaitForAttribution(decl))
                     unmappedDecls.add(new Span(decl, tree.endPositions));
             }
         }
 
         // After attribution: Discard the span from "unmappedDecls" and populate the declaration's subtree under "rootRange"
         void afterAttr(JCTree tree, EndPosTable endPositions) {
+            if (!needsToWaitForAttribution(tree))
+                return;                                         // thanks, but we weren't actually waiting on this one
             for (Iterator<Span> i = unmappedDecls.iterator(); i.hasNext(); ) {
                 if (i.next().contains(tree.pos())) {
                     rootRange.populateSubtree(tree, endPositions);
@@ -209,9 +211,11 @@ public class LintMapper {
             return Optional.of(rootRange.bestMatch(pos).lint);
         }
 
-        boolean isTopLevelDecl(JCTree tree) {
+        // Optimization: package declarations can't have nested annotations, so if there are no annotations on the declaration
+        // then there are no @SuppressWarnings anywhere within the declaration, so there's no need to wait for attribution.
+        boolean needsToWaitForAttribution(JCTree tree) {
             return tree.getTag() == Tag.MODULEDEF
-                || tree.getTag() == Tag.PACKAGEDEF
+                || (tree.getTag() == Tag.PACKAGEDEF && !((JCPackageDecl)tree).annotations.isEmpty())
                 || tree.getTag() == Tag.CLASSDEF;
         }
     }
