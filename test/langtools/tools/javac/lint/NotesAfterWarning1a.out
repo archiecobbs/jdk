@@ -1,0 +1,4 @@
+NotesAfterWarning1.java:15:11: compiler.err.expected: token.identifier
+- compiler.note.preview.filename: NotesAfterWarning1.java, DEFAULT
+- compiler.note.preview.recompile
+1 error

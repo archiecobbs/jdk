@@ -25,7 +25,7 @@
  * @test
  * @bug 8173609
  * @summary printing of modules
- * @compile/ref=module-info.out -Xprint p/P.java module-info.java
+ * @compile/ref=module-info.out -Xprint p/P.java -Xlint:-module module-info.java
  */
 
 /**

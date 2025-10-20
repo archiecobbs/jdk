@@ -187,13 +187,13 @@ public class Log extends AbstractLog {
             }
 
             // Proceed
-            reportReady(diag);
+            reportReady(diag, lint);
         }
 
         /**
          * Step 3: Handle a diagnostic to which the applicable Lint instance (if any) has been applied.
          */
-        protected abstract void reportReady(JCDiagnostic diag);
+        protected abstract void reportReady(JCDiagnostic diag, Lint lint);
 
         protected void addLintWaiter(JavaFileObject sourceFile, JCDiagnostic diagnostic) {
             lintWaitersMap.computeIfAbsent(sourceFile, s -> new LinkedList<>()).add(diagnostic);
@@ -201,8 +201,10 @@ public class Log extends AbstractLog {
 
         /**
          * Flush any lint waiters whose {@link Lint} configurations are now known.
+         *
+         * @param force flush even if the applicable {@link Lint} is not known, using instead the root instance
          */
-        public void flushLintWaiters() {
+        public void flushLintWaiters(boolean force) {
             lintWaitersMap.entrySet().removeIf(entry -> {
 
                 // Is the source file no longer recognized? If so, discard warnings (e.g., this can happen with JShell)
@@ -216,6 +218,8 @@ public class Log extends AbstractLog {
                 try {
                     diagnosticList.removeIf(diag -> {
                         Lint lint = lintFor(diag);
+                        if (lint == null && force)
+                            lint = rootLint();
                         if (lint != null) {
                             reportWithLint(diag, lint);
                             return true;
@@ -241,7 +245,7 @@ public class Log extends AbstractLog {
         protected void addLintWaiter(JavaFileObject sourceFile, JCDiagnostic diagnostic) { }
 
         @Override
-        protected void reportReady(JCDiagnostic diag) { }
+        protected void reportReady(JCDiagnostic diag, Lint lint) { }
     }
 
     /**
@@ -274,11 +278,11 @@ public class Log extends AbstractLog {
         }
 
         @Override
-        protected void reportReady(JCDiagnostic diag) {
+        protected void reportReady(JCDiagnostic diag, Lint lint) {
             if (deferrable(diag)) {
                 deferred.add(diag);
             } else {
-                prev.reportReady(diag);
+                prev.reportReady(diag, lint);
             }
         }
 
@@ -841,9 +845,11 @@ public class Log extends AbstractLog {
 
     /**
      * Report unreported lint warnings for which the applicable {@link Lint} configuration is now known.
+     *
+     * @param force report even if the applicable {@link Lint} is not known, using instead the root instance
      */
-    public void reportOutstandingWarnings() {
-        diagnosticHandler.flushLintWaiters();
+    public void reportOutstandingWarnings(boolean force) {
+        diagnosticHandler.flushLintWaiters(force);
     }
 
     // Get the Lint config for the given warning (if known)
@@ -920,7 +926,7 @@ public class Log extends AbstractLog {
     private class DefaultDiagnosticHandler extends DiagnosticHandler {
 
         @Override
-        protected void reportReady(JCDiagnostic diagnostic) {
+        protected void reportReady(JCDiagnostic diagnostic, Lint lint) {
             if (expectDiagKeys != null)
                 expectDiagKeys.remove(diagnostic.getCode());
 
@@ -947,7 +953,7 @@ public class Log extends AbstractLog {
                 // Apply the appropriate mandatory warning aggregator, if needed
                 if (diagnostic.isFlagSet(AGGREGATE)) {
                     LintCategory category = diagnostic.getLintCategory();
-                    boolean verbose = lintFor(diagnostic).isEnabled(category);
+                    boolean verbose = lint.isEnabled(category);
                     if (!aggregatorFor(category).aggregate(diagnostic, verbose))
                         return;
                 }

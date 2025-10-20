@@ -587,7 +587,7 @@ public class JavaCompiler {
     /** The number of errors reported so far.
      */
     public int errorCount() {
-        log.reportOutstandingWarnings();
+        log.reportOutstandingWarnings(false);
         if (log.nerrors == 0 && log.nwarnings > 0 &&
                 (werrorAny || werrorLint.clone().removeAll(log.lintWarnings))) {
             log.error(Errors.WarningsAndWerror);
@@ -1866,7 +1866,7 @@ public class JavaCompiler {
             else
                 log.warning(Warnings.ProcUseProcOrImplicit);
         }
-        log.reportOutstandingWarnings();
+        log.reportOutstandingWarnings(true);
         log.reportOutstandingNotes();
         if (log.compressedOutput) {
             log.note(Notes.CompressedDiags);

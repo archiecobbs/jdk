@@ -1,0 +1,4 @@
+NotesAfterWarning1.java:15:11: compiler.err.expected: token.identifier
+NotesAfterWarning1.java:12:16: compiler.warn.preview.feature.use.plural: (compiler.misc.feature.text.blocks)
+1 error
+1 warning
