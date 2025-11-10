@@ -141,13 +141,27 @@ public class Log extends AbstractLog {
             LintCategory category = diag.getLintCategory();
             if (category != null) {                                         // this is a lint warning; find the applicable Lint
                 DiagnosticPosition pos = diag.getDiagnosticPosition();
+                Lint theRootLint = rootLint();
                 if (pos != null && category.annotationSuppression) {        // we should apply the Lint from the warning's position
+
+                    // Optimization: We don't need to go through the trouble of calculating the Lint instance at "pos" if
+                    // (a) "category" is disabled at the root level, and (b) the diagnostic doesn't have the DEFAULT_ENABLED
+                    // flag: @SuppressWarnings can only disable lint categories, so "category" is disabled in the entire file.
+                    // But if tracking suppression, skip this optimization because it might cause a validation to be missed.
+                    if (!theRootLint.isEnabled(category, false) &&
+                      !theRootLint.isEnabled(SUPPRESSION, false) &&
+                      !theRootLint.isEnabled(SUPPRESSION_OPTION, false) &&
+                      !diag.isFlagSet(DEFAULT_ENABLED) &&
+                      !diag.getCode().equals(RequiresTransitiveAutomatic.key()))    // accommodate the "requires" hack below
+                        return;
+
+                    // Wait for the Lint instance at "pos" to be calculated, then proceed
                     if ((lint = lintFor(diag)) == null) {
                         addLintWaiter(currentSourceFile(), diag);           // ...but we don't know it yet, so defer
                         return;
                     }
                 } else                                                      // we should apply the root Lint
-                    lint = rootLint();
+                    lint = theRootLint;
             }
             reportWithLint(diag, lint);
         }
@@ -171,7 +185,7 @@ public class Log extends AbstractLog {
                   lint.isEnabled(category, false) :                     // then emit if the category is enabled
                   category.annotationSuppression ?                      // else emit if the category is not suppressed, where
                     !lint.isSuppressed(category, false) :               // ...suppression happens via @SuppressWarnings
-                    !options.isLintDisabled(category);                  // ...suppression happens via -Xlint:-category
+                    !options.isDisabled(Option.XLINT, category);        // ...suppression happens via -Xlint:-category
                 if (!emit) {
                     validateSuppression(new SuppressionValidation(lint, diag));     // validate any suppression
                     return;
@@ -228,8 +242,9 @@ public class Log extends AbstractLog {
             });
         }
 
+        // Represents the operation by which the suppression of a lint category is validated
         protected record SuppressionValidation(Lint lint, JCDiagnostic diag) {
-            void validate() {
+            void apply() {
                 lint.validateSuppression(diag.getLintCategory());
             }
         }
@@ -585,9 +600,13 @@ public class Log extends AbstractLog {
      */
     public int nerrors = 0;
 
-    /** The number of warnings encountered so far.
+    /** The total number of warnings encountered so far.
      */
     public int nwarnings = 0;
+
+    /** Tracks whether any warnings have been encountered in each {@link LintCategory}.
+     */
+    public final EnumSet<LintCategory> lintWarnings = LintCategory.newEmptySet();
 
     /** The number of errors encountered after MaxErrors was reached.
      */
@@ -917,6 +936,7 @@ public class Log extends AbstractLog {
     public void clear() {
         recorded.clear();
         sourceMap.clear();
+        lintWarnings.clear();
         nerrors = 0;
         nwarnings = 0;
         nsuppressederrors = 0;
@@ -977,7 +997,6 @@ public class Log extends AbstractLog {
                 // Strict warnings are always emitted
                 if (diagnostic.isFlagSet(STRICT)) {
                     writeDiagnostic(diagnostic);
-                    nwarnings++;
                     return;
                 }
 
@@ -985,7 +1004,6 @@ public class Log extends AbstractLog {
                 if (emitWarnings || diagnostic.isMandatory()) {
                     if (nwarnings < MaxWarnings) {
                         writeDiagnostic(diagnostic);
-                        nwarnings++;
                     } else {
                         nsuppressedwarns++;
                     }
@@ -996,7 +1014,6 @@ public class Log extends AbstractLog {
                 if (diagnostic.isFlagSet(API) || shouldReport(diagnostic)) {
                     if (nerrors < MaxErrors) {
                         writeDiagnostic(diagnostic);
-                        nerrors++;
                     } else {
                         nsuppressederrors++;
                     }
@@ -1010,14 +1027,30 @@ public class Log extends AbstractLog {
 
         @Override
         protected void validateSuppression(SuppressionValidation validation) {
-            validation.validate();
+            validation.apply();     // make it real
         }
     }
 
     /**
-     * Write out a diagnostic.
+     * Write out a diagnostic and bump the warning and error counters as needed.
      */
     protected void writeDiagnostic(JCDiagnostic diag) {
+
+        // Increment counter(s)
+        switch (diag.getType()) {
+        case WARNING:
+            nwarnings++;
+            Optional.of(diag)
+              .map(JCDiagnostic::getLintCategory)
+              .ifPresent(lintWarnings::add);
+            break;
+        case ERROR:
+            nerrors++;
+            break;
+        default:
+            break;
+        }
+
         if (diagListener != null) {
             diagListener.report(diag);
             return;

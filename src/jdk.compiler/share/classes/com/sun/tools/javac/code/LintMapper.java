@@ -25,22 +25,19 @@
 
 package com.sun.tools.javac.code;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.tools.DiagnosticListener;
 import javax.tools.JavaFileObject;
 
 import com.sun.tools.javac.code.Lint.LintCategory;
@@ -176,9 +173,10 @@ public class LintMapper {
      */
     public Optional<Lint> lintAt(JavaFileObject sourceFile, DiagnosticPosition pos) {
         initializeIfNeeded();
-        return Optional.of(sourceFile)
-          .map(fileInfoMap::get)
-          .flatMap(fileInfo -> fileInfo.lintAt(pos));
+        FileInfo fileInfo = fileInfoMap.get(sourceFile);
+        if (fileInfo != null)
+            return fileInfo.lintAt(pos);
+        return Optional.empty();
     }
 
     /**
@@ -321,17 +319,17 @@ public class LintMapper {
     private static class FileInfo {
 
         final LintRange rootRange;                              // the root LintRange (covering the entire source file)
-        final List<Span> unmappedDecls = new ArrayList<>();     // unmapped top-level declarations awaiting attribution
+        final List<Span> unmappedDecls = new LinkedList<>();    // unmapped top-level declarations awaiting attribution
         final Map<Symbol, EnumSet<LintCategory>> validationsMap // maps declaration symbol to validations therein
           = new HashMap<>();
 
         // After parsing: Add top-level declarations to our "unmappedDecls" list
         FileInfo(Lint rootLint, JCCompilationUnit tree) {
             rootRange = new LintRange(rootLint);
-            tree.defs.stream()
-              .filter(this::isTopLevelDecl)
-              .map(decl -> new Span(decl, tree.endPositions))
-              .forEach(unmappedDecls::add);
+            for (JCTree decl : tree.defs) {
+                if (isTopLevelDecl(decl))
+                    unmappedDecls.add(new Span(decl, tree.endPositions));
+            }
         }
 
         // After attribution: Discard the span from "unmappedDecls" and populate the declaration's subtree under "rootRange"
@@ -348,8 +346,11 @@ public class LintMapper {
 
         // Find the most specific Lint configuration applying to the given position, unless the position has not been mapped yet
         Optional<Lint> lintAt(DiagnosticPosition pos) {
-            boolean mapped = unmappedDecls.stream().noneMatch(span -> span.contains(pos));
-            return mapped ? Optional.of(rootRange.bestMatch(pos).lint) : Optional.empty();
+            for (Span span : unmappedDecls) {
+                if (span.contains(pos))
+                    return Optional.empty();
+            }
+            return Optional.of(rootRange.bestMatch(pos).lint);
         }
 
         // Obtain the validation state for the given symbol
@@ -418,23 +419,29 @@ public class LintMapper {
 
         // Create a node representing the entire file, using the root lint configuration
         LintRange(Lint rootLint) {
-            this(Span.MAXIMAL, rootLint, null, null, LintCategory.newEmptySet(), LintCategory.newEmptySet(), new ArrayList<>());
+            this(Span.MAXIMAL, rootLint, null, null, LintCategory.newEmptySet(), LintCategory.newEmptySet(), new LinkedList<>());
         }
 
         // Create a node representing the given declaration and its corresponding Lint configuration
         LintRange(JCTree tree, EndPosTable endPositions, Lint lint, Symbol symbol,
           JCAnnotation annotation, EnumSet<LintCategory> suppressions) {
             this(new Span(tree, endPositions), lint, symbol,
-              annotation, suppressions, EnumSet.copyOf(suppressions), new ArrayList<>());
+              annotation, suppressions, EnumSet.copyOf(suppressions), new LinkedList<>());
         }
 
         // Find the most specific node in this tree (including me) that contains the given position, if any
         LintRange bestMatch(DiagnosticPosition pos) {
-            return children.stream()
-              .map(child -> child.bestMatch(pos))
-              .filter(Objects::nonNull)
-              .reduce((a, b) -> a.span.contains(b.span) ? b : a)
-              .orElseGet(() -> span.contains(pos) ? this : null);
+            LintRange bestMatch = null;
+            for (LintRange child : children) {
+                if (!child.span.contains(pos))          // don't recurse unless necessary
+                    continue;
+                LintRange childBestMatch = child.bestMatch(pos);
+                if (childBestMatch != null && (bestMatch == null || bestMatch.span.contains(childBestMatch.span)))
+                    bestMatch = childBestMatch;
+            }
+            if (bestMatch == null)
+                bestMatch = span.contains(pos) ? this : null;
+            return bestMatch;
         }
 
         // Find the child containing the given position
