@@ -79,6 +79,7 @@ module java.base {
     exports java.io;
     exports java.lang;
     exports java.lang.annotation;
+    exports java.lang.annotation.typestamp;
     exports java.lang.classfile;
     exports java.lang.classfile.attribute;
     exports java.lang.classfile.constantpool;
