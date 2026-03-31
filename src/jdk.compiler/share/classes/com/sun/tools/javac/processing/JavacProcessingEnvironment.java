@@ -1195,12 +1195,18 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         }
 
         void showDiagnostics(boolean showAll) {
-            deferredDiagnosticHandler.reportDeferredDiagnostics(showAll ? ACCEPT_ALL
-                                                                        : ACCEPT_NON_RECOVERABLE);
+            deferredDiagnosticHandler.reportDeferredDiagnostics(
+                DISCARD_SUPPRESSIBLE_LINT.and(showAll ? ACCEPT_ALL
+                                                      : ACCEPT_NON_RECOVERABLE));
             log.popDiagnosticHandler(deferredDiagnosticHandler);
             compiler.setDeferredDiagnosticHandler(null);
         }
         //where:
+            private final Predicate<JCDiagnostic> DISCARD_SUPPRESSIBLE_LINT =
+                    d -> !Optional.of(d)
+                            .map(JCDiagnostic::getLintCategory)
+                            .map(lc -> lc.annotationSuppression)
+                            .orElse(false);
             private final Predicate<JCDiagnostic> ACCEPT_NON_RECOVERABLE =
                     d -> d.getKind() != JCDiagnostic.Kind.ERROR ||
                          !d.isFlagSet(DiagnosticFlag.RECOVERABLE) ||
