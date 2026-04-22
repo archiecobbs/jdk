@@ -138,7 +138,6 @@ final class ArgumentParser {
         return true;
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
     private void addOption(String key, String value) {
         boolean found = false;
         for (Argument arg : arguments) {
@@ -146,8 +145,9 @@ final class ArgumentParser {
                 found = true;
                 Object v = value(key, arg.type(), value);
                 if (arg.allowMultiple()) {
+                    @SuppressWarnings("unchecked")
                     var list = (List<Object>) options.computeIfAbsent(key, x -> new ArrayList<>());
-                    if (v instanceof List l) {
+                    if (v instanceof @SuppressWarnings("rawtypes") List l) {
                         list.addAll(l);
                     } else {
                         list.add(v);

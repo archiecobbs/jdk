@@ -80,10 +80,9 @@ final class P11TlsRsaPremasterSecretGenerator extends KeyGeneratorSpi {
         throw new InvalidParameterException(MSG);
     }
 
-    @SuppressWarnings("deprecation")
     protected void engineInit(AlgorithmParameterSpec params,
             SecureRandom random) throws InvalidAlgorithmParameterException {
-        if (!(params instanceof TlsRsaPremasterSecretParameterSpec spec)) {
+        if (!(params instanceof @SuppressWarnings("deprecation") TlsRsaPremasterSecretParameterSpec spec)) {
             throw new InvalidAlgorithmParameterException(MSG);
         }
 

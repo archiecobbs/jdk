@@ -84,9 +84,8 @@ final class CompilerToVM {
     final int ARRAY_DOUBLE_INDEX_SCALE;
     final int ARRAY_OBJECT_INDEX_SCALE;
 
-    @SuppressWarnings("try")
     CompilerToVM() {
-        try (InitTimer t = timer("CompilerToVM.registerNatives")) {
+        try (@SuppressWarnings("try") InitTimer t = timer("CompilerToVM.registerNatives")) {
             registerNatives();
             ARRAY_BOOLEAN_BASE_OFFSET = arrayBaseOffset(JavaKind.Boolean.getTypeChar());
             ARRAY_BYTE_BASE_OFFSET = arrayBaseOffset(JavaKind.Byte.getTypeChar());

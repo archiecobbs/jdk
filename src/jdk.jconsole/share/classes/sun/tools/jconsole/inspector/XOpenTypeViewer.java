@@ -246,12 +246,12 @@ public class XOpenTypeViewer extends JPanel implements ActionListener {
             indexNames = type.getIndexNames();
         }
 
-        @SuppressWarnings("unchecked")
         public int compare(CompositeData o1, CompositeData o2) {
             for (String key : indexNames) {
                 Object c1 = o1.get(key);
                 Object c2 = o2.get(key);
                 if (c1 instanceof Comparable && c2 instanceof Comparable) {
+                    @SuppressWarnings("unchecked")
                     int result = ((Comparable<Object>) c1).compareTo(c2);
                     if (result != 0)
                         return result;
@@ -271,7 +271,6 @@ public class XOpenTypeViewer extends JPanel implements ActionListener {
         final int size;
         private Font normalFont, italicFont;
 
-        @SuppressWarnings("unchecked")
         public XTabularData(XOpenTypeData parent, TabularData tabular) {
             super(parent, accessFirstElement(tabular));
             this.tabular = tabular;
@@ -279,6 +278,7 @@ public class XOpenTypeViewer extends JPanel implements ActionListener {
             size = tabular.values().size();
             if (size > 0) {
                 // Order tabular data elements using index names
+                @SuppressWarnings("unchecked")
                 List<CompositeData> data = new ArrayList<CompositeData>(
                         (Collection<CompositeData>) tabular.values());
                 data.sort(new TabularDataComparator(type));

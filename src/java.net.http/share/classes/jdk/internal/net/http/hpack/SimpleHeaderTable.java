@@ -305,11 +305,11 @@ class SimpleHeaderTable {
             size++;
         }
 
-        @SuppressWarnings("unchecked")
         E remove() {
             if (size == 0) {
                 throw new NoSuchElementException("Empty");
             }
+            @SuppressWarnings("unchecked")
             E elem = (E) elements[tail];
             elements[tail] = null;
             tail = (tail + 1) & (capacity - 1);

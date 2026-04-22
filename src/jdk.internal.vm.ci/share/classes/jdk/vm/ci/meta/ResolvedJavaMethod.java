@@ -431,9 +431,9 @@ public interface ResolvedJavaMethod extends JavaMethod, InvokeTarget, ModifiersP
      * @return the annotation of type {@code annotationClass} (if any) for each formal parameter
      *         present
      */
-    @SuppressWarnings("unchecked")
     default <T extends Annotation> T[] getParameterAnnotations(Class<T> annotationClass) {
         Annotation[][] parameterAnnotations = getParameterAnnotations();
+        @SuppressWarnings("unchecked")
         T[] result = (T[]) Array.newInstance(annotationClass, parameterAnnotations.length);
         for (int i = 0; i < parameterAnnotations.length; i++) {
             for (Annotation a : parameterAnnotations[i]) {

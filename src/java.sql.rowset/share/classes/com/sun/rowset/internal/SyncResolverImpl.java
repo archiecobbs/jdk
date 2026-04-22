@@ -436,8 +436,7 @@ public class SyncResolverImpl extends CachedRowSetImpl implements SyncResolver {
      * This is used to set the status of each row
      * to either of the values SyncResolver.*_CONFLICT
      **/
-    @SuppressWarnings("rawtypes")
-    void setStatus(ArrayList status){
+    void setStatus(@SuppressWarnings("rawtypes") ArrayList status){
              stats = status;
     }
 

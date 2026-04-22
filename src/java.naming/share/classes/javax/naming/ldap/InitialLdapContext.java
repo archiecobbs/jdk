@@ -129,13 +129,13 @@ public class InitialLdapContext extends InitialDirContext implements LdapContext
      * @see #reconnect
      * @see LdapContext#reconnect
      */
-    @SuppressWarnings("unchecked")
     public InitialLdapContext(Hashtable<?,?> environment,
                               Control[] connCtls)
             throws NamingException {
         super(true); // don't initialize yet
 
         // Clone environment since caller owns it.
+        @SuppressWarnings("unchecked")
         Hashtable<Object,Object> env = (environment == null)
             ? new Hashtable<>(11)
             : (Hashtable<Object,Object>)environment.clone();

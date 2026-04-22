@@ -102,8 +102,7 @@ public class WebRowSetImpl extends CachedRowSetImpl implements WebRowSet {
      * synchronization providers for the relational and XML providers; or
      * if the Hashtanle is null
      */
-    @SuppressWarnings("rawtypes")
-    public WebRowSetImpl(Hashtable env) throws SQLException {
+    public WebRowSetImpl(@SuppressWarnings("rawtypes") Hashtable env) throws SQLException {
 
         try {
            resBundle = JdbcRowSetResourceBundle.getJdbcRowSetResourceBundle();

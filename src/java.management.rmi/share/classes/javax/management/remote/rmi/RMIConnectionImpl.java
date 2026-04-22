@@ -263,9 +263,9 @@ public class RMIConnectionImpl implements RMIConnection, Unreferenced {
     }
 
     /** @throws UnsupportedOperationException {@inheritDoc} */
-    @SuppressWarnings("rawtypes")  // MarshalledObject
     public ObjectInstance createMBean(String className,
                                       ObjectName name,
+                                      @SuppressWarnings("rawtypes")
                                       MarshalledObject params,
                                       String signature[],
                                       Subject delegationSubject)
@@ -325,10 +325,10 @@ public class RMIConnectionImpl implements RMIConnection, Unreferenced {
     }
 
     /** @throws UnsupportedOperationException {@inheritDoc} */
-    @SuppressWarnings("rawtypes")  // MarshalledObject
     public ObjectInstance createMBean(String className,
                                  ObjectName name,
                                  ObjectName loaderName,
+                                 @SuppressWarnings("rawtypes")
                                  MarshalledObject params,
                                  String signature[],
                                  Subject delegationSubject)
@@ -456,9 +456,9 @@ public class RMIConnectionImpl implements RMIConnection, Unreferenced {
     }
 
     /** @throws UnsupportedOperationException {@inheritDoc} */
-    @SuppressWarnings("rawtypes")  // MarshalledObject
     public Set<ObjectInstance>
         queryMBeans(ObjectName name,
+                    @SuppressWarnings("rawtypes")
                     MarshalledObject query,
                     Subject delegationSubject)
         throws IOException {
@@ -493,9 +493,9 @@ public class RMIConnectionImpl implements RMIConnection, Unreferenced {
     }
 
     /** @throws UnsupportedOperationException {@inheritDoc} */
-    @SuppressWarnings("rawtypes")  // MarshalledObject
     public Set<ObjectName>
         queryNames(ObjectName name,
+                   @SuppressWarnings("rawtypes")
                    MarshalledObject query,
                    Subject delegationSubject)
         throws IOException {
@@ -645,8 +645,8 @@ public class RMIConnectionImpl implements RMIConnection, Unreferenced {
     }
 
     /** @throws UnsupportedOperationException {@inheritDoc} */
-    @SuppressWarnings("rawtypes")  // MarshalledObject
     public void setAttribute(ObjectName name,
+                             @SuppressWarnings("rawtypes")
                              MarshalledObject attribute,
                              Subject delegationSubject)
         throws
@@ -700,8 +700,8 @@ public class RMIConnectionImpl implements RMIConnection, Unreferenced {
     }
 
     /** @throws UnsupportedOperationException {@inheritDoc} */
-    @SuppressWarnings("rawtypes")  // MarshalledObject
     public AttributeList setAttributes(ObjectName name,
+                         @SuppressWarnings("rawtypes")
                          MarshalledObject attributes,
                          Subject delegationSubject)
         throws
@@ -748,9 +748,9 @@ public class RMIConnectionImpl implements RMIConnection, Unreferenced {
     }
 
     /** @throws UnsupportedOperationException {@inheritDoc} */
-    @SuppressWarnings("rawtypes")  // MarshalledObject
     public Object invoke(ObjectName name,
                          String operationName,
+                         @SuppressWarnings("rawtypes")
                          MarshalledObject params,
                          String signature[],
                          Subject delegationSubject)
@@ -922,8 +922,8 @@ public class RMIConnectionImpl implements RMIConnection, Unreferenced {
 
 
     /** @throws UnsupportedOperationException {@inheritDoc} */
-    @SuppressWarnings("rawtypes")  // MarshalledObject
     public Integer[] addNotificationListeners(ObjectName[] names,
+                      @SuppressWarnings("rawtypes")
                       MarshalledObject[] filters,
                       Subject[] delegationSubjects)
             throws InstanceNotFoundException, IOException {

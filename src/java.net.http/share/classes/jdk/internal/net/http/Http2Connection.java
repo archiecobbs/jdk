@@ -1498,8 +1498,8 @@ class Http2Connection implements Closeable {
      * @param <T> the response type
      * @return the initial stream created during the upgrade.
      */
-    @SuppressWarnings("unchecked")
     <T> Stream<T> getInitialStream() {
+         @SuppressWarnings("unchecked")
          var s = (Stream<T>) initialStream;
          initialStream = null;
          return s;

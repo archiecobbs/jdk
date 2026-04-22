@@ -35,7 +35,6 @@ import jdk.jfr.internal.query.Query.SortOrder;
  * a heuristics.
  */
 final class TableSorter {
-    @SuppressWarnings({ "rawtypes", "unchecked" })
     private static class ColumnComparator implements Comparator<Row> {
         private final int factor;
         private final int index;
@@ -70,6 +69,7 @@ final class TableSorter {
             }
         }
 
+        @SuppressWarnings("unchecked")
         private static int compareObjects(Object a, Object b) {
             if (a == b) {
                 return 0;
@@ -109,7 +109,7 @@ final class TableSorter {
                 return -1;
             }
             // Comparison with the same class
-            if (a.getClass() == b.getClass() && a instanceof Comparable c1) {
+            if (a.getClass() == b.getClass() && a instanceof @SuppressWarnings("rawtypes") Comparable c1) {
                 return c1.compareTo((Comparable)b);
             }
             if (a instanceof Comparable) {

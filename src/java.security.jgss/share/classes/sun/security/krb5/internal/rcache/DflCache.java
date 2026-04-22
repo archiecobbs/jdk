@@ -198,9 +198,8 @@ public class DflCache extends ReplayCache {
 
     private static class Storage implements Closeable {
         // Static methods
-        @SuppressWarnings("try")
         private static void create(Path p) throws IOException {
-            try (SeekableByteChannel newChan = createNoClose(p)) {
+            try (@SuppressWarnings("try") SeekableByteChannel newChan = createNoClose(p)) {
                 // Do nothing, wait for close
             }
             makeMine(p);

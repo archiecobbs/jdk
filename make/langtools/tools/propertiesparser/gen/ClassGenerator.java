@@ -296,10 +296,7 @@ public class ClassGenerator {
             //generate method
             List<String> factoryMethods = new ArrayList<>();
             for (List<MessageType> msgTypes : normalizeTypes(0, msgInfo.getTypes())) {
-                List<String> types = generateTypes(msgTypes);
-                List<String> argNames = argNames(types.size());
-                String suppressionString = needsSuppressWarnings(msgTypes) ?
-                        StubKind.SUPPRESS_WARNINGS.format() : "";
+                List<String> argNames = argNames(msgTypes.size());
                 String methodBody;
                 if (lintCategory == null) {
                     methodBody = StubKind.FACTORY_METHOD_BODY.format(k.keyClazz,
@@ -319,8 +316,8 @@ public class ClassGenerator {
                             "\"" + Stream.of(keyParts).skip(2).collect(Collectors.joining(".")) + "\"",
                             argNames.stream().collect(Collectors.joining(", ")));
                 }
-                String factoryMethod = StubKind.FACTORY_METHOD_DECL.format(suppressionString, k.keyClazz,
-                        factoryName, argDecls(types, argNames).stream().collect(Collectors.joining(", ")),
+                String factoryMethod = StubKind.FACTORY_METHOD_DECL.format(k.keyClazz,
+                        factoryName, argDecls(msgTypes, argNames).stream().collect(Collectors.joining(", ")),
                         indent(methodBody, 1),
                         javadoc);
                 factoryMethods.add(factoryMethod);
@@ -347,10 +344,16 @@ public class ClassGenerator {
     /**
      * Generate a formal parameter list given a list of types and names.
      */
-    List<String> argDecls(List<String> types, List<String> args) {
+    List<String> argDecls(List<MessageType> msgTypes, List<String> args) {
         List<String> argNames = new ArrayList<>();
-        for (int i = 0 ; i < types.size() ; i++) {
-            argNames.add(types.get(i) + " " + args.get(i));
+        for (int i = 0 ; i < msgTypes.size() ; i++) {
+            MessageType msgType = msgTypes.get(i);
+            String arg = args.get(i);
+            StringBuilder argBuf = new StringBuilder();
+            if (needsSuppressWarnings(List.of(msgType)))
+                argBuf.append(StubKind.SUPPRESS_WARNINGS.format()).append(" ");
+            argBuf.append(generateType(msgType)).append(' ').append(arg);
+            argNames.add(argBuf.toString());
         }
         return argNames;
     }
@@ -369,8 +372,8 @@ public class ClassGenerator {
     /**
      * Convert a (normalized) parsed type into a string-based representation of some Java type.
      */
-    List<String> generateTypes(List<MessageType> msgTypes) {
-        return msgTypes.stream().map(t -> t.accept(stringVisitor, null)).collect(Collectors.toList());
+    String generateType(MessageType msgType) {
+        return msgType.accept(stringVisitor, null);
     }
     //where
         Visitor<String, Void> stringVisitor = new Visitor<String, Void>() {

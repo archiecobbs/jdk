@@ -332,7 +332,6 @@ final class KrbDelegationPermissionCollection extends PermissionCollection
      * Reads in a Vector of DelegationPermissions and saves them in the perms field.
      */
     @Serial
-    @SuppressWarnings("unchecked")
     private void readObject(ObjectInputStream in)
         throws IOException, ClassNotFoundException
     {
@@ -342,6 +341,7 @@ final class KrbDelegationPermissionCollection extends PermissionCollection
         ObjectInputStream.GetField gfields = in.readFields();
 
         // Get the one we want
+        @SuppressWarnings("unchecked")
         Vector<Permission> permissions =
             (Vector<Permission>)gfields.get("permissions", null);
         perms = new ConcurrentHashMap<>(permissions.size());

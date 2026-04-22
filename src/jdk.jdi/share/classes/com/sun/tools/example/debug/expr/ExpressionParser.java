@@ -59,7 +59,6 @@ public class ExpressionParser implements ExpressionParserConstants {
         StackFrame get() throws IncompatibleThreadStateException;
   }
 
-  @SuppressWarnings("deprecation")
   public static Value evaluate(String expr, VirtualMachine vm,
                                GetFrame frameGetter) throws ParseException,
                                             InvocationException,
@@ -67,6 +66,7 @@ public class ExpressionParser implements ExpressionParserConstants {
                                             ClassNotLoadedException,
                                             IncompatibleThreadStateException {
         // TODO StringBufferInputStream is deprecated.
+        @SuppressWarnings("deprecation")
         java.io.InputStream in = new java.io.StringBufferInputStream(expr);
         ExpressionParser parser = new ExpressionParser(in);
         parser.vm = vm;

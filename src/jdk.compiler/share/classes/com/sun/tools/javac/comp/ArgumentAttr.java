@@ -214,10 +214,10 @@ public class ArgumentAttr extends JCTree.Visitor {
      * argument tree and calling a well-defined entry point to build the argument type associated
      * with such tree.
      */
-    @SuppressWarnings("unchecked")
     <T extends JCExpression, Z extends ArgumentType<T>> void processArg(T that, Function<T, Z> argumentTypeFactory) {
         UniquePos pos = new UniquePos(that);
         processArg(that, () -> {
+            @SuppressWarnings("unchecked")
             T speculativeTree = (T)deferredAttr.attribSpeculative(that, env, attr.new MethodAttrInfo() {
                 @Override
                 protected boolean needsArgumentAttr(JCTree tree) {
@@ -232,9 +232,9 @@ public class ArgumentAttr extends JCTree.Visitor {
      * Process a method argument; this method allows the caller to specify a custom speculative attribution
      * logic (this is used e.g. for lambdas).
      */
-    @SuppressWarnings("unchecked")
     <T extends JCExpression, Z extends ArgumentType<T>> void processArg(T that, Supplier<Z> argumentTypeFactory) {
         UniquePos pos = new UniquePos(that);
+        @SuppressWarnings("unchecked")
         Z cached = (Z)argumentTypeCache.get(pos);
         if (cached != null) {
             //dup existing speculative type

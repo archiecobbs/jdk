@@ -58,10 +58,10 @@ import sun.rmi.server.Util;
  *
  * @author Ann Wollrath
  */
-@SuppressWarnings("deprecation")
 final class DGCImpl implements DGC {
 
     /* dgc system log */
+    @SuppressWarnings("deprecation")
     static final Log dgcLog = Log.getLog("sun.rmi.dgc", "dgc",
         LogStream.parseLevel(System.getProperty("sun.rmi.dgc.logLevel")));
 

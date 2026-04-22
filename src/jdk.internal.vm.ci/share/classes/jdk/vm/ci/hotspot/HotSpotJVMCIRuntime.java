@@ -170,7 +170,6 @@ public final class HotSpotJVMCIRuntime implements JVMCIRuntime {
      * Gets the singleton {@link HotSpotJVMCIRuntime} object.
      */
     @VMEntryPoint
-    @SuppressWarnings("try")
     public static HotSpotJVMCIRuntime runtime() {
         HotSpotJVMCIRuntime result = instance;
         if (result == null) {
@@ -180,7 +179,7 @@ public final class HotSpotJVMCIRuntime implements JVMCIRuntime {
             synchronized (JVMCI.class) {
                 result = instance;
                 if (result == null) {
-                    try (InitTimer t = timer("HotSpotJVMCIRuntime.<init>")) {
+                    try (@SuppressWarnings("try") InitTimer t = timer("HotSpotJVMCIRuntime.<init>")) {
                         instance = result = new HotSpotJVMCIRuntime();
 
                         // Can only do eager initialization of the JVMCI compiler

@@ -61,9 +61,10 @@ class PlatformPCSC {
         // empty
     }
 
-    @SuppressWarnings({"removal", "restricted"})
+    @SuppressWarnings("removal")
     static final Throwable initException
             = AccessController.doPrivileged(new PrivilegedAction<Throwable>() {
+        @SuppressWarnings("restricted")
         public Throwable run() {
             try {
                 System.loadLibrary("j2pcsc");

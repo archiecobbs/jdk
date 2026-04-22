@@ -31,7 +31,6 @@ import java.rmi.server.RemoteCall;
  * The Dispatcher interface allows the transport to make
  * the upcall to the server side remote reference.
  */
-@SuppressWarnings("deprecation")
 public interface Dispatcher {
 
     /**
@@ -45,6 +44,6 @@ public interface Dispatcher {
      * @exception RemoteException unable to marshal
      * return result
      */
-    void dispatch(Remote obj, RemoteCall call)
+    void dispatch(Remote obj, @SuppressWarnings("deprecation") RemoteCall call)
         throws java.io.IOException;
 }

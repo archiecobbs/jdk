@@ -124,7 +124,6 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
      *
      * @param klass the {@code Klass*} for the type
      */
-    @SuppressWarnings("try")
     HotSpotResolvedObjectTypeImpl(long klass, String name) {
         super(name);
         assert klass != 0;
@@ -133,7 +132,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
         // The mirror object must be in the global scope since
         // this object will be cached in HotSpotJVMCIRuntime.resolvedJavaTypes
         // and live across more than one compilation.
-        try (HotSpotObjectConstantScope global = HotSpotObjectConstantScope.enterGlobalScope()) {
+        try (@SuppressWarnings("try") HotSpotObjectConstantScope global = HotSpotObjectConstantScope.enterGlobalScope()) {
             this.mirror = runtime().compilerToVm.getJavaMirror(this);
             assert getName().charAt(0) != '[' || isArray() : getName();
         }
