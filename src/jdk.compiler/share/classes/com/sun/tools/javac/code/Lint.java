@@ -85,7 +85,7 @@ public class Lint {
         EnumSet<LintCategory> suppressions = suppressionsFrom(sym);
         suppressions.removeIf(lc -> !lc.annotationSuppression);         // discard categories not supporting @SuppressWarnings
         boolean symWithinDeprecated = withinDeprecated || isDeprecatedDeclaration(sym);
-        if (!suppressions.isEmpty() || symWithinDeprecated != withinDeprecated) {
+        if (!suppressions.isEmpty() || symWithinDeprecated != withinDeprecated || sym != symbol) {
             Lint lint = new Lint(this);
             lint.values.removeAll(suppressions);
             lint.suppressedValues.addAll(suppressions);
