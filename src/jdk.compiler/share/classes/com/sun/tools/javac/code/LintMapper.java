@@ -40,6 +40,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.lang.model.element.ElementKind;
 import javax.tools.JavaFileObject;
 
 import com.sun.tools.javac.code.Lint.LintCategory;
@@ -261,12 +262,22 @@ public class LintMapper {
             // Report suppressions that could be narrowed
             node.canBeNarrowedMap.forEach((category, origin) -> {
                 String quoted = "\"" + category.option + "\"";
-                log.warning(node.annotation.pos(), origin.owner == node.symbol ?
+                Symbol intermediateSymbol = lowestAnnotatableAncestor(origin.owner, node.symbol);
+                log.warning(node.annotation.pos(), intermediateSymbol == node.symbol ?
                   LintWarnings.SuppressionCouldBeScopedMoreNarrowly(quoted, Kinds.kindName(origin), origin) :
                   LintWarnings.SuppressionCouldBeScopedMoreNarrowlyIn(quoted,
-                    Kinds.kindName(origin), origin, Kinds.kindName(origin.owner), origin.owner));
+                    Kinds.kindName(origin), origin, Kinds.kindName(intermediateSymbol), intermediateSymbol));
             });
         });
+    }
+
+    // Get the lowest declaration that both contains "sym" and supports @SuppressWarnings, stopping at "ceiling"
+    private static Symbol lowestAnnotatableAncestor(Symbol sym, Symbol ceiling) {
+        while (sym.isAnonymous() && sym != ceiling) {
+            sym = sym.owner;
+            Assert.check(sym.getKind() != ElementKind.PACKAGE); // we should never "escape"
+        }
+        return sym;
     }
 
 // FileInfo
@@ -460,9 +471,8 @@ public class LintMapper {
                     i.remove();
                     unvalidated.remove(category);
 
-                    // Bump up anonymous class origins (which can't support annotations) to their owners
-                    while (origin.isAnonymous() && origin != symbol)
-                        origin = origin.owner;
+                    // Skip over anonymous classes, which don't support annotations
+                    origin = lowestAnnotatableAncestor(origin, symbol);
 
                     // If origin is contained by this node, then the suppression could have been narrower
                     if (origin != symbol)
