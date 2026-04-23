@@ -194,10 +194,10 @@ public class JavacBenchApp {
         sources.add(new SourceFile("Sanity", sanitySource));
     }
 
-    @SuppressWarnings("unchecked")
     static void validate(byte[] sanityClassFile) throws Throwable {
         MethodHandles.Lookup lookup = MethodHandles.lookup();
         Class<?> cls = lookup.defineClass(sanityClassFile);
+        @SuppressWarnings("unchecked")
         Callable<String> obj = (Callable<String>)cls.getDeclaredConstructor().newInstance();
         String s = obj.call();
         if (!s.equals("this is a test")) {

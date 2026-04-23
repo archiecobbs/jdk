@@ -104,9 +104,9 @@ public class PreviewAPIListBuilder extends SummaryAPIListBuilder {
     }
 
     // Extract a single annotation element value with the given name and default value
-    @SuppressWarnings("unchecked")
     private <R> R getAnnotationElementValue(Map<? extends ExecutableElement, ? extends AnnotationValue> values,
                                             String name, R defaultValue) {
+        @SuppressWarnings("unchecked")
         Optional<R> value = values.entrySet().stream()
                 .filter(e -> Objects.equals(e.getKey().getSimpleName().toString(), name))
                 .map(e -> (R) e.getValue().getValue())

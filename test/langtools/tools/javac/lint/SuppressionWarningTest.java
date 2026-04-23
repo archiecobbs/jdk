@@ -150,11 +150,9 @@ public class SuppressionWarningTest extends TestRunner {
             """
             @OUTER@
             public class Test {
+                /** @deprecated */
                 @INNER@
-                public class TestSub {
-                    /** @deprecated */
-                    public void method() { }
-                }
+                public void method() { }
             }
             """
         );
@@ -392,9 +390,7 @@ public class SuppressionWarningTest extends TestRunner {
             @OUTER@
             public class Test {
                 @INNER@
-                public void foo() {
-                    Iterable i = null;
-                }
+                Iterable i = null;
             }
             """
         );
@@ -540,12 +536,10 @@ public class SuppressionWarningTest extends TestRunner {
             @OUTER@
             public class Outer {
                 @INNER@
-                public static class Inner {
-                    public Inner() {
-                        leak();
-                    }
-                    public void leak() { }
+                public Outer() {
+                    leak();
                 }
+                public void leak() { }
             }
             """
         );
@@ -609,8 +603,9 @@ public class SuppressionWarningTest extends TestRunner {
             @OUTER@
             public class Test {
                 @INNER@
-                public Test(Object x) {
-                    int value = x instanceof Integer i ? i : -1;
+                public Test() {
+                    System.out.println();
+                    super();
                 }
             }
             """
