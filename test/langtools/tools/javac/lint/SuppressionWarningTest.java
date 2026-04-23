@@ -520,6 +520,7 @@ public class SuppressionWarningTest extends TestRunner {
             @OUTER@
             public class Test {
                 public void foo() {
+                    @INNER@
                     String s =
                         \"\"\"
                         add trailing spaces here:
