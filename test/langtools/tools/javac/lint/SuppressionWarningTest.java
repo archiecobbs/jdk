@@ -746,6 +746,13 @@ public class SuppressionWarningTest extends TestRunner {
                   enableCategory && !outerAnnotation && !innerAnnotation :      // the warning must be enabled and not suppressed
                   enableCategory;                                               // @SuppressWarnings has no effect at all
 
+                // Should we expect the "could be more narrowly scoped" warning to be emitted?
+                boolean expectScopingWarning = category.annotationSuppression &&
+                  enableSuppression &&                                          // "suppression" category must be enabled
+                  category != LintCategory.SUPPRESSION &&                       // "suppression" never complains about itself
+                  hasOuterAnnotation && outerAnnotation &&                      // there must be an outer @SuppressWarnings
+                  hasInnerAnnotation && !innerAnnotation;                       // there must be a missing inner @SuppressWarnings
+
                 // Should we expect the SUPPRESSION warning to be emitted?
                 boolean expectSuppressionWarning = category.annotationSuppression ?
                   enableSuppression && outerAnnotation && innerAnnotation :     // only if both (then outer is redundant)
@@ -799,6 +806,14 @@ public class SuppressionWarningTest extends TestRunner {
                     if (foundCategoryWarning != expectCategoryWarning) {
                         throw new AssertionError(String.format("%s: category warning: found=%s but expected=%s",
                           description, foundCategoryWarning, expectCategoryWarning));
+                    }
+
+                    // See if the scoping warning appeared as expected
+                    boolean foundScopingWarning = output.removeIf(
+                      line -> line.contains("suppression.could.be.scoped.more.narrowly"));
+                    if (foundScopingWarning != expectScopingWarning) {
+                        throw new AssertionError(String.format("%s: scoping warning: found=%s but expected=%s",
+                          description, foundScopingWarning, expectScopingWarning));
                     }
 
                     // See if the suppression warning appeared as expected (but skip redundant check for SUPPRESSION)
