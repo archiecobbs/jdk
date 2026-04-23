@@ -178,7 +178,7 @@ public class LintMapper {
      */
     public void calculateLints(JavaFileObject sourceFile, JCTree tree) {
         Assert.check(rootLint != null);
-        fileInfoMap.get(sourceFile).afterAttr(tree);
+        fileInfoMap.get(sourceFile).afterAttr(tree, syms);
     }
 
     /**
@@ -203,7 +203,7 @@ public class LintMapper {
      */
     public void finishParsingFile(JCCompilationUnit tree) {
         Assert.check(rootLint != null);
-        fileInfoMap.put(tree.sourcefile, new FileInfo(syms, rootLint, tree));
+        fileInfoMap.put(tree.sourcefile, new FileInfo(rootLint, tree));
     }
 
 // Suppression Tracking
@@ -281,16 +281,14 @@ public class LintMapper {
      */
     private static class FileInfo {
 
-        final Symtab syms;
         final LintRange rootRange;                              // the root LintRange (covering the entire source file)
         final List<Span> unmappedDecls = new LinkedList<>();    // unmapped top-level declarations awaiting attribution
         final Map<Symbol, EnumSet<LintCategory>> validationsMap // maps declaration symbol to validations therein
           = new HashMap<>();
 
         // After parsing: Add top-level declarations to our "unmappedDecls" list
-        FileInfo(Symtab syms, Lint rootLint, JCCompilationUnit tree) {
-            this.syms = syms;
-            rootRange = new LintRange(syms, rootLint);
+        FileInfo(Lint rootLint, JCCompilationUnit tree) {
+            rootRange = new LintRange(rootLint);
             for (JCTree decl : tree.defs) {
                 if (isTopLevelDecl(decl))
                     unmappedDecls.add(new Span(decl));
@@ -298,10 +296,10 @@ public class LintMapper {
         }
 
         // After attribution: Discard the span from "unmappedDecls" and populate the declaration's subtree under "rootRange"
-        void afterAttr(JCTree tree) {
+        void afterAttr(JCTree tree, Symtab syms) {
             for (Iterator<Span> i = unmappedDecls.iterator(); i.hasNext(); ) {
                 if (i.next().contains(tree.pos())) {
-                    rootRange.populateSubtree(this, tree);
+                    rootRange.populateSubtree(this, tree, syms);
                     i.remove();
                     return;
                 }
@@ -373,7 +371,6 @@ public class LintMapper {
      * A tree of nested lexical ranges and the {@link Lint} configurations that apply therein.
      */
     private record LintRange(
-        Symtab syms,                                    // symbol table
         Span span,                                      // declaration's lexical range
         Lint lint,                                      // the Lint configuration that applies at this declaration
         Symbol symbol,                                  // declaration symbol (null for root range)
@@ -385,14 +382,14 @@ public class LintMapper {
     ) {
 
         // Create a node representing the entire file, using the root lint configuration
-        LintRange(Symtab syms, Lint rootLint) {
-            this(syms, Span.MAXIMAL, rootLint, null, null, LintCategory.newEmptySet(),
+        LintRange(Lint rootLint) {
+            this(Span.MAXIMAL, rootLint, null, null, LintCategory.newEmptySet(),
               LintCategory.newEmptySet(), new EnumMap<>(LintCategory.class), new LinkedList<>());
         }
 
         // Create a node representing the given declaration and its corresponding Lint configuration
-        LintRange(Symtab syms, JCTree tree, Lint lint, Symbol symbol, JCAnnotation annotation, EnumSet<LintCategory> suppressions) {
-            this(syms, new Span(tree), lint, symbol, annotation, suppressions,
+        LintRange(JCTree tree, Lint lint, Symbol symbol, JCAnnotation annotation, EnumSet<LintCategory> suppressions) {
+            this(new Span(tree), lint, symbol, annotation, suppressions,
               EnumSet.copyOf(suppressions), new EnumMap<>(LintCategory.class), new LinkedList<>());
         }
 
@@ -427,7 +424,7 @@ public class LintMapper {
         // Calculate the unvalidated suppressions in the subtree rooted at this node. We do this by recursively
         // propagating validations upward until they are "caught" by some matching suppression; this validates
         // the suppression. Validations that are never caught "escape" and are returned to the caller. Validations
-        // are mapped to their "origin" declaration, if exactly one exists, otherwise to "rootPackage". If a validation
+        // are mapped to their "origin" declaration, if exactly one exists, otherwise to "symbol". If a validation
         // has an origin but is caught by some higher up node, we emit a "could be more narrowly scoped" warning.
         public EnumMap<LintCategory, Symbol> propagateValidations(Map<Symbol, EnumSet<LintCategory>> validationsMap) {
 
@@ -449,7 +446,7 @@ public class LintMapper {
 
             // Merge them all together, keeping track of which categories have exactly one origin and which don't
             Stream.concat(childValidations, thisNodeValidations)
-              .forEach(entry -> validations.merge(entry.getKey(), entry.getValue(), (a, b) -> syms.rootPackage));
+              .forEach(entry -> validations.merge(entry.getKey(), entry.getValue(), (a, b) -> symbol));
 
             // Apply (and then discard) validations that match any of this node's suppressions.
             // Also detect when any of those suppressions could have be more narrowly placed.
@@ -464,11 +461,11 @@ public class LintMapper {
                     unvalidated.remove(category);
 
                     // Bump up anonymous class origins (which can't support annotations) to their owners
-                    while (origin.isAnonymous() && origin != symbol && origin != syms.rootPackage)
+                    while (origin.isAnonymous() && origin != symbol)
                         origin = origin.owner;
 
                     // If origin is contained by this node, then the suppression could have been narrower
-                    if (origin != syms.rootPackage && origin != symbol)
+                    if (origin != symbol)
                         canBeNarrowedMap.put(category, origin);
                 }
             }
@@ -479,7 +476,7 @@ public class LintMapper {
 
         // Populate a sparse subtree corresponding to the given nested declaration.
         // Only declarations that can support @SuppressWarnings are included.
-        void populateSubtree(FileInfo fileInfo, JCTree tree) {
+        void populateSubtree(FileInfo fileInfo, JCTree tree, Symtab syms) {
             new TreeScanner() {
 
                 // Variables declared together (separated by commas) share any @SuppressWarnings annotation, so they must also
@@ -537,7 +534,7 @@ public class LintMapper {
 
                     // Add a new node here and proceed
                     final LintRange previousNode = currentNode;
-                    currentNode = new LintRange(syms, tree, newLint, symbol, annotation, suppressed);
+                    currentNode = new LintRange(tree, newLint, symbol, annotation, suppressed);
                     previousNode.children.add(currentNode);
                     try {
                         recursor.accept(tree);
