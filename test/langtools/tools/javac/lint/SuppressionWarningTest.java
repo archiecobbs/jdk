@@ -150,11 +150,9 @@ public class SuppressionWarningTest extends TestRunner {
             """
             @OUTER@
             public class Test {
+                /** @deprecated */
                 @INNER@
-                public class TestSub {
-                    /** @deprecated */
-                    public void method() { }
-                }
+                public void method() { }
             }
             """
         );
@@ -392,9 +390,7 @@ public class SuppressionWarningTest extends TestRunner {
             @OUTER@
             public class Test {
                 @INNER@
-                public void foo() {
-                    Iterable i = null;
-                }
+                Iterable i = null;
             }
             """
         );
@@ -539,6 +535,7 @@ public class SuppressionWarningTest extends TestRunner {
             @OUTER@
             public class Test {
                 public void foo() {
+                    @INNER@
                     String s =
                         \"\"\"
                         add trailing spaces here:
@@ -555,12 +552,10 @@ public class SuppressionWarningTest extends TestRunner {
             @OUTER@
             public class Outer {
                 @INNER@
-                public static class Inner {
-                    public Inner() {
-                        leak();
-                    }
-                    public void leak() { }
+                public Outer() {
+                    leak();
                 }
+                public void leak() { }
             }
             """
         );
@@ -624,8 +619,9 @@ public class SuppressionWarningTest extends TestRunner {
             @OUTER@
             public class Test {
                 @INNER@
-                public Test(Object x) {
-                    int value = x instanceof Integer i ? i : -1;
+                public Test() {
+                    System.out.println();
+                    super();
                 }
             }
             """
@@ -1032,6 +1028,22 @@ public class SuppressionWarningTest extends TestRunner {
           """,
           String.format("-Xlint:%s", DEPRECATION.option),
           String.format("-Xlint:%s", SUPPRESSION.option));
+    }
+
+    @Test
+    public void testUnrecognizedValues() throws Exception {
+        compileAndExpectSuccess(
+          """
+          @SuppressWarnings("foobar")
+          public class Test {
+              @SuppressWarnings({ "", "  ", "foobar", "uncheckedddd", "all", "boxing" })
+              public void m() {
+              }
+          }
+          """,
+          "-Xlint:all",
+          "-Werror"
+        );
     }
 
 // Support Stuff
