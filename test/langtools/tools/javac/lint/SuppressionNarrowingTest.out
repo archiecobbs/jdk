@@ -1,0 +1,4 @@
+SuppressionNarrowingTest.java:18:5: compiler.warn.suppression.could.be.scoped.more.narrowly: "divzero", kindname.variable, x
+SuppressionNarrowingTest.java:23:5: compiler.warn.suppression.could.be.scoped.more.narrowly: "rawtypes", kindname.variable, x
+SuppressionNarrowingTest.java:33:5: compiler.warn.suppression.could.be.scoped.more.narrowly: "divzero", kindname.method, m()
+3 warnings
