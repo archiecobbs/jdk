@@ -1,7 +1,7 @@
 /*
  * @test /nodynamiccopyright/
  * @bug 4986256
- * @compile/ref=Serial.out -XDrawDiagnostics -Xlint:all Serial.java
+ * @compile/ref=Serial.out -XDrawDiagnostics -Xlint:all,-suppression Serial.java
  */
 
 import java.io.Serializable;

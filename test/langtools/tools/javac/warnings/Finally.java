@@ -1,7 +1,7 @@
 /*
  * @test /nodynamiccopyright/
  * @bug 4986256
- * @compile/ref=Finally.out -XDrawDiagnostics -Xlint:all Finally.java
+ * @compile/ref=Finally.out -XDrawDiagnostics -Xlint:all,-suppression Finally.java
  */
 
 // control: this class should generate a warning
