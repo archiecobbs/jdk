@@ -286,7 +286,7 @@ public class LintMapper {
             unvalidated.removeAll(optionFlagValidations);
 
             // Eliminate those categories that are exempt from SUPPRESSION_OPTION warnings
-            unvalidated.removeIf(LintCategory::suppressionOptionExempt);
+            unvalidated.removeIf(lc -> lc.suppressionOptionExempt);
 
             // Report them
             report(unvalidated, name -> "-" + name, names -> log.warning(LintWarnings.UnnecessaryLintWarningSuppression(names)));

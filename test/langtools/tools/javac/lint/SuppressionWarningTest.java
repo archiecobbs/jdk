@@ -774,7 +774,7 @@ public class SuppressionWarningTest extends TestRunner {
                 boolean expectSuppressionOptionWarning =
                   !enableCategory &&                                        // there must be a "-Xlint:-category" flag
                   enableSuppressionOption &&                                // there must be a "-Xlint:suppress-option" flag
-                  !category.suppressionOptionExempt() &&                    // category is supported by "-Xlint:suppress-option"
+                  !category.suppressionOptionExempt &&                      // category is supported by "-Xlint:suppress-option"
                   category.annotationSuppression &&                         // @SuppressWarnings("category") is supported
                   (outerAnnotation || innerAnnotation);                     // there is at least one @SuppressWarnings("category")
 
@@ -901,8 +901,7 @@ public class SuppressionWarningTest extends TestRunner {
 
     // Test a -Xlint:-foo flag that suppresses nothing
     private void testUselessLintFlag(LintCategory category) throws Exception {
-        String warningKey = !category.suppressionOptionExempt() ?
-          "compiler.warn.unnecessary.lint.warning.suppression" : null;
+        String warningKey = !category.suppressionOptionExempt ? "compiler.warn.unnecessary.lint.warning.suppression" : null;
         compileAndExpect(
           warningKey,
           """
