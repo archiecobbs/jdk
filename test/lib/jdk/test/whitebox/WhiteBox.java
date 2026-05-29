@@ -790,7 +790,7 @@ public class WhiteBox {
   public native Long    getMethodUintxOption(Executable method, String name);
   public native Double  getMethodDoubleOption(Executable method, String name);
   public native String  getMethodStringOption(Executable method, String name);
-  @SuppressWarnings("initialization")
+  @SuppressWarnings({ "initialization", "suppression" })
   private final List<BiFunction<Executable,String,Object>> methodOptionGetters
       = Arrays.asList(this::getMethodBooleanOption, this::getMethodIntxOption,
           this::getMethodUintxOption, this::getMethodDoubleOption,
