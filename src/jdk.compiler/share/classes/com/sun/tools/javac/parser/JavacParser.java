@@ -337,12 +337,12 @@ public class JavacParser implements Parser {
                 tk3.test(S.token(lookahead + 3).kind);
     }
 
-    @SuppressWarnings({ "unchecked", "suppression" })
+    @SuppressWarnings({ "unchecked", "suppression" })   // "suppression" is required here to workaround JDK-8382877
     protected boolean peekToken(Predicate<TokenKind>... kinds) {
         return peekToken(0, kinds);
     }
 
-    @SuppressWarnings({ "unchecked", "suppression" })
+    @SuppressWarnings({ "unchecked", "suppression" })   // "suppression" is required here to workaround JDK-8382877
     protected boolean peekToken(int lookahead, Predicate<TokenKind>... kinds) {
         for (Predicate<TokenKind> kind : kinds) {
             if (!kind.test(S.token(++lookahead).kind)) {
