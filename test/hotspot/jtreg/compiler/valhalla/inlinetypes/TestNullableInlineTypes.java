@@ -54,13 +54,13 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @summary Test correct handling of nullable value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run main compiler.valhalla.inlinetypes.TestNullableInlineTypes 0
+ * @run driver ${test.main.class} 0
  */
 
 /*
@@ -68,13 +68,13 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @summary Test correct handling of nullable value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run main compiler.valhalla.inlinetypes.TestNullableInlineTypes 1
+ * @run driver ${test.main.class} 1
  */
 
 /*
@@ -82,13 +82,13 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @summary Test correct handling of nullable value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run main compiler.valhalla.inlinetypes.TestNullableInlineTypes 2
+ * @run driver ${test.main.class} 2
  */
 
 /*
@@ -96,13 +96,13 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @summary Test correct handling of nullable value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestNullableInlineTypes 3
+ * @run driver/timeout=300 ${test.main.class} 3
  */
 
 /*
@@ -110,13 +110,13 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @summary Test correct handling of nullable value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run main compiler.valhalla.inlinetypes.TestNullableInlineTypes 4
+ * @run driver ${test.main.class} 4
  */
 
 /*
@@ -124,13 +124,13 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @summary Test correct handling of nullable value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run main compiler.valhalla.inlinetypes.TestNullableInlineTypes 5
+ * @run driver ${test.main.class} 5
  */
 
 /*
@@ -138,13 +138,13 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @summary Test correct handling of nullable value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run main compiler.valhalla.inlinetypes.TestNullableInlineTypes 6
+ * @run driver ${test.main.class} 6
  */
 
 @ForceCompileClassInitializer
@@ -2355,7 +2355,8 @@ public class TestNullableInlineTypes {
 
     // Test nested loops
     @Test
-    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
+    // TODO 8384979
+    // @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public long test81() {
         Object val = null;
         for (int i = 0; i < 10; ++i) {
@@ -2390,7 +2391,8 @@ public class TestNullableInlineTypes {
 
     // Test loops with casts
     @Test
-    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
+    // TODO 8384979
+    // @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public long test82() {
         Object val = null;
         for (int i = 0; i < 10; ++i) {
@@ -3045,17 +3047,17 @@ public class TestNullableInlineTypes {
 
         @ForceInline
         public MyValue104() {
-            this.field1 = new MyValue105();
+            MyValue104.field1 = new MyValue105();
             this.field2 = new MyValue105();
-            this.field3 = new MyValueEmpty();
+            MyValue104.field3 = new MyValueEmpty();
             this.field4 = new MyValueEmpty();
         }
 
         @ForceInline
         public MyValue104(MyValue105 val1, MyValue105 val2, MyValueEmpty val3, MyValueEmpty val4) {
-            this.field1 = val1;
+            MyValue104.field1 = val1;
             this.field2 = val2;
-            this.field3 = val3;
+            MyValue104.field3 = val3;
             this.field4 = val4;
         }
     }

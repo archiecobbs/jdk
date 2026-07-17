@@ -67,13 +67,13 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @summary Test inline types in LWorld.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run main compiler.valhalla.inlinetypes.TestLWorld 0
+ * @run driver ${test.main.class} 0
  */
 
 /*
@@ -81,12 +81,12 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @summary Test inline types in LWorld.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run main compiler.valhalla.inlinetypes.TestLWorld 1
+ * @run driver ${test.main.class} 1
  */
 
 /*
@@ -94,12 +94,12 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @summary Test inline types in LWorld.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run main compiler.valhalla.inlinetypes.TestLWorld 2
+ * @run driver ${test.main.class} 2
  */
 
 /*
@@ -107,12 +107,12 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @summary Test inline types in LWorld.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run main compiler.valhalla.inlinetypes.TestLWorld 3
+ * @run driver ${test.main.class} 3
  */
 
 /*
@@ -120,12 +120,12 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @summary Test inline types in LWorld.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run main compiler.valhalla.inlinetypes.TestLWorld 4
+ * @run driver ${test.main.class} 4
  */
 
 /*
@@ -133,13 +133,13 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @summary Test inline types in LWorld.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run main compiler.valhalla.inlinetypes.TestLWorld 5
+ * @run driver ${test.main.class} 5
  */
 
 /*
@@ -147,13 +147,13 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @summary Test inline types in LWorld.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run main compiler.valhalla.inlinetypes.TestLWorld 6
+ * @run driver ${test.main.class} 6
  */
 
 public class TestLWorld {
@@ -459,7 +459,6 @@ public class TestLWorld {
     }
 
     // merge of inline types in a loop, stored in an object local
-    /* TODO 8302217: Enable again when this is fixed.
     @Test
     public Object test9() {
         Object o = valueField1;
@@ -474,7 +473,6 @@ public class TestLWorld {
     public void test9_verifier() {
         Asserts.assertEQ(test9(), MyValue1.setX(valueField1, valueField1.x + 7));
     }
-    */
 
     // merge of inline types in an object local
     @ForceInline
@@ -2487,7 +2485,7 @@ public class TestLWorld {
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
         counts = {COUNTED_LOOP, "= 2", LOAD_UNKNOWN_INLINE, "= 1"},
-        // Match on PHASEIDEALLOOP2 before load_unkown_inline gets duplicated in pre/main/post
+        // Match on PHASEIDEALLOOP2 before load_unknown_inline gets duplicated in pre/main/post
         phase = {CompilePhase.PHASEIDEALLOOP2})
     public void test85(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
@@ -5480,5 +5478,37 @@ public class TestLWorld {
         } catch (NullPointerException e) {
             // expected
         }
+    }
+
+    // TODO 8376254: C1 bails out if the type of the nullable flat field is uninitialized
+    static ObjectHolderHolder objectHolderHolder = new ObjectHolderHolder();
+
+    static value class ObjectHolder {
+        Object obj = new Object();
+    }
+
+    static value class ObjectHolderHolder {
+        ObjectHolder objectHolder = new ObjectHolder();
+    }
+
+    // Test that acmp expansion works with field of exact Object type
+    @Test
+    @IR(failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
+        counts = {IRNode.ALLOC, "= 2"}) // The two Object allocations
+    static boolean testAcmp() {
+        Object lhs = null;
+        Object rhs = null;
+        for (int i = 0; i < 10; i++) {
+            if ((i & 1) == 0) {
+                lhs = new ObjectHolderHolder();
+                rhs = new ObjectHolderHolder();
+            }
+        }
+        return lhs == rhs;
+    }
+
+    @Run(test = "testAcmp")
+    public void runTestAcmp() {
+        Asserts.assertFalse(testAcmp());
     }
 }

@@ -3815,9 +3815,6 @@ const char* nmethod::reloc_string_for(u_char* begin, u_char* end) {
           address dest = r->destination();
           if (StubRoutines::contains(dest)) {
             StubCodeDesc* desc = StubCodeDesc::desc_for(dest);
-            if (desc == nullptr) {
-              desc = StubCodeDesc::desc_for(dest + frame::pc_return_offset);
-            }
             if (desc != nullptr) {
               st.print(" Stub::%s", desc->name());
               return st.as_string();
@@ -3880,7 +3877,6 @@ const char* nmethod::reloc_string_for(u_char* begin, u_char* end) {
         case relocInfo::poll_type:             return "poll";
         case relocInfo::poll_return_type:      return "poll_return";
         case relocInfo::trampoline_stub_type:  return "trampoline_stub";
-        case relocInfo::entry_guard_type:      return "entry_guard";
         case relocInfo::post_call_nop_type:    return "post_call_nop";
         case relocInfo::barrier_type: {
           barrier_Relocation* const reloc = iter.barrier_reloc();

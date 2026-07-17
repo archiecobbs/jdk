@@ -47,13 +47,13 @@ import static compiler.lib.ir_framework.IRNode.STATIC_CALL;
  * @key randomness
  * @summary Test method handle support for inline types
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @requires vm.opt.AbortVMOnCompilationFailure != true
  * @requires vm.compMode != "Xcomp"
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestMethodHandles 0
+ * @run driver ${test.main.class} 0
  */
 
 /*
@@ -61,13 +61,13 @@ import static compiler.lib.ir_framework.IRNode.STATIC_CALL;
  * @key randomness
  * @summary Test method handle support for inline types
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @requires vm.opt.AbortVMOnCompilationFailure != true
  * @requires vm.compMode != "Xcomp"
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestMethodHandles 1
+ * @run driver ${test.main.class} 1
  */
 
 /*
@@ -75,13 +75,13 @@ import static compiler.lib.ir_framework.IRNode.STATIC_CALL;
  * @key randomness
  * @summary Test method handle support for inline types
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @requires vm.opt.AbortVMOnCompilationFailure != true
  * @requires vm.compMode != "Xcomp"
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestMethodHandles 2
+ * @run driver ${test.main.class} 2
  */
 
 /*
@@ -89,13 +89,13 @@ import static compiler.lib.ir_framework.IRNode.STATIC_CALL;
  * @key randomness
  * @summary Test method handle support for inline types
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @requires vm.opt.AbortVMOnCompilationFailure != true
  * @requires vm.compMode != "Xcomp"
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestMethodHandles 3
+ * @run driver ${test.main.class} 3
  */
 
 /*
@@ -103,13 +103,13 @@ import static compiler.lib.ir_framework.IRNode.STATIC_CALL;
  * @key randomness
  * @summary Test method handle support for inline types
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @requires vm.opt.AbortVMOnCompilationFailure != true
  * @requires vm.compMode != "Xcomp"
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestMethodHandles 4
+ * @run driver ${test.main.class} 4
  */
 
 /*
@@ -117,13 +117,13 @@ import static compiler.lib.ir_framework.IRNode.STATIC_CALL;
  * @key randomness
  * @summary Test method handle support for inline types
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @requires vm.opt.AbortVMOnCompilationFailure != true
  * @requires vm.compMode != "Xcomp"
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestMethodHandles 5
+ * @run driver ${test.main.class} 5
  */
 
 /*
@@ -131,13 +131,13 @@ import static compiler.lib.ir_framework.IRNode.STATIC_CALL;
  * @key randomness
  * @summary Test method handle support for inline types
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @requires vm.opt.AbortVMOnCompilationFailure != true
  * @requires vm.compMode != "Xcomp"
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestMethodHandles 6
+ * @run driver ${test.main.class} 6
  */
 
 @ForceCompileClassInitializer

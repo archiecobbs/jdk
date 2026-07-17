@@ -249,23 +249,6 @@ public class SuppressionWarningTest extends TestRunner {
 
         case INCUBATING -> null; // skip, too hard to simluate reliably over time
 
-        case INITIALIZATION -> new SuppressTest(category,
-            "compiler.warn.would.not.be.allowed.in.prologue",
-            new String[] {
-                "--enable-preview"      // enable value classes
-            },
-            """
-            @OUTER@
-            public class Test {
-                Object o = null;
-                @INNER@
-                Test(Object oo) {
-                    this.o = oo;
-                }
-            }
-            """
-        );
-
         case LOSSY_CONVERSIONS -> new SuppressTest(category,
             "compiler.warn.possible.loss.of.precision",
             null,
@@ -311,25 +294,6 @@ public class SuppressionWarningTest extends TestRunner {
             }
             """
         );
-
-        case MIGRATION -> null;         // ??? there are no warnings in this category
-    /*
-        case MIGRATION -> new SuppressTest(category,
-            "compiler.warn.value.finalize",
-            new String[] {
-                "--enable-preview",     // enable value classes
-                "-Xlint:-removal"       // suppress finalize() deprecated for removal warning
-            },
-            """
-            @OUTER@
-            public value class Test {
-                @INNER@
-                protected void finalize() {
-                }
-            }
-            """
-        );
-    */
 
         case OPENS -> new SuppressTest(category,
             "compiler.warn.package.empty.or.not.found",

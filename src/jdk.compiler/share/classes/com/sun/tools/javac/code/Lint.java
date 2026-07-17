@@ -265,12 +265,6 @@ public class Lint {
         INCUBATING("incubating", Property.NO_ANNOTATION_SUPPRESSION, Property.ENABLED_BY_DEFAULT),
 
         /**
-         * Warn about code in identity classes that wouldn't be allowed in early
-         * construction due to a this dependency.
-         */
-        INITIALIZATION("initialization"),
-
-        /**
           * Warn about compiler possible lossy conversions.
           */
         LOSSY_CONVERSIONS("lossy-conversions"),
@@ -284,11 +278,6 @@ public class Lint {
          * Warn about module system related issues.
          */
         MODULE("module", Property.ENABLED_BY_DEFAULT),
-
-        /**
-         * Warn about issues related to migration of JDK classes.
-         */
-        MIGRATION("migration"),
 
         /**
          * Warn about issues regarding module opens.

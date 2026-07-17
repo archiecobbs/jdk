@@ -393,7 +393,7 @@ void Parse::load_interpreter_state(Node* osr_buf) {
       // Keep all oop locals alive until the method returns as if there are
       // reachability fences for them at the end of the method.
       Node* loc = local(index);
-      if (loc->bottom_type() != TypePtr::NULL_PTR) {
+      if (!loc->is_InlineType() && loc->bottom_type() != TypePtr::NULL_PTR) {
         assert(loc->bottom_type()->isa_oopptr() != nullptr, "%s", Type::str(loc->bottom_type()));
         _stress_rf_hook->add_req(loc);
       }
@@ -410,7 +410,7 @@ void Parse::load_interpreter_state(Node* osr_buf) {
       // Keep all oops on stack alive until the method returns as if there are
       // reachability fences for them at the end of the method.
       Node* stk = stack(index);
-      if (stk->bottom_type() != TypePtr::NULL_PTR) {
+      if (!stk->is_InlineType() && stk->bottom_type() != TypePtr::NULL_PTR) {
         assert(stk->bottom_type()->isa_oopptr() != nullptr, "%s", Type::str(stk->bottom_type()));
         _stress_rf_hook->add_req(stk);
       }
@@ -1346,7 +1346,8 @@ void Parse::do_method_entry() {
     int max_locals = jvms()->loc_size();
     for (int idx = 0; idx < max_locals; idx++) {
       Node* loc = local(idx);
-      if (loc->bottom_type()->isa_oopptr() != nullptr &&
+      if (!loc->is_InlineType() &&
+          loc->bottom_type()->isa_oopptr() != nullptr &&
           !is_auto_boxed_primitive(loc)) { // ignore auto-boxed primitives
         _stress_rf_hook->add_req(loc);
       }
@@ -1441,7 +1442,7 @@ void Parse::do_method_entry() {
       }
 
       ciObjArrayKlass* spec_citype = ciObjArrayKlass::make(parm_citype->as_obj_array_klass()->element_klass(), true);
-      const Type* improved_spec_type = TypeKlassPtr::make(spec_citype, Type::trust_interfaces)->as_instance_type();
+      const Type* improved_spec_type = TypeKlassPtr::make(spec_citype, Type::trust_interfaces)->as_exact_instance_type();
       improved_spec_type = improved_spec_type->join(spec_type)->join(TypePtr::NOTNULL);
       if (improved_spec_type->empty()) {
         continue;

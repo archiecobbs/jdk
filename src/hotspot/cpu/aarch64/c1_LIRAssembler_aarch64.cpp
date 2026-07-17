@@ -455,16 +455,6 @@ int LIR_Assembler::emit_deopt_handler() {
   return entry_offset;
 }
 
-void LIR_Assembler::add_debug_info_for_branch(address adr, CodeEmitInfo* info) {
-  _masm->code_section()->relocate(adr, relocInfo::poll_type);
-  int pc_offset = code_offset();
-  flush_debug_info(pc_offset);
-  info->record_debug_info(compilation()->debug_info_recorder(), pc_offset);
-  if (info->exception_handlers() != nullptr) {
-    compilation()->add_exception_handlers_for_pco(pc_offset, info->exception_handlers());
-  }
-}
-
 void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
   assert(result->is_illegal() || !result->is_single_cpu() || result->as_register() == r0, "word returns are in r0,");
 
@@ -1640,15 +1630,13 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
   move(op->not_equal_result(), op->result_opr());
   __ b(L_end);
 
-  __ bind(L_oops_equal);
-  move(op->equal_result(), op->result_opr());
-  __ b(L_end);
-
   // We've returned from the stub. R0 contains 0x0 IFF the two
   // operands are not substitutable. (Don't compare against 0x1 in case the
   // C compiler is naughty)
   __ bind(*op->stub()->continuation());
   __ cbz(r0, L_oops_not_equal); // (call_stub() == 0x0) -> not_equal
+
+  __ bind(L_oops_equal);
   move(op->equal_result(), op->result_opr()); // (call_stub() != 0x0) -> equal
   // fall-through
   __ bind(L_end);
@@ -1656,12 +1644,12 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
 
 
 void LIR_Assembler::casw(Register addr, Register newval, Register cmpval) {
-  __ cmpxchg(addr, cmpval, newval, Assembler::word, /* acquire*/ true, /* release*/ true, /* weak*/ false, rscratch1);
+  __ cmpxchg(addr, cmpval, newval, Assembler::word, memory_order_seq_cst, rscratch1);
   __ cset(rscratch1, Assembler::NE);
 }
 
 void LIR_Assembler::casl(Register addr, Register newval, Register cmpval) {
-  __ cmpxchg(addr, cmpval, newval, Assembler::xword, /* acquire*/ true, /* release*/ true, /* weak*/ false, rscratch1);
+  __ cmpxchg(addr, cmpval, newval, Assembler::xword, memory_order_seq_cst, rscratch1);
   __ cset(rscratch1, Assembler::NE);
 }
 

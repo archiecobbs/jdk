@@ -269,6 +269,14 @@ public final class Unsafe {
 
     private native int nullMarkerOffset0(Object o);
 
+    /**
+     * The layout value for a "reference pointer" layout. This is the only
+     * value layout values should check against; all other layout values
+     * represent some kind of flat layout opaque to Java code.
+     *
+     * @see #arrayLayout
+     * @see #fieldLayout
+     */
     public static final int NON_FLAT_LAYOUT = 0;
 
     /* Reports the kind of layout used for an element in the storage
@@ -1349,7 +1357,7 @@ public final class Unsafe {
     }
 
     /**
-     * Detects if the given class may need to be initialized. This is often
+     * Detects if the given class is not yet fully initialized. This is often
      * needed in conjunction with obtaining the static field base of a
      * class.
      * @return false only if a call to {@code ensureClassInitialized} would have no effect
@@ -1528,7 +1536,6 @@ public final class Unsafe {
      * Return the size of the object in the heap.
      * @param o an object
      * @return the objects's size
-     * @since Valhalla
      */
     public long getObjectSize(Object o) {
         if (o == null)
@@ -1718,8 +1725,10 @@ public final class Unsafe {
                                                        Object expected,
                                                        Object x);
 
-    private final boolean isValueObject(Object o) {
-        return o != null && o.getClass().isValue();
+    @ForceInline
+    private final boolean isValueObject(Class<?> valueType, Object o) {
+        return ValueClass.isValueObjectCompatible(valueType)
+                && o != null && o.getClass().isValue();
     }
 
     /*
@@ -1731,7 +1740,7 @@ public final class Unsafe {
                                                     Class<?> type,
                                                     V expected,
                                                     V x) {
-        if (isValueObject(expected)) {
+        if (isValueObject(type, expected)) {
             while (true) {
                 Object witness = getReferenceVolatile(o, offset);
                 if (witness != expected) {
@@ -1766,7 +1775,7 @@ public final class Unsafe {
                                                         Class<?> valueType,
                                                         V expected,
                                                         V x) {
-        if (isValueObject(expected)) {
+        if (isValueObject(valueType, expected)) {
             while (true) {
                 Object witness = getReferenceVolatile(o, offset);
                 if (witness != expected) {
@@ -1849,7 +1858,8 @@ public final class Unsafe {
                                                              Class<?> valueType,
                                                              V expected,
                                                              V x) {
-        if (isValueObject(expected)) {
+        if (isValueObject(valueType, expected)) {
+            // Reusing a stronger operation for now, still compliant
             return compareAndSetReference(o, offset, valueType, expected, x);
         } else {
             return weakCompareAndSetReferencePlain(o, offset, expected, x);
@@ -1876,10 +1886,11 @@ public final class Unsafe {
                                                                Class<?> valueType,
                                                                V expected,
                                                                V x) {
-        if (isValueObject(expected)) {
+        if (isValueObject(valueType, expected)) {
+            // Reusing a stronger operation for now, still compliant
             return compareAndSetReference(o, offset, valueType, expected, x);
         } else {
-            return weakCompareAndSetReferencePlain(o, offset, expected, x);
+            return weakCompareAndSetReferenceAcquire(o, offset, expected, x);
         }
     }
 
@@ -1903,10 +1914,11 @@ public final class Unsafe {
                                                                Class<?> valueType,
                                                                V expected,
                                                                V x) {
-        if (isValueObject(expected)) {
+        if (isValueObject(valueType, expected)) {
+            // Reusing a stronger operation for now, still compliant
             return compareAndSetReference(o, offset, valueType, expected, x);
         } else {
-            return weakCompareAndSetReferencePlain(o, offset, expected, x);
+            return weakCompareAndSetReferenceRelease(o, offset, expected, x);
         }
     }
 
@@ -1930,10 +1942,11 @@ public final class Unsafe {
                                                         Class<?> valueType,
                                                         V expected,
                                                         V x) {
-        if (isValueObject(expected)) {
+        if (isValueObject(valueType, expected)) {
+            // Reusing a stronger operation for now, still compliant
             return compareAndSetReference(o, offset, valueType, expected, x);
         } else {
-            return weakCompareAndSetReferencePlain(o, offset, expected, x);
+            return weakCompareAndSetReference(o, offset, expected, x);
         }
     }
 
@@ -2228,10 +2241,7 @@ public final class Unsafe {
      * <p>The JNI documents specify that, at least for returning
      * values from native methods, a Java boolean value is converted
      * to the value-set 0..1 by first truncating to a byte (0..255 or
-     * maybe -128..127) and then testing against zero. Thus, Java
-     * booleans in non-Java data structures are by convention
-     * represented as 8-bit containers containing either zero (for
-     * false) or any non-zero value (for true).
+     * maybe -128..127) and then testing against zero.
      *
      * <p>Java booleans in the heap are also stored in bytes, but are
      * strongly normalized to the value-set 0..1 (i.e., they are
@@ -2242,17 +2252,17 @@ public final class Unsafe {
      * bit can be usually implemented with fewer (machine)
      * instructions than byte testing against zero.
      *
-     * <p>A number of Unsafe methods load boolean values from the heap
-     * as bytes. Unsafe converts those values according to the JNI
-     * rules (i.e, using the "testing against zero" convention). The
-     * method {@code byte2bool} implements that conversion.
+     * <p>A number of Unsafe methods load boolean values as bytes,
+     * truncate them to the least-significant bit, and then test
+     * against zero. It is uniformly performed for both Java heap
+     * and non-Java heap accesses.
      *
      * @param b the byte to be converted to boolean
      * @return the result of the conversion
      */
     @ForceInline
     private boolean byte2bool(byte b) {
-        return b != 0;
+        return (b & 1) != 0;
     }
 
     /**

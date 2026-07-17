@@ -27,7 +27,7 @@ package java.lang;
 
 import jdk.internal.misc.CDS;
 import jdk.internal.misc.PreviewFeatures;
-import jdk.internal.value.DeserializeConstructor;
+import jdk.internal.value.Deserializer;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
@@ -54,13 +54,13 @@ import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
  *
  * <p>This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
  * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
- * as interchangeable and should not use instances for synchronization, mutexes, or
+ * as interchangeable and should not use instances for synchronization or
  * with {@linkplain java.lang.ref.Reference object references}.
  *
  * <div class="preview-block">
  *      <div class="preview-comment">
  *          When preview features are enabled, {@code Short} is a {@linkplain Class#isValue value class}.
- *          Use of value class instances for synchronization, mutexes, or with
+ *          Use of value class instances for synchronization or with
  *          {@linkplain java.lang.ref.Reference object references} result in
  *          {@link IdentityException}.
  *      </div>
@@ -69,9 +69,10 @@ import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
  * @see     java.lang.Number
  * @since   1.1
  */
-@jdk.internal.MigratedValueClass
 @jdk.internal.ValueBased
-public final class Short extends Number implements Comparable<Short>, Constable {
+// See doc/value-class-preview.md for an overview of value class generation
+public final /*value*/ class Short extends Number
+        implements Comparable<Short>, Constable {
 
     /**
      * A constant holding the minimum value a {@code short} can
@@ -383,7 +384,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      * likely to yield significantly better space and time performance.
      */
     @Deprecated(since="9")
-    @DeserializeConstructor
+    @Deserializer("value")
     public Short(short value) {
         this.value = value;
     }

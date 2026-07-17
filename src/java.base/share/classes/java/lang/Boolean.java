@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import jdk.internal.value.DeserializeConstructor;
+import jdk.internal.value.Deserializer;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 import java.lang.constant.Constable;
@@ -47,13 +47,13 @@ import java.util.Optional;
  *
  * <p>This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
  * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
- * as interchangeable and should not use instances for synchronization, mutexes, or
+ * as interchangeable and should not use instances for synchronization or
  * with {@linkplain java.lang.ref.Reference object references}.
  *
  * <div class="preview-block">
  *      <div class="preview-comment">
  *          When preview features are enabled, {@code Boolean} is a {@linkplain Class#isValue value class}.
- *          Use of value class instances for synchronization, mutexes, or with
+ *          Use of value class instances for synchronization or with
  *          {@linkplain java.lang.ref.Reference object references} result in
  *          {@link IdentityException}.
  *      </div>
@@ -62,10 +62,10 @@ import java.util.Optional;
  * @author  Arthur van Hoff
  * @since   1.0
  */
-@jdk.internal.MigratedValueClass
 @jdk.internal.ValueBased
-public final class Boolean implements java.io.Serializable,
-                                      Comparable<Boolean>, Constable
+// See doc/value-class-preview.md for an overview of value class generation
+public final /*value*/ class Boolean
+        implements java.io.Serializable, Comparable<Boolean>, Constable
 {
     /**
      * The {@code Boolean} object corresponding to the primitive
@@ -111,7 +111,7 @@ public final class Boolean implements java.io.Serializable,
      * if possible.
      */
     @Deprecated(since="9")
-    @DeserializeConstructor
+    @Deserializer("value")
     public Boolean(boolean value) {
         this.value = value;
     }

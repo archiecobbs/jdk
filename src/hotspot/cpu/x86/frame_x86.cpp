@@ -301,7 +301,7 @@ void frame::patch_pc(Thread* thread, address pc) {
 
 #ifdef ASSERT
   {
-    frame f(this->sp(), this->unextended_sp(), this->fp(), pc);
+    frame f(sp(), unextended_sp(), fp(), pc, cb(), oop_map(), is_heap_frame());
     assert(f.is_deoptimized_frame() == this->is_deoptimized_frame() && f.pc() == this->pc() && f.raw_pc() == this->raw_pc(),
       "must be (f.is_deoptimized_frame(): %d this->is_deoptimized_frame(): %d "
       "f.pc(): " INTPTR_FORMAT " this->pc(): " INTPTR_FORMAT " f.raw_pc(): " INTPTR_FORMAT " this->raw_pc(): " INTPTR_FORMAT ")",
@@ -613,7 +613,7 @@ void frame::describe_pd(FrameValues& values, int frame_no) {
       ret_pc_loc = fp() + return_addr_offset;
       fp_loc = fp();
     } else {
-      if (cb()->is_nmethod() && cb()->as_nmethod_or_null()->needs_stack_repair()) {
+      if (cb()->is_nmethod() && cb()->as_nmethod()->needs_stack_repair()) {
         values.describe(frame_no, real_fp() - sender_sp_offset - 1, err_msg("fsize for #%d", frame_no), 1);
       }
       frame::CompiledFramePointers cfp = compiled_frame_details();

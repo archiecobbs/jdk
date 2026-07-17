@@ -164,7 +164,7 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
 }
 
 void BarrierSetAssembler::flat_field_copy(MacroAssembler* masm, DecoratorSet decorators,
-                                     Register src, Register dst, Register inline_layout_info) {
+                                          Register src, Register dst, Register inline_layout_info) {
   // flat_field_copy implementation is fairly complex, and there are not any
   // "short-cuts" to be made from asm. What there is, appears to have the same
   // cost in C++, so just "call_VM_leaf" for now rather than maintain hundreds
@@ -372,8 +372,8 @@ void BarrierSetAssembler::check_oop(MacroAssembler* masm, Register obj, Register
   __ jcc(Assembler::notZero, error);
 
   // make sure klass is 'reasonable', which is not zero.
-  __ load_klass(obj, obj, tmp1);  // get klass
-  __ testptr(obj, obj);
+  __ load_narrow_klass(tmp1, obj); // get narrow Klass
+  __ testl(tmp1, tmp1);
   __ jcc(Assembler::zero, error); // if klass is null it is broken
 }
 

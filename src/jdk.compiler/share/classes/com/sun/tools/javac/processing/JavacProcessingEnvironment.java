@@ -1264,7 +1264,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                         Kinds.Kind symKind = cs.kind;
                         cs.reset();
                         if (symKind == ERR) {
-                            cs.type = new ClassType(cs.type.getEnclosingType(), null, cs, List.nil());
+                            cs.type = new ClassType(cs.type.getEnclosingType(), null, cs);
                         }
                         if (cs.isCompleted()) {
                             cs.completer = initialCompleter;
@@ -1547,7 +1547,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             }
             public void visitMethodDef(JCMethodDecl node) {
                 // remove super constructor call that may have been added during attribution:
-                if (TreeInfo.isConstructor(node) && node.sym != null && node.sym.owner.isEnum() &&
+                if (TreeInfo.isConstructor(node) && node.sym != null &&
+                    (node.sym.owner.isEnum() || TreeInfo.isCanonicalConstructor(node)) &&
                     node.body != null && node.body.stats.nonEmpty() && TreeInfo.isSuperCall(node.body.stats.head) &&
                     node.body.stats.head.pos == node.body.pos) {
                     node.body.stats = node.body.stats.tail;

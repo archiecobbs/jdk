@@ -29,7 +29,6 @@
  * @requires jdk.foreign.linker != "UNSUPPORTED"
  * @requires !vm.musl
  *
- * @enablePreview
  * @build TestEnableNativeAccessJarManifest
  *        panama_module/*
  *        org.openjdk.foreigntest.unnamed.PanamaMainUnnamedModule

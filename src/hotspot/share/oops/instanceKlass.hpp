@@ -55,10 +55,11 @@ class RecordComponent;
 
 //  InstanceKlass embedded field layout (after declared fields):
 //    [EMBEDDED Java vtable             ] size in words = vtable_len
+//    [EMBEDDED Java itable             ] size in words = itable_len
 //    [EMBEDDED nonstatic oop-map blocks] size in words = nonstatic_oop_map_size
 //      The embedded nonstatic oop-map blocks are short pairs (offset, length)
 //      indicating where oops are located in instances of this klass.
-//    [EMBEDDED implementor of the interface] only exist for interface
+//    [EMBEDDED implementor of the interface] only exists for interface
 //    [EMBEDDED InlineKlass::Members] only if is an InlineKlass instance
 
 
@@ -273,7 +274,7 @@ class InstanceKlass: public Klass {
   volatile ClassState _init_state;          // state of class
 
   u1              _reference_type;          // reference type
-  int             _acmp_maps_offset;        // offset to injected static field storing .acmp_maps for values classes
+  int             _acmp_maps_offset;        // offset to injected static field storing .acmp_maps for value classes
                                             // unfortunately, abstract values need one too so it cannot be stored in
                                             // the InlineKlass::Members that only exist for InlineKlass.
 
@@ -335,19 +336,6 @@ class InstanceKlass: public Klass {
   // Located here because sub-klasses can't have their own C++ fields
   address _adr_inline_klass_members;
 
-  // embedded Java vtable follows here
-  // embedded Java itables follows here
-  // embedded static fields follows here
-  // embedded nonstatic oop-map blocks follows here
-  // embedded implementor of this interface follows here
-  //   The embedded implementor only exists if the current klass is an
-  //   interface. The possible values of the implementor fall into following
-  //   three cases:
-  //     null: no implementor.
-  //     A Klass* that's not itself: one implementor.
-  //     Itself: more than one implementors.
-  //
-
   friend class SystemDictionary;
 
   static bool _disable_method_binary_search;
@@ -398,6 +386,9 @@ class InstanceKlass: public Klass {
 
   bool has_inlined_fields() const { return _misc_flags.has_inlined_fields(); }
   void set_has_inlined_fields()   { _misc_flags.set_has_inlined_fields(true); }
+
+  bool has_null_restricted_static_fields() const { return _misc_flags.has_null_restricted_static_fields(); }
+  void set_has_null_restricted_static_fields()   { _misc_flags.set_has_null_restricted_static_fields(true); }
 
   bool is_naturally_atomic(bool null_free) const;
   void set_is_naturally_atomic()    { _misc_flags.set_is_naturally_atomic(true); }
@@ -1003,6 +994,13 @@ public:
 #endif
 
   // Access to the implementor of an interface.
+  //   The embedded implementor only exists if the current klass is an
+  //   interface. The possible values of the implementor fall into following
+  //   three cases:
+  //     null: no implementor.
+  //     A Klass* that's not itself: one implementor.
+  //     Itself: more than one implementors.
+  //
   InstanceKlass* implementor() const;
   void set_implementor(InstanceKlass* ik);
   int  nof_implementors() const;

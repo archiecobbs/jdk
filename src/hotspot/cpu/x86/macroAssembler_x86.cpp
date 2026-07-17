@@ -2136,6 +2136,26 @@ void MacroAssembler::vmovdqa(XMMRegister dst, AddressLiteral src, int vector_len
   }
 }
 
+void MacroAssembler::vmovdqa(XMMRegister dst, Address src, int vector_len) {
+  if (vector_len == AVX_512bit) {
+    Assembler::evmovdqaq(dst, src, AVX_512bit);
+  } else if (vector_len == AVX_256bit) {
+    Assembler::vmovdqa(dst, src);
+  } else {
+    Assembler::movdqa(dst, src);
+  }
+}
+
+void MacroAssembler::vmovdqa(Address dst, XMMRegister src, int vector_len) {
+  if (vector_len == AVX_512bit) {
+    Assembler::evmovdqaq(dst, src, AVX_512bit);
+  } else if (vector_len == AVX_256bit) {
+    Assembler::vmovdqa(dst, src);
+  } else {
+    Assembler::movdqa(dst, src);
+  }
+}
+
 void MacroAssembler::kmov(KRegister dst, Address src) {
   if (VM_Version::supports_avx512bw()) {
     kmovql(dst, src);
@@ -2422,18 +2442,20 @@ void MacroAssembler::test_field_is_flat(Register flags, Register temp_reg, Label
 }
 
 void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label) {
-  Label test_mark_word;
   // load mark word
   movptr(temp_reg, Address(oop, oopDesc::mark_offset_in_bytes()));
-  // check displaced
-  testl(temp_reg, markWord::unlocked_value);
-  jccb(Assembler::notZero, test_mark_word);
-  // slow path use klass prototype
-  push(rscratch1);
-  load_prototype_header(temp_reg, oop, rscratch1);
-  pop(rscratch1);
+  if (!UseObjectMonitorTable) {
+    Label test_mark_word;
+    // check displaced
+    testl(temp_reg, markWord::unlocked_value);
+    jccb(Assembler::notZero, test_mark_word);
+    // slow path use klass prototype
+    push(rscratch1);
+    load_prototype_header(temp_reg, oop, rscratch1);
+    pop(rscratch1);
 
-  bind(test_mark_word);
+    bind(test_mark_word);
+  }
   testl(temp_reg, test_bit);
   jcc((jmp_set) ? Assembler::notZero : Assembler::zero, jmp_label);
 }
@@ -4995,7 +5017,7 @@ void MacroAssembler::profile_receiver_type(Register recv, Register mdp, int mdp_
   Register offset = rscratch1;
 
   Label L_loop_search_receiver, L_loop_search_empty;
-  Label L_restart, L_found_recv, L_found_empty, L_polymorphic, L_count_update;
+  Label L_restart, L_found_recv, L_found_empty, L_count_update;
 
   // The code here recognizes three major cases:
   //   A. Fastest: receiver found in the table
@@ -5025,20 +5047,19 @@ void MacroAssembler::profile_receiver_type(Register recv, Register mdp, int mdp_
   //     if (receiver(i) == recv) goto found_recv(i);
   //   }
   //
-  //   // Fast: no receiver, but profile is full
+  //   // Fast: no receiver, but profile is not full
   //   for (i = 0; i < receiver_count(); i++) {
   //     if (receiver(i) == null) goto found_null(i);
   //   }
-  //   goto polymorphic
+  //
+  //   // Slow: profile is full, polymorphic case
+  //   count++;
+  //   return
   //
   //   // Slow: try to install receiver
   // found_null(i):
   //   CAS(&receiver(i), null, recv);
   //   goto restart
-  //
-  // polymorphic:
-  //   count++;
-  //   return
   //
   // found_recv(i):
   //   *receiver_count(i)++
@@ -5055,7 +5076,7 @@ void MacroAssembler::profile_receiver_type(Register recv, Register mdp, int mdp_
   cmpptr(offset, end_receiver_offset);
   jccb(Assembler::notEqual, L_loop_search_receiver);
 
-  // Fast: no receiver, but profile is full
+  // Fast: no receiver, but profile is not full
   movptr(offset, base_receiver_offset);
   bind(L_loop_search_empty);
     cmpptr(Address(mdp, offset, Address::times_ptr), NULL_WORD);
@@ -5063,9 +5084,13 @@ void MacroAssembler::profile_receiver_type(Register recv, Register mdp, int mdp_
   addptr(offset, receiver_step);
   cmpptr(offset, end_receiver_offset);
   jccb(Assembler::notEqual, L_loop_search_empty);
-  jmpb(L_polymorphic);
 
-  // Slow: try to install receiver
+  // Slow: Receiver is not found and table is full.
+  // Increment polymorphic counter instead of receiver slot.
+  movptr(offset, poly_count_offset);
+  jmpb(L_count_update);
+
+  // Slowest: try to install receiver
   bind(L_found_empty);
 
   // Atomically swing receiver slot: null -> recv.
@@ -5117,17 +5142,11 @@ void MacroAssembler::profile_receiver_type(Register recv, Register mdp, int mdp_
   // and just restart the search from the beginning.
   jmpb(L_restart);
 
-  // Counter updates:
-
-  // Increment polymorphic counter instead of receiver slot.
-  bind(L_polymorphic);
-  movptr(offset, poly_count_offset);
-  jmpb(L_count_update);
-
   // Found a receiver, convert its slot offset to corresponding count offset.
   bind(L_found_recv);
   addptr(offset, receiver_to_count_step);
 
+  // Finally, update the counter
   bind(L_count_update);
   addptr(Address(mdp, offset, Address::times_ptr), DataLayout::counter_increment);
 }
@@ -5543,17 +5562,19 @@ void MacroAssembler::load_narrow_klass_compact(Register dst, Register src) {
   shrq(dst, markWord::klass_shift);
 }
 
+void MacroAssembler::load_narrow_klass(Register dst, Register src) {
+  if (UseCompactObjectHeaders) {
+    load_narrow_klass_compact(dst, src);
+  } else {
+    movl(dst, Address(src, oopDesc::klass_offset_in_bytes()));
+  }
+}
+
 void MacroAssembler::load_klass(Register dst, Register src, Register tmp) {
   assert_different_registers(src, tmp);
   assert_different_registers(dst, tmp);
-
-  if (UseCompactObjectHeaders) {
-    load_narrow_klass_compact(dst, src);
-    decode_klass_not_null(dst, tmp);
-  } else {
-    movl(dst, Address(src, oopDesc::klass_offset_in_bytes()));
-    decode_klass_not_null(dst, tmp);
-  }
+  load_narrow_klass(dst, src);
+  decode_klass_not_null(dst, tmp);
 }
 
 void MacroAssembler::load_prototype_header(Register dst, Register src, Register tmp) {
@@ -6078,9 +6099,9 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
   mov(rax, rscratch1);
 
   if (from_interpreter) {
-    super_call_VM_leaf(StubRoutines::store_inline_type_fields_to_buf());
+    super_call_VM_leaf(SharedRuntime::store_inline_type_fields_to_buf_entry());
   } else {
-    call(RuntimeAddress(StubRoutines::store_inline_type_fields_to_buf()));
+    call(RuntimeAddress(SharedRuntime::store_inline_type_fields_to_buf_entry()));
     call_offset = offset();
   }
 
@@ -6411,7 +6432,7 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
 
   assert(reg_state[to->value()] == reg_writable, "must have already been read");
   bool success = move_helper(val_obj->as_VMReg(), to, T_OBJECT, reg_state);
-  assert(success, "to register must be writeable");
+  assert(success, "to register must be writable");
   return true;
 }
 
@@ -10727,10 +10748,6 @@ void MacroAssembler::load_aotrc_address(Register reg, address a) {
 }
 
 void MacroAssembler::setcc(Assembler::Condition comparison, Register dst) {
-  if (VM_Version::supports_apx_f()) {
-    esetzucc(comparison, dst);
-  } else {
-    setb(comparison, dst);
-    movzbl(dst, dst);
-  }
+  setb(comparison, dst);
+  movzbl(dst, dst);
 }

@@ -43,18 +43,6 @@
 #include "memory/iterator.inline.hpp"
 #include "oops/oop.inline.hpp"
 
-inline oop ShenandoahBarrierSet::resolve_forwarded_not_null(oop p) {
-  return ShenandoahForwarding::get_forwardee(p);
-}
-
-inline oop ShenandoahBarrierSet::resolve_forwarded(oop p) {
-  if (p != nullptr) {
-    return resolve_forwarded_not_null(p);
-  } else {
-    return p;
-  }
-}
-
 template <DecoratorSet decorators, class T>
 inline oop ShenandoahBarrierSet::load_reference_barrier_mutator(oop obj, T* load_addr) {
   assert(ShenandoahLoadRefBarrier, "Should be enabled");
@@ -119,7 +107,7 @@ inline oop ShenandoahBarrierSet::load_reference_barrier(oop obj) {
   if (_heap->has_forwarded_objects() && _heap->in_collection_set(obj)) {
     // Subsumes null-check
     assert(obj != nullptr, "cset check must have subsumed null-check");
-    oop fwd = resolve_forwarded_not_null(obj);
+    oop fwd = ShenandoahForwarding::get_forwardee(obj);
     if (obj == fwd && _heap->is_evacuation_in_progress()) {
       Thread* t = Thread::current();
       return _heap->evacuate_object(obj, t);
@@ -167,14 +155,15 @@ inline oop ShenandoahBarrierSet::load_reference_barrier(DecoratorSet decorators,
   return fwd;
 }
 
-inline void ShenandoahBarrierSet::enqueue(oop obj) {
+inline void ShenandoahBarrierSet::enqueue(oop obj, bool filter) {
   assert(obj != nullptr, "checked by caller");
+  shenandoah_assert_correct(nullptr, obj);
   assert(_satb_mark_queue_set.is_active(), "only get here when SATB active");
 
   // Filter marked objects before hitting the SATB queues. The same predicate would
   // be used by SATBMQ::filter to eliminate already marked objects downstream, but
   // filtering here helps to avoid wasteful SATB queueing work to begin with.
-  if (!_heap->requires_marking(obj)) return;
+  if (filter && !_heap->requires_marking(obj)) return;
 
   SATBMarkQueue& queue = ShenandoahThreadLocalData::satb_mark_queue(Thread::current());
   _satb_mark_queue_set.enqueue_known_active(queue, obj);
@@ -219,23 +208,28 @@ inline void ShenandoahBarrierSet::keep_alive_if_weak(DecoratorSet decorators, oo
 }
 
 template <DecoratorSet decorators, typename T>
-inline void ShenandoahBarrierSet::write_ref_field_post(T* field) {
+inline void ShenandoahBarrierSet::write_ref_field_post(T* field, oop new_value) {
   assert(ShenandoahCardBarrier, "Should have been checked by caller");
+
+  if (new_value == nullptr) {
+    // Null reference stores do not require card mark.
+    return;
+  }
+
   if (_heap->is_in_young(field)) {
     // Young field stores do not require card mark.
     return;
   }
-  T heap_oop = RawAccess<>::oop_load(field);
-  if (CompressedOops::is_null(heap_oop)) {
-    // Null reference store do not require card mark.
-    return;
-  }
-  oop obj = CompressedOops::decode_not_null(heap_oop);
-  if (!_heap->is_in_young(obj)) {
+
+  if (!_heap->is_in_young(new_value)) {
     // Not an old->young reference store.
     return;
   }
+
   volatile CardTable::CardValue* byte = card_table()->byte_for(field);
+  if (UseCondCardMark && (*byte == CardTable::dirty_card_val())) {
+    return;
+  }
   *byte = CardTable::dirty_card_val();
 }
 
@@ -332,7 +326,7 @@ inline void ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_st
   oop_store_common(addr, value);
   if (ShenandoahCardBarrier) {
     ShenandoahBarrierSet* bs = ShenandoahBarrierSet::barrier_set();
-    bs->write_ref_field_post<decorators>(addr);
+    bs->write_ref_field_post<decorators>(addr, value);
   }
 }
 
@@ -358,7 +352,7 @@ inline oop ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_ato
   ShenandoahBarrierSet* bs = ShenandoahBarrierSet::barrier_set();
   oop result = bs->oop_cmpxchg(decorators, addr, compare_value, new_value);
   if (ShenandoahCardBarrier) {
-    bs->write_ref_field_post<decorators>(addr);
+    bs->write_ref_field_post<decorators>(addr, new_value);
   }
   return result;
 }
@@ -382,7 +376,7 @@ inline oop ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_ato
   auto addr = AccessInternal::oop_field_addr<decorators>(base, offset);
   oop result = bs->oop_cmpxchg(resolved_decorators, addr, compare_value, new_value);
   if (ShenandoahCardBarrier) {
-    bs->write_ref_field_post<decorators>(addr);
+    bs->write_ref_field_post<decorators>(addr, new_value);
   }
   return result;
 }
@@ -404,7 +398,7 @@ inline oop ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_ato
   ShenandoahBarrierSet* bs = ShenandoahBarrierSet::barrier_set();
   oop result = bs->oop_xchg(decorators, addr, new_value);
   if (ShenandoahCardBarrier) {
-    bs->write_ref_field_post<decorators>(addr);
+    bs->write_ref_field_post<decorators>(addr, new_value);
   }
   return result;
 }
@@ -428,18 +422,152 @@ inline oop ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_ato
   auto addr = AccessInternal::oop_field_addr<decorators>(base, offset);
   oop result = bs->oop_xchg(resolved_decorators, addr, new_value);
   if (ShenandoahCardBarrier) {
-    bs->write_ref_field_post<decorators>(addr);
+    bs->write_ref_field_post<decorators>(addr, new_value);
   }
   return result;
 }
 
 // Clone barrier support
+template <bool EVAC>
+class ShenandoahUpdateEvacForCloneOopClosure : public BasicOopIterateClosure {
+private:
+  ShenandoahHeap* const _heap;
+  const ShenandoahCollectionSet* const _cset;
+  Thread* const _thread;
+
+  template <class T>
+  inline void do_oop_work(T* p) {
+    T o = RawAccess<>::oop_load(p);
+    if (!CompressedOops::is_null(o)) {
+      oop obj = CompressedOops::decode_not_null(o);
+      if (_cset->is_in(obj)) {
+        oop fwd = ShenandoahForwarding::get_forwardee(obj);
+        if (EVAC && obj == fwd) {
+          fwd = _heap->evacuate_object(obj, _thread);
+        }
+        shenandoah_assert_forwarded_except(p, obj, _heap->cancelled_gc());
+        ShenandoahHeap::atomic_update_oop(fwd, p, o);
+        obj = fwd;
+      }
+    }
+  }
+
+public:
+  ShenandoahUpdateEvacForCloneOopClosure() :
+          _heap(ShenandoahHeap::heap()),
+          _cset(_heap->collection_set()),
+          _thread(Thread::current()) {}
+
+  virtual void do_oop(oop* p)       { do_oop_work(p); }
+  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+};
+
+template <bool EVAC>
+void ShenandoahBarrierSet::clone_work(oop obj) {
+  if (need_bulk_update(cast_from_oop<HeapWord*>(obj))) {
+    ShenandoahUpdateEvacForCloneOopClosure<EVAC> cl;
+    obj->oop_iterate(&cl);
+  }
+}
+
 template <DecoratorSet decorators, typename BarrierSetT>
 void ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::clone_in_heap(oop src, oop dst, size_t size) {
-  if (ShenandoahCloneBarrier) {
-    ShenandoahBarrierSet::barrier_set()->clone_barrier_runtime(src);
+  // Hot code path, called from compiler/runtime. Make sure fast path is fast.
+
+  // Fix up src before doing the copy, if needed.
+  const char gc_state = ShenandoahThreadLocalData::gc_state(Thread::current());
+  if (gc_state != 0 && ShenandoahCloneBarrier) {
+    ShenandoahBarrierSet* bs = ShenandoahBarrierSet::barrier_set();
+    if ((gc_state & ShenandoahHeap::EVACUATION) != 0) {
+      bs->clone_work<true>(src);
+    } else if ((gc_state & ShenandoahHeap::UPDATE_REFS) != 0) {
+      bs->clone_work<false>(src);
+    }
   }
+
   Raw::clone(src, dst, size);
+
+  // Current allocator never allocates in old, so clone destination is guaranteed to be in young.
+  // Otherwise we need card barriers.
+  shenandoah_assert_in_young_if(nullptr, dst, ShenandoahCardBarrier);
+}
+
+template <DecoratorSet decorators, typename BarrierSetT>
+void ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_copy_in_heap(const ValuePayload& src, const ValuePayload& dst) {
+  precond(src.klass() == dst.klass());
+
+  const InlineKlass* md = src.klass();
+  if (!md->contains_oops()) {
+    // If we do not have oops in the flat array, we can just do a raw copy.
+    Raw::value_copy(src, dst);
+  } else {
+    ShenandoahBarrierSet* bs = ShenandoahBarrierSet::barrier_set();
+    // addr() points at the payload start, the oop map offset are relative to
+    // the object header, adjust address to account for this discrepancy.
+    const address oop_map_adjusted_src_addr = src.addr() - md->payload_offset();
+    const address oop_map_adjusted_dst_addr = dst.addr() - md->payload_offset();
+    typedef typename ValueOopType<decorators>::type OopType;
+
+    // Oop maps tell us where the array-like structures are in the value payload.
+    // For simplicity, apply arraycopy barriers over them.
+    bool dest_uninit = HasDecorator<decorators, IS_DEST_UNINITIALIZED>::value;
+    {
+      OopMapBlock* map = md->start_of_nonstatic_oop_maps();
+      OopMapBlock* const end = map + md->nonstatic_oop_map_count();
+
+      while (map != end) {
+        address src_oop_address = oop_map_adjusted_src_addr + map->offset();
+        address dst_oop_address = oop_map_adjusted_dst_addr + map->offset();
+        bs->arraycopy_barrier((OopType*) src_oop_address, (OopType*) dst_oop_address, map->count(), dest_uninit);
+        map++;
+      }
+    }
+
+    Raw::value_copy(src, dst);
+
+    // Similarly, we can ask for ref array store helper for post-barriers.
+    if (ShenandoahCardBarrier) {
+      OopMapBlock* map = md->start_of_nonstatic_oop_maps();
+      OopMapBlock* const end = map + md->nonstatic_oop_map_count();
+      while (map != end) {
+        address dst_oop_address = oop_map_adjusted_dst_addr + map->offset();
+        bs->write_ref_array((HeapWord*) dst_oop_address, map->count());
+        map++;
+      }
+    }
+  }
+}
+
+template <DecoratorSet decorators, typename BarrierSetT>
+void ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_store_null_in_heap(const ValuePayload& dst) {
+  const InlineKlass* md = dst.klass();
+  if (!md->contains_oops()) {
+    // If we do not have oops in the flat array, we can just do a raw clear.
+    Raw::value_store_null(dst);
+  } else {
+    ShenandoahBarrierSet* bs = ShenandoahBarrierSet::barrier_set();
+    // addr() points at the payload start, the oop map offset are relative to
+    // the object header, adjust address to account for this discrepancy.
+    const address oop_map_adjusted_dst_addr = dst.addr() - md->payload_offset();
+    typedef typename ValueOopType<decorators>::type OopType;
+
+    // Oop maps tell us where the array-like structures are in the value payload.
+    // For simplicity, apply arraycopy barriers over them.
+    bool dest_uninit = HasDecorator<decorators, IS_DEST_UNINITIALIZED>::value;
+    if (!dest_uninit) {
+      OopMapBlock* map = md->start_of_nonstatic_oop_maps();
+      OopMapBlock* const end = map + md->nonstatic_oop_map_count();
+      while (map != end) {
+        address dst_oop_address = oop_map_adjusted_dst_addr + map->offset();
+        bs->arraycopy_barrier((OopType*) dst_oop_address, (OopType*) dst_oop_address, map->count(), dest_uninit);
+        map++;
+      }
+    }
+
+    Raw::value_store_null(dst);
+
+    // Storing null does not require post-barriers
+  }
 }
 
 template <DecoratorSet decorators, typename BarrierSetT>
@@ -449,9 +577,10 @@ OopCopyResult ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_
                                                                                                   size_t length) {
   T* src = arrayOopDesc::obj_offset_to_raw(src_obj, src_offset_in_bytes, src_raw);
   T* dst = arrayOopDesc::obj_offset_to_raw(dst_obj, dst_offset_in_bytes, dst_raw);
+  bool dest_uninit = HasDecorator<decorators, IS_DEST_UNINITIALIZED>::value;
 
   ShenandoahBarrierSet* bs = ShenandoahBarrierSet::barrier_set();
-  bs->arraycopy_barrier(src, dst, length);
+  bs->arraycopy_barrier(src, dst, length, dest_uninit);
   OopCopyResult result = Raw::oop_arraycopy_in_heap(src_obj, src_offset_in_bytes, src_raw, dst_obj, dst_offset_in_bytes, dst_raw, length);
   if (ShenandoahCardBarrier) {
     bs->write_ref_array((HeapWord*) dst, length);
@@ -479,7 +608,7 @@ void ShenandoahBarrierSet::arraycopy_work(T* src, size_t count) {
     if (!CompressedOops::is_null(o)) {
       oop obj = CompressedOops::decode_not_null(o);
       if (HAS_FWD && cset->is_in(obj)) {
-        oop fwd = resolve_forwarded_not_null(obj);
+        oop fwd = ShenandoahForwarding::get_forwardee(obj);
         if (EVAC && obj == fwd) {
           fwd = _heap->evacuate_object(obj, thread);
         }
@@ -494,14 +623,14 @@ void ShenandoahBarrierSet::arraycopy_work(T* src, size_t count) {
 }
 
 template <class T>
-void ShenandoahBarrierSet::arraycopy_barrier(T* src, T* dst, size_t count) {
+void ShenandoahBarrierSet::arraycopy_barrier(T* src, T* dst, size_t count, bool dest_uninit) {
   if (count == 0) {
     // No elements to copy, no need for barrier
     return;
   }
 
   const char gc_state = ShenandoahThreadLocalData::gc_state(Thread::current());
-  if ((gc_state & ShenandoahHeap::MARKING) != 0) {
+  if (!dest_uninit && (gc_state & ShenandoahHeap::MARKING) != 0) {
     // If marking old or young, we must evaluate the SATB barrier. This will be the only
     // action if we are not marking old. If we are marking old, we must still evaluate the
     // load reference barrier for a young collection.

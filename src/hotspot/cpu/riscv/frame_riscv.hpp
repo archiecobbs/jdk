@@ -103,8 +103,6 @@
 
  public:
   enum {
-    pc_return_offset                                 =  0,
-
     // All frames
     link_offset                                      = -2,
     return_addr_offset                               = -1,
@@ -184,6 +182,10 @@
   }
 
  public:
+  // Support for scalarized inline type calling convention
+  static intptr_t* repair_sender_sp(nmethod* nm, intptr_t* sp, intptr_t** saved_fp_addr);
+  bool was_augmented_on_entry(int& real_size) const;
+
   // Constructors
 
   frame(intptr_t* ptr_sp, intptr_t* ptr_fp, address pc);
@@ -224,9 +226,5 @@
 
   // returns the sending frame, without applying any barriers
   inline frame sender_raw(RegisterMap* map) const;
-
-  intptr_t* repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr) const;
-  static intptr_t* repair_sender_sp(nmethod* nm, intptr_t* sp, intptr_t** saved_fp_addr);
-  bool was_augmented_on_entry(int& real_size) const;
 
 #endif // CPU_RISCV_FRAME_RISCV_HPP

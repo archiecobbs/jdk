@@ -810,6 +810,7 @@ protected:
 
 public:
   typedef jint NativeType;
+  typedef juint NativeUType;
   virtual bool eq(const Type* t) const;
   virtual uint hash() const;             // Type specific hashing
   virtual bool singleton(void) const;    // TRUE if type is a singleton
@@ -823,6 +824,7 @@ public:
   static const TypeInt* make(jint con);
   // must always specify w
   static const TypeInt* make(jint lo, jint hi, int widen);
+  static const TypeInt* make_unsigned(juint ulo, juint uhi, int widen);
   static const Type* make_or_top(const TypeIntPrototype<jint, juint>& t, int widen);
   static const TypeInt* make(const TypeIntPrototype<jint, juint>& t, int widen) { return make_or_top(t, widen)->is_int(); }
   static const TypeInt* make(const TypeIntMirror<jint, juint>& t, int widen) {
@@ -899,6 +901,7 @@ protected:
   virtual const Type* filter_helper(const Type* kills, bool include_speculative) const;
 public:
   typedef jlong NativeType;
+  typedef julong NativeUType;
   virtual bool eq( const Type *t ) const;
   virtual uint hash() const;             // Type specific hashing
   virtual bool singleton(void) const;    // TRUE if type is a singleton
@@ -913,6 +916,7 @@ public:
   static const TypeLong* make(jlong con);
   // must always specify w
   static const TypeLong* make(jlong lo, jlong hi, int widen);
+  static const TypeLong* make_unsigned(julong ulo, julong uhi, int widen);
   static const Type* make_or_top(const TypeIntPrototype<jlong, julong>& t, int widen);
   static const TypeLong* make(const TypeIntPrototype<jlong, julong>& t, int widen) { return make_or_top(t, widen)->is_long(); }
   static const TypeLong* make(const TypeIntMirror<jlong, julong>& t, int widen) {
@@ -1173,6 +1177,7 @@ public:
   static const TypeInterfaces* make(GrowableArray<ciInstanceKlass*>* interfaces = nullptr);
   bool eq(const Type* other) const;
   bool eq(ciInstanceKlass* k) const;
+  bool is_subset(ciInstanceKlass* k) const;
   uint hash() const;
   const Type *xdual() const;
   void dump(outputStream* st) const;
@@ -1546,6 +1551,15 @@ public:
   bool is_known_instance()       const { return _instance_id > 0; }
   int  instance_id()             const { return _instance_id; }
   bool is_known_instance_field() const { return is_known_instance() && _offset.get() >= 0; }
+  bool same_instance_as(const TypeOopPtr* t) const {
+    assert(is_known_instance() || t->is_known_instance(), "known instance expected");
+    // Once EA has run, some node's TypeOopPtrs are assigned a "known instance" instance_id. Others are left with
+    // an unknown instance instance_id: InstanceBot. The nodes with InstanceBot are from any instance other than the
+    // ones that are known, that is, InstanceBot and "known instance" instance_ids don't alias. As a consequence,
+    // comparing an InstanceBot type with a known instance type is valid and this method correctly returns false in that
+    // case.
+    return instance_id() == t->instance_id();
+  }
 
   virtual bool can_be_inline_type() const { return (_klass == nullptr || _klass->can_be_inline_klass(_klass_is_exact)); }
   virtual bool can_be_inline_array() const { ShouldNotReachHere(); return false; }
@@ -1853,6 +1867,7 @@ public:
   jint flat_layout_helper() const;
   int flat_elem_size() const;
   int flat_log_elem_size() const;
+  jint max_flat_elements() const;
 
   const TypeAryPtr* cast_to_stable(bool stable, int stable_dimension = 1) const;
   int stable_dimension() const;
@@ -1992,7 +2007,9 @@ public:
   virtual const TypeKlassPtr *cast_to_exactness(bool klass_is_exact) const { ShouldNotReachHere(); return nullptr; }
 
   // corresponding pointer to instance, for a given class
-  virtual const TypeOopPtr* as_instance_type(bool klass_change = true) const { ShouldNotReachHere(); return nullptr; }
+  virtual const TypeOopPtr* as_exact_instance_type(bool klass_change = true) const { ShouldNotReachHere(); return nullptr; }
+  // corresponding pointer to instances which subtype a given class
+  virtual const TypeOopPtr* as_subtype_instance_type(bool klass_change = true) const = 0;
 
   virtual const TypePtr *add_offset( intptr_t offset ) const { ShouldNotReachHere(); return nullptr; }
   virtual const Type    *xmeet( const Type *t ) const { ShouldNotReachHere(); return nullptr; }
@@ -2075,10 +2092,11 @@ public:
 
   virtual const TypeInstKlassPtr* cast_to_ptr_type(PTR ptr) const;
 
-  virtual const TypeKlassPtr *cast_to_exactness(bool klass_is_exact) const;
+  virtual const TypeInstKlassPtr *cast_to_exactness(bool klass_is_exact) const;
 
   // corresponding pointer to instance, for a given class
-  virtual const TypeOopPtr* as_instance_type(bool klass_change = true) const;
+  virtual const TypeInstPtr* as_exact_instance_type(bool klass_change = true) const;
+  virtual const TypeInstPtr* as_subtype_instance_type(bool klass_change = true) const;
   virtual uint hash() const;
   virtual bool eq(const Type *t) const;
 
@@ -2126,7 +2144,7 @@ class TypeAryKlassPtr : public TypeKlassPtr {
   const bool _refined_type;
 
   static const TypeInterfaces* _array_interfaces;
-  TypeAryKlassPtr(PTR ptr, const Type *elem, ciKlass* klass, Offset offset, bool not_flat, int not_null_free, bool flat, bool null_free, bool atomic, bool refined_type)
+  TypeAryKlassPtr(PTR ptr, const Type *elem, ciKlass* klass, Offset offset, bool not_flat, bool not_null_free, bool flat, bool null_free, bool atomic, bool refined_type)
     : TypeKlassPtr(AryKlassPtr, ptr, klass, _array_interfaces, offset), _elem(elem), _not_flat(not_flat), _not_null_free(not_null_free), _flat(flat), _null_free(null_free), _atomic(atomic), _refined_type(refined_type) {
     assert(klass == nullptr || klass->is_type_array_klass() || klass->is_flat_array_klass() || !klass->as_obj_array_klass()->base_element_klass()->is_interface(), "");
   }
@@ -2178,6 +2196,7 @@ public:
   static const TypeAryKlassPtr* make(ciKlass* klass, InterfaceHandling interface_handling);
 
   const TypeAryKlassPtr* cast_to_non_refined() const;
+  const TypeAryKlassPtr* cast_to_default_refined() const;
   const TypeAryKlassPtr* cast_to_refined_array_klass_ptr(bool refined = true) const;
 
   const Type *elem() const { return _elem; }
@@ -2187,10 +2206,11 @@ public:
 
   virtual const TypeAryKlassPtr* cast_to_ptr_type(PTR ptr) const;
 
-  virtual const TypeKlassPtr *cast_to_exactness(bool klass_is_exact) const;
+  virtual const TypeAryKlassPtr* cast_to_exactness(bool klass_is_exact) const;
 
   // corresponding pointer to instance, for a given class
-  virtual const TypeOopPtr* as_instance_type(bool klass_change = true) const;
+  virtual const TypeAryPtr* as_exact_instance_type(bool klass_change = true) const;
+  virtual const TypeAryPtr* as_subtype_instance_type(bool klass_change = true) const;
 
   virtual const TypePtr *add_offset( intptr_t offset ) const;
   virtual const Type    *xmeet( const Type *t ) const;
@@ -2383,7 +2403,6 @@ public:
   const TypeTuple* domain_cc()  const { return _domain_cc; }
   const TypeTuple* range_sig()  const { return _range_sig; }
   const TypeTuple* range_cc()   const { return _range_cc; }
-  bool scalarized_return()      const { return _scalarized_return; }
 
   static const TypeFunc* make(ciMethod* method, bool is_call = true, bool is_osr_compilation = false);
   static const TypeFunc *make(const TypeTuple* domain_sig, const TypeTuple* domain_cc,
@@ -2739,7 +2758,7 @@ inline const TypeLong* Type::try_cast<TypeLong>() const {
 #define RShiftXNode  RShiftLNode
 // For card marks and hashcodes
 #define URShiftXNode URShiftLNode
-// For shenandoahSupport
+// For pointer-sized accesses
 #define LoadXNode    LoadLNode
 #define StoreXNode   StoreLNode
 // Opcodes
@@ -2787,7 +2806,7 @@ inline const TypeLong* Type::try_cast<TypeLong>() const {
 #define RShiftXNode  RShiftINode
 // For card marks and hashcodes
 #define URShiftXNode URShiftINode
-// For shenandoahSupport
+// For pointer-sized accesses
 #define LoadXNode    LoadINode
 #define StoreXNode   StoreINode
 // Opcodes

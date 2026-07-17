@@ -297,12 +297,15 @@ class LibraryCallKit : public GraphKit {
   bool inline_native_getEventWriter();
   bool inline_native_jvm_commit();
   void extend_setCurrentThread(Node* jt, Node* thread);
+  bool inline_native_try_update_epoch();
 #endif
   bool inline_native_Class_query(vmIntrinsics::ID id);
   bool inline_primitive_Class_conversion(vmIntrinsics::ID id);
   bool inline_native_subtype_check();
   bool inline_native_getLength();
   bool inline_array_copyOf(bool is_copyOfRange);
+  void bail_out_from_array_copyOf(RegionNode* bailout_region);
+  static bool should_bail_out_on_non_ref_arrays(const TypeAryPtr* src_type, const TypeKlassPtr* dest_klass_type);
   bool inline_array_equals(StrIntrinsicNode::ArgEnc ae);
   bool inline_preconditions_checkIndex(BasicType bt);
   void copy_to_clone(Node* obj, Node* alloc_obj, Node* obj_size, bool is_array);
@@ -375,8 +378,10 @@ class LibraryCallKit : public GraphKit {
   bool inline_poly1305_processBlocks();
   bool inline_intpoly_montgomeryMult_P256();
   bool inline_intpoly_assign();
+  bool inline_intpoly_mult_25519();
+  bool inline_intpoly_square_25519();
   bool inline_digestBase_implCompress(vmIntrinsics::ID id);
-  bool inline_double_keccak();
+  bool inline_keccak(vmIntrinsics::ID id);
   bool inline_digestBase_implCompressMB(int predicate);
   bool inline_digestBase_implCompressMB(Node* digestBaseObj, ciInstanceKlass* instklass,
                                         BasicType elem_type, address stubAddr, const char *stubName,

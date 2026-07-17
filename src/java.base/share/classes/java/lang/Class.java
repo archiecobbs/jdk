@@ -235,8 +235,7 @@ public final class Class<T> implements java.io.Serializable,
         runtimeSetup();
     }
 
-    /// No significant static final fields; [#resetArchivedStates()] handles
-    /// prevents storing [#reflectionFactory] into AOT image.
+    /// No significant static final fields
     @AOTRuntimeSetup
     private static void runtimeSetup() {
         registerNatives();
@@ -350,10 +349,11 @@ public final class Class<T> implements java.io.Serializable,
                         if (isValue()) {
                             sb.append("value ");
                         }
-                        if (isRecord())
+                        if (isRecord()) {
                             sb.append("record");
-                        else
+                        } else {
                             sb.append("class");
+                        }
                     }
                 }
                 sb.append(' ');
@@ -631,9 +631,16 @@ public final class Class<T> implements java.io.Serializable,
      * {@code Class} object represents an interface, array type, primitive type,
      * or {@code void}, the result is {@code false}.
      *
+     * <p>This method returns {@code true} if and only if this {@code Class}
+     * object represents a class that uses preview features, and the class does
+     * not have the {@link AccessFlag#IDENTITY ACC_IDENTITY} flag set.
+     * The {@code ACC_IDENTITY} flag is considered always set for a class that
+     * does not use preview features; consequently, this method always returns
+     * {@code false} when preview features are disabled.
+     *
      * @jls value-objects-8.1.1.5 {@code value} Classes
      * @see AccessFlag#IDENTITY
-     * @since Valhalla
+     * @since 28
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
     public boolean isValue() {
@@ -739,7 +746,7 @@ public final class Class<T> implements java.io.Serializable,
             }
             try {
                 Class<?>[] empty = {};
-                final Constructor<T> c = getReflectionFactory().copyConstructor(
+                final Constructor<T> c = ReflectionFactory.getReflectionFactory().copyConstructor(
                     getConstructor0(empty, Member.DECLARED));
                 // Disable accessibility checks on the constructor
                 // access check is done with the true caller
@@ -753,7 +760,8 @@ public final class Class<T> implements java.io.Serializable,
 
         try {
             Class<?> caller = Reflection.getCallerClass();
-            return getReflectionFactory().newInstance(tmpConstructor, null, caller);
+            return ReflectionFactory.getReflectionFactory().newInstance(tmpConstructor,
+                                                                        null, caller);
         } catch (InvocationTargetException e) {
             Unsafe.getUnsafe().throwException(e.getTargetException());
             // Not reached
@@ -1368,7 +1376,7 @@ public final class Class<T> implements java.io.Serializable,
      *      {@code true}
      * <li> its interface modifier is always {@code false}, even when
      *      the component type is an interface
-     * <li> when preview features are enabled, its {@linkplain
+     * <li> when preview features are enabled, its {@link
      *      AccessFlag#IDENTITY identity} modifier is always true
      * </ul>
      * If this {@code Class} object represents a primitive type or
@@ -1378,8 +1386,38 @@ public final class Class<T> implements java.io.Serializable,
      * arrays, the values of other modifiers are {@code false} other
      * than as specified above.
      *
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          When preview features are enabled and this {@code Class} object
+     *          either represents a class whose {@code class} file does not
+     *          depend on preview features or represents an array type, its
+     *          {@code identity} modifier is always true.
+     *          <p>
+     *          When preview features are disabled, the {@code Class} object
+     *          does not have its {@code identity} modifier set.
+     *      </div>
+     * </div>
+     *
      * <p> The modifier encodings are defined in section {@jvms 4.1}
      * of <cite>The Java Virtual Machine Specification</cite>.
+     *
+     * @apiNote
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          Developers should be aware that the presence of the {@code
+     *          identity} modifier is dependent on whether preview features are
+     *          enabled.  Use the {@link #isValue() Class.isValue()} method to
+     *          test if a class is an identity class or a value class.
+     *          <p>
+     *          This snippet below checks whether a given {@code Class<?> clazz}
+     *          would have its {@code identity} modifier set when preview
+     *          features are enabled, yet behaves consistently regardless of
+     *          whether preview features are enabled.
+     *          {@snippet lang=java :
+     *          !clazz.isPrimitive() && !clazz.isValue() && !clazz.isInterface()
+     *          }
+     *      </div>
+     * </div>
      *
      * @return the {@code int} representing the modifiers for this class
      * @see     java.lang.reflect.Modifier
@@ -1397,7 +1435,6 @@ public final class Class<T> implements java.io.Serializable,
     /**
      * {@return an unmodifiable set of the {@linkplain AccessFlag access
      * flags} for this class, possibly empty}
-     * The {@code AccessFlags} may depend on the class file format version of the class.
      *
      * <p> If the underlying class is an array class:
      * <ul>
@@ -1414,6 +1451,36 @@ public final class Class<T> implements java.io.Serializable,
      * {@code FINAL}.
      * For {@code Class} objects representing void, primitive types, and
      * arrays, access flags are absent other than as specified above.
+     *
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          When preview features are enabled and this {@code Class} object
+     *          either represents a class whose {@code class} file does not
+     *          depend on preview features or represents an array type, its
+     *          flags always include {@code IDENTITY}.
+     *          <p>
+     *          When preview features are disabled, the {@code Class} object
+     *          does not have the {@code IDENTITY} flag set.
+     *      </div>
+     * </div>
+     *
+     * @apiNote
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          Developers should be aware that the presence of the {@code
+     *          identity} modifier is dependent on whether preview features are
+     *          enabled.  Use the {@link #isValue() Class.isValue()} method to
+     *          test if a class is an identity class or a value class.
+     *          <p>
+     *          This snippet below checks whether a given {@code Class<?> clazz}
+     *          would have its {@code IDENTITY} modifier set when preview
+     *          features are enabled, yet behaves consistently regardless of
+     *          whether preview features are enabled.
+     *          {@snippet lang=java :
+     *          !clazz.isPrimitive() && !clazz.isValue() && !clazz.isInterface()
+     *          }
+     *      </div>
+     * </div>
      *
      * @see #getModifiers()
      * @jvms 4.1 The ClassFile Structure
@@ -1497,7 +1564,7 @@ public final class Class<T> implements java.io.Serializable,
              * type.  Matching return type is also necessary
              * because of covariant returns, etc.
              */
-            ReflectionFactory fact = getReflectionFactory();
+            ReflectionFactory fact = ReflectionFactory.getReflectionFactory();
             for (Method m : candidates) {
                 if (m.getName().equals(enclosingInfo.getName()) &&
                     arrayContentsEq(parameterClasses,
@@ -1623,7 +1690,7 @@ public final class Class<T> implements java.io.Serializable,
              * Loop over all declared constructors; match number
              * of and type of parameters.
              */
-            ReflectionFactory fact = getReflectionFactory();
+            ReflectionFactory fact = ReflectionFactory.getReflectionFactory();
             for (Constructor<?> c : candidates) {
                 if (arrayContentsEq(parameterClasses,
                                     fact.getExecutableSharedParameterTypes(c))) {
@@ -2106,7 +2173,7 @@ public final class Class<T> implements java.io.Serializable,
         if (field == null) {
             throw new NoSuchFieldException(name);
         }
-        return getReflectionFactory().copyField(field);
+        return ReflectionFactory.getReflectionFactory().copyField(field);
     }
 
 
@@ -2204,7 +2271,7 @@ public final class Class<T> implements java.io.Serializable,
         if (method == null) {
             throw new NoSuchMethodException(methodToString(name, parameterTypes));
         }
-        return getReflectionFactory().copyMethod(method);
+        return ReflectionFactory.getReflectionFactory().copyMethod(method);
     }
 
     /**
@@ -2235,7 +2302,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     public Constructor<T> getConstructor(Class<?>... parameterTypes)
             throws NoSuchMethodException {
-        return getReflectionFactory().copyConstructor(
+        return ReflectionFactory.getReflectionFactory().copyConstructor(
             getConstructor0(parameterTypes, Member.PUBLIC));
     }
 
@@ -2420,7 +2487,7 @@ public final class Class<T> implements java.io.Serializable,
         if (field == null) {
             throw new NoSuchFieldException(name);
         }
-        return getReflectionFactory().copyField(field);
+        return ReflectionFactory.getReflectionFactory().copyField(field);
     }
 
 
@@ -2462,7 +2529,7 @@ public final class Class<T> implements java.io.Serializable,
         if (method == null) {
             throw new NoSuchMethodException(methodToString(name, parameterTypes));
         }
-        return getReflectionFactory().copyMethod(method);
+        return ReflectionFactory.getReflectionFactory().copyMethod(method);
     }
 
     /**
@@ -2477,7 +2544,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     List<Method> getDeclaredPublicMethods(String name, Class<?>... parameterTypes) {
         Method[] methods = privateGetDeclaredMethods(/* publicOnly */ true);
-        ReflectionFactory factory = getReflectionFactory();
+        ReflectionFactory factory = ReflectionFactory.getReflectionFactory();
         List<Method> result = new ArrayList<>();
         for (Method method : methods) {
             if (method.getName().equals(name)
@@ -2502,7 +2569,8 @@ public final class Class<T> implements java.io.Serializable,
      */
     Method findMethod(boolean publicOnly, String name, Class<?>... parameterTypes) {
         PublicMethods.MethodList res = getMethodsRecursive(name, parameterTypes, true, publicOnly);
-        return res == null ? null : getReflectionFactory().copyMethod(res.getMostSpecific());
+        return res == null ? null : ReflectionFactory.getReflectionFactory().copyMethod(
+            res.getMostSpecific());
     }
 
     /**
@@ -2529,7 +2597,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     public Constructor<T> getDeclaredConstructor(Class<?>... parameterTypes)
             throws NoSuchMethodException {
-        return getReflectionFactory().copyConstructor(
+        return ReflectionFactory.getReflectionFactory().copyConstructor(
             getConstructor0(parameterTypes, Member.DECLARED));
     }
 
@@ -2934,7 +3002,7 @@ public final class Class<T> implements java.io.Serializable,
     // Since 1.8
     native byte[] getRawTypeAnnotations();
     static byte[] getExecutableTypeAnnotationBytes(Executable ex) {
-        return getReflectionFactory().getExecutableTypeAnnotationBytes(ex);
+        return ReflectionFactory.getReflectionFactory().getExecutableTypeAnnotationBytes(ex);
     }
 
     native ConstantPool getConstantPool();
@@ -3148,7 +3216,7 @@ public final class Class<T> implements java.io.Serializable,
                                         String name,
                                         Class<?>[] parameterTypes)
     {
-        ReflectionFactory fact = getReflectionFactory();
+        ReflectionFactory fact = ReflectionFactory.getReflectionFactory();
         Method res = null;
         for (Method m : methods) {
             if (m.getName().equals(name)
@@ -3216,7 +3284,7 @@ public final class Class<T> implements java.io.Serializable,
     private Constructor<T> getConstructor0(Class<?>[] parameterTypes,
                                         int which) throws NoSuchMethodException
     {
-        ReflectionFactory fact = getReflectionFactory();
+        ReflectionFactory fact = ReflectionFactory.getReflectionFactory();
         Constructor<T>[] constructors = privateGetDeclaredConstructors((which == Member.PUBLIC));
         for (Constructor<T> constructor : constructors) {
             if (arrayContentsEq(parameterTypes,
@@ -3255,7 +3323,7 @@ public final class Class<T> implements java.io.Serializable,
 
     private static Field[] copyFields(Field[] arg) {
         Field[] out = new Field[arg.length];
-        ReflectionFactory fact = getReflectionFactory();
+        ReflectionFactory fact = ReflectionFactory.getReflectionFactory();
         for (int i = 0; i < arg.length; i++) {
             out[i] = fact.copyField(arg[i]);
         }
@@ -3264,7 +3332,7 @@ public final class Class<T> implements java.io.Serializable,
 
     private static Method[] copyMethods(Method[] arg) {
         Method[] out = new Method[arg.length];
-        ReflectionFactory fact = getReflectionFactory();
+        ReflectionFactory fact = ReflectionFactory.getReflectionFactory();
         for (int i = 0; i < arg.length; i++) {
             out[i] = fact.copyMethod(arg[i]);
         }
@@ -3273,7 +3341,7 @@ public final class Class<T> implements java.io.Serializable,
 
     private static <U> Constructor<U>[] copyConstructors(Constructor<U>[] arg) {
         Constructor<U>[] out = arg.clone();
-        ReflectionFactory fact = getReflectionFactory();
+        ReflectionFactory fact = ReflectionFactory.getReflectionFactory();
         for (int i = 0; i < out.length; i++) {
             out[i] = fact.copyConstructor(out[i]);
         }
@@ -3425,25 +3493,6 @@ public final class Class<T> implements java.io.Serializable,
         return getSuperclass() == java.lang.Record.class &&
                 (this.getModifiers() & Modifier.FINAL) != 0 &&
                 isRecord0();
-    }
-
-    // Fetches the factory for reflective objects
-    private static ReflectionFactory getReflectionFactory() {
-        var factory = reflectionFactory;
-        if (factory != null) {
-            return factory;
-        }
-        return reflectionFactory = ReflectionFactory.getReflectionFactory();
-    }
-    private static ReflectionFactory reflectionFactory;
-
-    /**
-     * When CDS is enabled, the Class class may be aot-initialized. However,
-     * we can't archive reflectionFactory, so we reset it to null, so it
-     * will be allocated again at runtime.
-     */
-    private static void resetArchivedStates() {
-        reflectionFactory = null;
     }
 
     /**

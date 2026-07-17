@@ -57,7 +57,6 @@ public:
   int payload_offset() const;
 
   bool maybe_flat_in_array() const override;
-  bool is_always_flat_in_array() const;
 
   // Scalarized calling convention support: pass/return this inline type as its
   // field components in the calling convention (registers/stack), not as a single oop.
@@ -66,6 +65,7 @@ public:
   bool can_be_returned_as_fields() const;
 
   bool is_empty();
+  bool is_cloneable() const;
   int inline_arg_length() const;
   int inline_arg_slots() const;
   bool contains_oops() const;
@@ -83,6 +83,7 @@ public:
   int field_map_offset() const;
   ciConstant get_field_map() const;
   ciConstant get_null_reset_value();
+  ArrayDescription array_description_of_array_properties(const ArrayProperties&);
 };
 
 #endif // SHARE_VM_CI_CIINLINEKLASS_HPP

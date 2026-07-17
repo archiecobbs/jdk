@@ -198,8 +198,7 @@ public class JavacParser implements Parser {
         this.allowYieldStatement = Feature.SWITCH_EXPRESSION.allowedInSource(source);
         this.allowRecords = Feature.RECORDS.allowedInSource(source);
         this.allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
-        this.allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
-                Feature.VALUE_CLASSES.allowedInSource(source);
+        this.allowValueClasses = preview.isEnabled() && Feature.VALUE_CLASSES.allowedInSource(source);
         updateUnexpectedTopLevelDefinitionStartError(false);
     }
 
@@ -222,8 +221,7 @@ public class JavacParser implements Parser {
         this.allowYieldStatement = Feature.SWITCH_EXPRESSION.allowedInSource(source);
         this.allowRecords = Feature.RECORDS.allowedInSource(source);
         this.allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
-        this.allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
-                Feature.VALUE_CLASSES.allowedInSource(source);
+        this.allowValueClasses = preview.isEnabled() && Feature.VALUE_CLASSES.allowedInSource(source);
         updateUnexpectedTopLevelDefinitionStartError(false);
     }
 
@@ -1674,7 +1672,7 @@ public class JavacParser implements Parser {
                         break loop;
                     case LT:
                         if (!isMode(TYPE) && isParameterizedTypePrefix()) {
-                            //this is either an unbound method reference whose qualifier
+                            //this is an unbound method reference whose qualifier
                             //is a generic type i.e. A<S>::m
                             int pos1 = token.pos;
                             accept(LT);
@@ -3906,9 +3904,9 @@ public class JavacParser implements Parser {
         }
         if (name == names.value) {
             if (allowValueClasses) {
-                return Source.JDK23;
+                return Source.DEFAULT;
             } else if (shouldWarn) {
-                log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK23));
+                log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.DEFAULT));
             }
         }
         if (name == names.sealed) {
@@ -5043,14 +5041,13 @@ public class JavacParser implements Parser {
                 case CLASS: case INTERFACE: case ENUM:
                     isValueModifier = true;
                     break;
-                case IDENTIFIER: // value record R || value value || new value Comparable() {} ??
+                case IDENTIFIER: // value record R || value value
                     if (next.name() == names.record || next.name() == names.value
                             || (mode & EXPR) != 0)
                         isValueModifier = true;
                     break;
             }
             if (isValueModifier) {
-                checkSourceLevel(Feature.VALUE_CLASSES);
                 return true;
             }
         }

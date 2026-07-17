@@ -40,7 +40,7 @@ import static jdk.test.lib.Asserts.*;
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib
  * @enablePreview
- * @compile --source 27 InlineTypeArray.java Point.java Long8Inline.java Person.java
+ * @compile --source 28 InlineTypeArray.java Point.java Long8Inline.java Person.java
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseArrayFlattening -XX:+UseFieldFlattening runtime.valhalla.inlinetypes.InlineTypeArray
  */
 
@@ -51,7 +51,7 @@ import static jdk.test.lib.Asserts.*;
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib
  * @enablePreview
- * @compile --source 27 InlineTypeArray.java Point.java Long8Inline.java Person.java
+ * @compile --source 28 InlineTypeArray.java Point.java Long8Inline.java Person.java
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:-UseArrayFlattening runtime.valhalla.inlinetypes.InlineTypeArray
  */
 
@@ -62,7 +62,7 @@ import static jdk.test.lib.Asserts.*;
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib
  * @enablePreview
- * @compile --source 27 InlineTypeArray.java Point.java Long8Inline.java Person.java
+ * @compile --source 28 InlineTypeArray.java Point.java Long8Inline.java Person.java
  * @run main/othervm  -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.inlinetypes.InlineTypeArray
  */
 
@@ -73,7 +73,7 @@ import static jdk.test.lib.Asserts.*;
  *          java.base/jdk.internal.vm.annotation
  * @library /test/lib
  * @enablePreview
- * @compile --source 27 InlineTypeArray.java Point.java Long8Inline.java Person.java
+ * @compile --source 28 InlineTypeArray.java Point.java Long8Inline.java Person.java
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+UseNullableAtomicValueFlattening runtime.valhalla.inlinetypes.InlineTypeArray
  */
 public class InlineTypeArray {
@@ -636,7 +636,7 @@ public class InlineTypeArray {
         expected3b[2] = null;
         checkArrayElementsEqual(exceedingRangeCopy, expected3b);
 
-        // Range starting after the end of the original array, must suceed for nullable arrays
+        // Range starting after the end of the original array, must succeed for nullable arrays
         MyInt[] farRangeCopy = (MyInt[]) Arrays.copyOfRange(myInts, myInts.length, myInts.length + 1);
         MyInt[] expected3c = (MyInt[])ValueClass.newNullableAtomicArray(MyInt.class, 1);
         expected3c[0] = null;

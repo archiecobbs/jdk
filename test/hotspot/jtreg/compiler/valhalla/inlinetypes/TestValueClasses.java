@@ -42,11 +42,11 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @key randomness
  * @summary Test correct handling of value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestValueClasses 0
+ * @run driver ${test.main.class} 0
  */
 
 /*
@@ -54,11 +54,11 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @key randomness
  * @summary Test correct handling of value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestValueClasses 1
+ * @run driver ${test.main.class} 1
  */
 
 /*
@@ -66,11 +66,11 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @key randomness
  * @summary Test correct handling of value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestValueClasses 2
+ * @run driver ${test.main.class} 2
  */
 
 /*
@@ -78,11 +78,11 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @key randomness
  * @summary Test correct handling of value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestValueClasses 3
+ * @run driver ${test.main.class} 3
  */
 
 /*
@@ -90,11 +90,11 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @key randomness
  * @summary Test correct handling of value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestValueClasses 4
+ * @run driver ${test.main.class} 4
  */
 
 /*
@@ -102,11 +102,11 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @key randomness
  * @summary Test correct handling of value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestValueClasses 5
+ * @run driver ${test.main.class} 5
  */
 
 /*
@@ -114,11 +114,11 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @key randomness
  * @summary Test correct handling of value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestValueClasses 6
+ * @run driver ${test.main.class} 6
  */
 
 @ForceCompileClassInitializer

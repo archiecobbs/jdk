@@ -76,7 +76,7 @@ Node* Parse::record_profile_for_speculation_at_array_load(Node* ld) {
 //---------------------------------array_load----------------------------------
 void Parse::array_load(BasicType bt) {
   const Type* elemtype = Type::TOP;
-  Node* adr = array_addressing(bt, 0, elemtype);
+  Node* prep_array = prepare_array_addressing(bt, 0, elemtype);
   if (stopped())  return;     // guaranteed null or range check
 
   Node* array_index = pop();
@@ -98,15 +98,20 @@ void Parse::array_load(BasicType bt) {
       sync_kit(ideal);
       if (!array_type->is_flat()) {
         assert(array_type->is_flat() || control()->in(0)->as_If()->is_flat_array_check(&_gvn), "Should be found");
+        // Loading from a non-flat array, casting array to not flat.
+        const TypeAryPtr* ary_type = _gvn.type(prep_array)->is_aryptr();
+        ary_type = ary_type->cast_to_not_flat();
+        Node* not_flat_ary = _gvn.transform(new CheckCastPPNode(control(), prep_array, ary_type));
+        Node* adr = get_ptr_to_array_element(not_flat_ary, array_index, bt, ary_type->size(), control());
         const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
         DecoratorSet decorator_set = IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD;
-        if (needs_range_check(array_type->size(), array_index)) {
+        if (needs_range_check(ary_type->size(), array_index)) {
           // We've emitted a RangeCheck but now insert an additional check between the range check and the actual load.
           // We cannot pin the load to two separate nodes. Instead, we pin it conservatively here such that it cannot
           // possibly float above the range check at any point.
           decorator_set |= C2_UNKNOWN_CONTROL_LOAD;
         }
-        Node* ld = access_load_at(array, adr, adr_type, element_ptr, bt, decorator_set);
+        Node* ld = access_load_at(not_flat_ary, adr, adr_type, element_ptr, bt, decorator_set);
         if (element_ptr->is_inlinetypeptr()) {
           ld = InlineTypeNode::make_from_oop(this, ld, element_ptr->inline_klass());
         }
@@ -147,6 +152,7 @@ void Parse::array_load(BasicType bt) {
     bt = T_BOOLEAN;
   }
   const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
+  Node* adr = get_ptr_to_array_element(prep_array, array_index, bt, array_type->size(), control());
   Node* ld = access_load_at(array, adr, adr_type, elemtype, bt,
                             IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
   ld = record_profile_for_speculation_at_array_load(ld);
@@ -190,8 +196,12 @@ Node* Parse::load_from_unknown_flat_array(Node* array, Node* array_index, const 
 //--------------------------------array_store----------------------------------
 void Parse::array_store(BasicType bt) {
   const Type* elemtype = Type::TOP;
-  Node* adr = array_addressing(bt, type2size[bt], elemtype);
+  Node* prep_array = prepare_array_addressing(bt, type2size[bt], elemtype);
   if (stopped())  return;     // guaranteed null or range check
+
+  Node* adr = get_ptr_to_array_element(prep_array, /* index */peek(0+type2size[bt]), bt,
+    _gvn.type(prep_array)->is_aryptr()->size(), control());
+
   Node* stored_value_casted = nullptr;
   if (bt == T_OBJECT) {
     stored_value_casted = array_store_check(adr, elemtype);
@@ -245,12 +255,14 @@ void Parse::array_store(BasicType bt) {
              (!array_type->klass_is_exact() || array_type->is_flat()), "array can't be a flat array");
       // TODO 8350865 Depending on the available layouts, we can avoid this check in below flat/not-flat branches. Also the safe_for_replace arg is now always true.
       array = inline_array_null_guard(array, stored_value_casted, 3, true);
+      // Reload array type which could have been updated by inline_array_null_guard().
+      array_type = _gvn.type(array)->is_aryptr();
       IdealKit ideal(this);
       ideal.if_then(flat_array_test(array, /* flat = */ false)); {
         // Non-flat array
         if (!array_type->is_flat()) {
           sync_kit(ideal);
-          assert(array_type->is_flat() || ideal.ctrl()->in(0)->as_If()->is_flat_array_check(&_gvn), "Should be found");
+          assert(array_type->is_not_flat() || ideal.ctrl()->in(0)->as_If()->is_flat_array_check(&_gvn), "Should be found");
           inc_sp(3);
           access_store_at(array, adr, adr_type, stored_value_casted, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY, false);
           dec_sp(3);
@@ -332,7 +344,7 @@ void Parse::store_to_unknown_flat_array(Node* array, Node* const idx, Node* non_
 
 //------------------------------array_addressing-------------------------------
 // Pull array and index from the stack.  Compute pointer-to-element.
-Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
+Node* Parse::prepare_array_addressing(BasicType type, int vals, const Type*& elemtype) {
   Node *idx   = peek(0+vals);   // Get from stack without popping
   Node *ary   = peek(1+vals);   // in case of exception
 
@@ -379,9 +391,13 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
   // Check for always knowing you are throwing a range-check exception
   if (stopped())  return top();
 
+  return ary;
+}
+
+Node* Parse::get_ptr_to_array_element(Node* array, Node* idx, BasicType elembt, const TypeInt* sizetype, Node* control) {
   // Make array address computation control dependent to prevent it
   // from floating above the range check during loop optimizations.
-  Node* ptr = array_element_address(ary, idx, type, sizetype, control());
+  Node* ptr = array_element_address(array, idx, elembt, sizetype, control);
   assert(ptr != top(), "top should go hand-in-hand with stopped");
 
   return ptr;
@@ -2398,6 +2414,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   Node* io_taken = nullptr;
   if (btest == BoolTest::eq) {
     PreserveJVMState pjvms(this);
+    // Also merges branch block.
     do_if(btest, subst_cmp, can_trap, false, nullptr, &mem_taken, &io_taken);
     if (!stopped()) {
       ctl = control();
@@ -2418,18 +2435,25 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   ne_io_phi->init_req(5, io_taken);
   ne_mem_phi->init_req(5, mem_taken);
 
+  // BoolTest::eq: ne_region is fall-through block.
+  // BoolTest::ne: ne_region is branch block -> merge below.
   record_for_igvn(ne_region);
   set_control(_gvn.transform(ne_region));
   set_i_o(_gvn.transform(ne_io_phi));
   set_all_memory(_gvn.transform(ne_mem_phi));
 
   if (btest == BoolTest::ne) {
-    {
+    int target_bci = iter().get_dest();
+    if (!stopped()) {
       PreserveJVMState pjvms(this);
-      int target_bci = iter().get_dest();
       merge(target_bci);
+    } else if (C->eliminate_boxing()) {
+      // Mark the branch block as parsed.
+      Block* branch_block = successor_for_bci(target_bci);
+      branch_block->next_path_num();
     }
 
+    // Fall-through block.
     record_for_igvn(eq_region);
     set_control(_gvn.transform(eq_region));
     set_i_o(_gvn.transform(eq_io_phi));
@@ -2692,7 +2716,7 @@ static bool match_type_check(PhaseGVN& gvn,
     // These patterns with nullable klasses arise from example from
     // load_array_klass_from_mirror.
     if (*obj == nullptr) { return false; }
-    (*cast_type) = tcon->isa_klassptr()->as_instance_type();
+    (*cast_type) = tcon->isa_klassptr()->as_exact_instance_type();
     return true; // found
   }
 
@@ -2743,7 +2767,7 @@ static bool match_type_check(PhaseGVN& gvn,
           const TypeKlassPtr* improved_klass_ptr_type = klass_ptr_type->try_improve();
 
           (*obj) = obj_or_subklass;
-          (*cast_type) = improved_klass_ptr_type->cast_to_exactness(false)->as_instance_type();
+          (*cast_type) = improved_klass_ptr_type->as_subtype_instance_type();
           return true; // found
         }
       }
@@ -3589,17 +3613,17 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_i2b:
     // Sign extend
     a = pop();
-    a = Compile::narrow_value(T_BYTE, a, nullptr, &_gvn, true);
+    a = Compile::narrow_value(T_BYTE, a, TypeInt::BYTE, &_gvn, true);
     push(a);
     break;
   case Bytecodes::_i2s:
     a = pop();
-    a = Compile::narrow_value(T_SHORT, a, nullptr, &_gvn, true);
+    a = Compile::narrow_value(T_SHORT, a, TypeInt::SHORT, &_gvn, true);
     push(a);
     break;
   case Bytecodes::_i2c:
     a = pop();
-    a = Compile::narrow_value(T_CHAR, a, nullptr, &_gvn, true);
+    a = Compile::narrow_value(T_CHAR, a, TypeInt::CHAR, &_gvn, true);
     push(a);
     break;
 

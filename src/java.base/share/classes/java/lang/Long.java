@@ -35,7 +35,7 @@ import java.util.Optional;
 
 import jdk.internal.misc.CDS;
 import jdk.internal.misc.PreviewFeatures;
-import jdk.internal.value.DeserializeConstructor;
+import jdk.internal.value.Deserializer;
 import jdk.internal.value.ValueClass;
 import jdk.internal.util.DecimalDigits;
 import jdk.internal.vm.annotation.AOTSafeClassInitializer;
@@ -59,13 +59,13 @@ import static java.lang.String.COMPACT_STRINGS;
  *
  * <p>This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
  * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
- * as interchangeable and should not use instances for synchronization, mutexes, or
+ * as interchangeable and should not use instances for synchronization or
  * with {@linkplain java.lang.ref.Reference object references}.
  *
  * <div class="preview-block">
  *      <div class="preview-comment">
  *          When preview features are enabled, {@code Long} is a {@linkplain Class#isValue value class}.
- *          Use of value class instances for synchronization, mutexes, or with
+ *          Use of value class instances for synchronization or with
  *          {@linkplain java.lang.ref.Reference object references} result in
  *          {@link IdentityException}.
  *      </div>
@@ -81,9 +81,9 @@ import static java.lang.String.COMPACT_STRINGS;
  *
  * @since   1.0
  */
-@jdk.internal.MigratedValueClass
 @jdk.internal.ValueBased
-public final class Long extends Number
+// See doc/value-class-preview.md for an overview of value class generation
+public final /*value*/ class Long extends Number
         implements Comparable<Long>, Constable, ConstantDesc {
     /**
      * A constant holding the minimum value a {@code long} can
@@ -1105,7 +1105,7 @@ public final class Long extends Number
      * likely to yield significantly better space and time performance.
      */
     @Deprecated(since="9")
-    @DeserializeConstructor
+    @Deserializer("value")
     public Long(long value) {
         this.value = value;
     }
