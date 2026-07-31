@@ -24,7 +24,7 @@
 /**
  * @test
  * @bug 8344159
- * @summary Test "suppressed" and "suppressed-option" lint warnings
+ * @summary Test "suppression" and "suppression-option" lint warnings
  * @library /tools/lib
  * @modules
  *      jdk.compiler/com.sun.tools.javac.api
