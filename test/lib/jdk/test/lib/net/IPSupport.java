@@ -61,11 +61,10 @@ public class IPSupport {
         }
     }
 
-    @SuppressWarnings("try")
     private static boolean isSupported(Class<? extends InetAddress> addressType) {
         ProtocolFamily family = addressType == Inet4Address.class ?
                 StandardProtocolFamily.INET : StandardProtocolFamily.INET6;
-        try (var sc = SocketChannel.open(family)) {
+        try (@SuppressWarnings("try") var sc = SocketChannel.open(family)) {
             return true;
         } catch (IOException | UnsupportedOperationException ex) {
             return false;

@@ -165,10 +165,10 @@ public class StreamDump {
      * @return an InputStream, unchanged unless it is Base64 Mime
      * @throws IOException if an I/O Error occurs
      */
-    @SuppressWarnings("deprecation")
     static InputStream decodeMaybe(InputStream is) throws IOException {
         DataInputStream dis = new DataInputStream(is);
         is.mark(1024);
+        @SuppressWarnings("deprecation")
         String line1 = dis.readLine();
         if (line1.startsWith("-----")) {
             return Base64.getMimeDecoder().wrap(is);

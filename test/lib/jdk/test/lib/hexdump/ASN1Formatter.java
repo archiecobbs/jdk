@@ -626,10 +626,10 @@ public class ASN1Formatter implements HexPrinter.Formatter {
      * @return the InputStream or the wrapped decoder of Base64Mime.
      * @throws IOException if an I/O error occurs
      */
-    @SuppressWarnings("deprecation")
     private static InputStream wrapIfBase64Mime(BufferedInputStream bis) throws IOException {
         bis.mark(256);
         DataInputStream dis = new DataInputStream(bis);
+        @SuppressWarnings("deprecation")
         String line1 = dis.readLine(); // Good enough for our purposes
         if (line1.startsWith("-----") && line1.endsWith("-----")) {
             // Probable Base64 Mime encoding
