@@ -514,7 +514,10 @@ public class LintMapper {
                 }
                 @Override
                 public void visitVarDef(JCVariableDecl tree) {
-                    scanDecl(tree, tree.sym, findAnnotation(tree.mods), super::visitVarDef);
+                    if (JCVariableDecl.DeclKind.IMPLICIT.equals(tree.declKind))     // can't annotate implicit variable decl's
+                        super.visitVarDef(tree);
+                    else
+                        scanDecl(tree, tree.sym, findAnnotation(tree.mods), super::visitVarDef);
                 }
 
                 private <T extends JCTree> void scanDecl(T tree,
