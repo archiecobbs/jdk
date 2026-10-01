@@ -3,6 +3,7 @@
  * @bug 9999999
  * @compile/ref=SuppressionNarrowingTest.out -Xlint:suppression -XDrawDiagnostics SuppressionNarrowingTest.java
  */
+import java.util.*;
 public class SuppressionNarrowingTest {
 
     @SuppressWarnings("divzero")        // there's no way to narrow this
@@ -21,7 +22,7 @@ public class SuppressionNarrowingTest {
     };
 
     @SuppressWarnings("rawtypes")       // this one could be narrowed (move to "x")
-    public void m(java.util.List x) {
+    public void m(List x) {
     }
 
     @SuppressWarnings("divzero")        // there's no way to narrow this (without splitting it in two)
