@@ -38,4 +38,17 @@ public class SuppressionNarrowingTest {
             int y = 1/0;
         }
     };
+
+    @SuppressWarnings("this-escape")    // there's no way to narrow this
+    public static class Class1 {
+
+        {
+            List<Integer> list = List.of(1, 2, 3);
+            list.removeIf(obj -> this.isOdd(obj));
+        }
+
+        public boolean isOdd(int x) {
+            return (x & 1) != 0;
+        }
+    }
 }
