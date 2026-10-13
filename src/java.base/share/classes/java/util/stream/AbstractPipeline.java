@@ -576,7 +576,6 @@ abstract class AbstractPipeline<E_IN, E_OUT, S extends BaseStream<E_OUT, S>>
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     final <P_IN> boolean copyIntoWithCancel(Sink<P_IN> wrappedSink, Spliterator<P_IN> spliterator) {
         @SuppressWarnings("rawtypes")
         AbstractPipeline p = AbstractPipeline.this;
@@ -585,6 +584,7 @@ abstract class AbstractPipeline<E_IN, E_OUT, S extends BaseStream<E_OUT, S>>
         }
 
         wrappedSink.begin(spliterator.getExactSizeIfKnown());
+        @SuppressWarnings("unchecked")
         boolean cancelled = p.forEachWithCancel(spliterator, wrappedSink);
         wrappedSink.end();
         return cancelled;

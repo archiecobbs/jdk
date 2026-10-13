@@ -933,7 +933,6 @@ public class HashMap<K,V> extends XAbstractMap<K,V>
         return new YNode();
     }
 
-    @SuppressWarnings("unchecked")
     private void removeNode(final int curr) {
         final YNode<K, V>[] tab = table;;
         final int n = tab.length;
@@ -1365,7 +1364,6 @@ public class HashMap<K,V> extends XAbstractMap<K,V>
      * remapping function modified this map
      */
     @Override
-    @SuppressWarnings("unchecked")
     public V compute(K key,
                      BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
         if (remappingFunction == null)

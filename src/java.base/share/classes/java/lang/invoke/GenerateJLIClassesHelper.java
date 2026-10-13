@@ -686,7 +686,6 @@ final class GenerateJLIClassesHelper {
      * Returns a {@code byte[]} representation of {@code BoundMethodHandle}
      * species class implementing the signature defined by {@code types}.
      */
-    @SuppressWarnings({"rawtypes", "unchecked"})
     static Map.Entry<String, byte[]> generateConcreteBMHClassBytes(final String types) {
         for (char c : types.toCharArray()) {
             if (!isArgBasicTypeChar(c)) {
@@ -696,7 +695,9 @@ final class GenerateJLIClassesHelper {
         }
         final BoundMethodHandle.SpeciesData species = BoundMethodHandle.SPECIALIZER.findSpecies(types);
         final String className = species.speciesCode().getName();
+        @SuppressWarnings("rawtypes")
         final ClassSpecializer.Factory factory = BoundMethodHandle.SPECIALIZER.factory();
+        @SuppressWarnings("unchecked")
         final byte[] code = factory.generateConcreteSpeciesCodeFile(className, species);
         return Map.entry(className.replace('.', '/'), code);
     }

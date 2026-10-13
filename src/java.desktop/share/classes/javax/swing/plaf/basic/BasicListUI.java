@@ -3028,10 +3028,10 @@ public class BasicListUI extends ListUI
          * @return  The representation of the data to be transferred.
          *
          */
-        @SuppressWarnings("deprecation")
         protected Transferable createTransferable(JComponent c) {
             if (c instanceof JList) {
                 JList<?> list = (JList) c;
+                @SuppressWarnings("deprecation")
                 Object[] values = list.getSelectedValues();
 
                 if (values == null || values.length == 0) {

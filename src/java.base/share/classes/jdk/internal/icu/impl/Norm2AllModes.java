@@ -268,7 +268,6 @@ public final class Norm2AllModes {
     private static final class Norm2AllModesSingleton {
         private Norm2AllModesSingleton(String name) {
             try {
-                @SuppressWarnings("deprecation")
                 String DATA_FILE_NAME = "/jdk/internal/icu/impl/data/icudata/" +
                     name + ".nrm";
                 NormalizerImpl impl=new NormalizerImpl().load(DATA_FILE_NAME);

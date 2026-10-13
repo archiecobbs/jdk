@@ -50,13 +50,12 @@ final class ActiveKeychainList implements Closeable {
         return createForPlatform(List.of(keychains));
     }
 
-    @SuppressWarnings("try")
     static void withKeychains(Consumer<List<Keychain>> keychainConsumer, List<Keychain> keychains) throws IOException {
         var keychainList = createForPlatform(keychains);
         if (keychainList.isEmpty()) {
             keychainConsumer.accept(keychains);
         } else {
-            try (var kl = keychainList.get()) {
+            try (@SuppressWarnings("try") var kl = keychainList.get()) {
                 keychainConsumer.accept(keychains);
             }
         }

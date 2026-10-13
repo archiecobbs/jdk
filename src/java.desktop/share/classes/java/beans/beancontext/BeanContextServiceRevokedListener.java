@@ -35,7 +35,6 @@ import java.util.EventListener;
  * implements this interface.
  */
 
-@SuppressWarnings("removal")
 @Deprecated(since = "23", forRemoval = true)
 public interface BeanContextServiceRevokedListener extends EventListener {
 
@@ -45,5 +44,5 @@ public interface BeanContextServiceRevokedListener extends EventListener {
      * @param bcsre the {@code BeanContextServiceRevokedEvent} received
      * by this listener.
      */
-    void serviceRevoked(BeanContextServiceRevokedEvent bcsre);
+    void serviceRevoked(@SuppressWarnings("removal") BeanContextServiceRevokedEvent bcsre);
 }

@@ -52,7 +52,6 @@ import jdk.xml.internal.SecuritySupport;
  * @author David Megginson
  * @version 2.0.1 (sax2r2)
  */
-@SuppressWarnings( "deprecation" )
 @Deprecated(since="1.5")
 public class ParserFactory {
 

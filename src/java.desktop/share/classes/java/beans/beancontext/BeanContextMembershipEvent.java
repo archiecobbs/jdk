@@ -69,8 +69,7 @@ public class BeanContextMembershipEvent extends BeanContextEvent {
      * @throws NullPointerException if {@code changes} is {@code null}
      */
 
-    @SuppressWarnings("rawtypes")
-    public BeanContextMembershipEvent(BeanContext bc, Collection changes) {
+    public BeanContextMembershipEvent(BeanContext bc, @SuppressWarnings("rawtypes") Collection changes) {
         super(bc);
 
         if (changes == null) throw new NullPointerException(

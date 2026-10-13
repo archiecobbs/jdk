@@ -34,7 +34,6 @@ import java.util.stream.*;
 
 import static java.lang.foreign.ValueLayout.*;
 
-@SuppressWarnings("restricted")
 public class timespec_h$shared {
 
     timespec_h$shared() {
@@ -48,6 +47,7 @@ public class timespec_h$shared {
     public static final OfLong C_LONG_LONG = (OfLong) Linker.nativeLinker().canonicalLayouts().get("long long");
     public static final OfFloat C_FLOAT = (OfFloat) Linker.nativeLinker().canonicalLayouts().get("float");
     public static final OfDouble C_DOUBLE = (OfDouble) Linker.nativeLinker().canonicalLayouts().get("double");
+    @SuppressWarnings("restricted")
     public static final AddressLayout C_POINTER = ((AddressLayout) Linker.nativeLinker().canonicalLayouts().get("void*"))
             .withTargetLayout(MemoryLayout.sequenceLayout(Long.MAX_VALUE, C_CHAR));
     public static final OfLong C_LONG = (OfLong) Linker.nativeLinker().canonicalLayouts().get("long");

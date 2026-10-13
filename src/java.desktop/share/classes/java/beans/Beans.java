@@ -132,9 +132,8 @@ public class Beans {
      * @deprecated this method will be removed when java.beans.beancontext is removed
      */
     @Deprecated(since = "23", forRemoval = true)
-    @SuppressWarnings("removal")
     public static Object instantiate(ClassLoader cls, String beanName,
-                                     BeanContext beanContext)
+                                     @SuppressWarnings("removal") BeanContext beanContext)
             throws IOException, ClassNotFoundException {
 
         InputStream ins;
@@ -216,8 +215,8 @@ public class Beans {
     }
 
     @Deprecated(since = "23", forRemoval = true)
-    @SuppressWarnings({ "unchecked", "removal" })
-    private static void unsafeBeanContextAdd(BeanContext beanContext, Object res) {
+    @SuppressWarnings("unchecked")
+    private static void unsafeBeanContextAdd(@SuppressWarnings("removal") BeanContext beanContext, Object res) {
         beanContext.add(res);
     }
 

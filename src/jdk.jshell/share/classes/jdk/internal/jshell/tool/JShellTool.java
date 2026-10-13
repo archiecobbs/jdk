@@ -3952,7 +3952,6 @@ public class JShellTool implements MessageHandler {
             }
         }
 
-        @SuppressWarnings("fallthrough")
         private void displayDeclarationAndValue() {
             switch (sn.subKind()) {
                 case CLASS_SUBKIND:

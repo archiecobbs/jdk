@@ -61,9 +61,9 @@ public class ResourceResolver {
      * @throws SecurityException if a security manager is installed and the
      *    caller does not have permission to register a resource resolver
      */
-    @SuppressWarnings("unchecked")
     public static void register(String className) throws ClassNotFoundException, IllegalAccessException, InstantiationException, InvocationTargetException {
         JavaUtils.checkRegisterPermission();
+        @SuppressWarnings("unchecked")
         Class<ResourceResolverSpi> resourceResolverClass =
             (Class<ResourceResolverSpi>)
             ClassLoaderUtils.loadClass(className, ResourceResolver.class);
@@ -80,9 +80,9 @@ public class ResourceResolver {
      * @throws SecurityException if a security manager is installed and the
      *    caller does not have permission to register a resource resolver
      */
-    @SuppressWarnings("unchecked")
     public static void registerAtStart(String className) throws ClassNotFoundException, IllegalAccessException, InstantiationException, InvocationTargetException {
         JavaUtils.checkRegisterPermission();
+        @SuppressWarnings("unchecked")
         Class<ResourceResolverSpi> resourceResolverClass =
             (Class<ResourceResolverSpi>)
             ClassLoaderUtils.loadClass(className, ResourceResolver.class);

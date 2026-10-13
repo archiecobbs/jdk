@@ -107,7 +107,6 @@ public class StringBufferInputStream extends InputStream {
      * @return     {@inheritDoc}
      */
     @Override
-    @SuppressWarnings("deprecation")
     public synchronized int read(byte[] b, int off, int len) {
         if (b == null) {
             throw new NullPointerException();

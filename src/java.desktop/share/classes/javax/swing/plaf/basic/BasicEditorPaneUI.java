@@ -50,7 +50,6 @@ import javax.swing.border.*;
  *
  * @author  Timothy Prinzing
  */
-@SuppressWarnings("serial") // Same-version serialization only
 public class BasicEditorPaneUI extends BasicTextUI {
 
     /**
@@ -293,6 +292,7 @@ public class BasicEditorPaneUI extends BasicTextUI {
         }
     }
 
+    @SuppressWarnings("serial") // Same-version serialization only
     static class StyleSheetUIResource extends StyleSheet implements UIResource {
     }
 

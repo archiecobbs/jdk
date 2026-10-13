@@ -1640,10 +1640,10 @@ public class FilePane extends JPanel implements PropertyChangeListener {
     }
 
 
-    @SuppressWarnings("deprecation")
     void setFileSelected() {
         if (getFileChooser().isMultiSelectionEnabled() && !isDirectorySelected()) {
             File[] files = getFileChooser().getSelectedFiles(); // Should be selected
+            @SuppressWarnings("deprecation")
             Object[] selectedObjects = list.getSelectedValues(); // Are actually selected
 
             listSelectionModel.setValueIsAdjusting(true);
@@ -1944,7 +1944,6 @@ public class FilePane extends JPanel implements PropertyChangeListener {
     private class Handler implements MouseListener {
         private MouseListener doubleClickListener;
 
-        @SuppressWarnings("deprecation")
         public void mouseClicked(MouseEvent evt) {
             JComponent source = (JComponent)evt.getSource();
 
@@ -1975,6 +1974,7 @@ public class FilePane extends JPanel implements PropertyChangeListener {
                     // Make a new event with the list as source, placing the
                     // click in the corresponding list cell.
                     Rectangle r = list.getCellBounds(index, index);
+                    @SuppressWarnings("deprecation")
                     MouseEvent newEvent = new MouseEvent(list, evt.getID(),
                                          evt.getWhen(), evt.getModifiers(),
                                          r.x + 1, r.y + r.height/2,

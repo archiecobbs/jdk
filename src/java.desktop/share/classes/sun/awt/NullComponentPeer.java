@@ -123,8 +123,7 @@ public class NullComponentPeer implements LightweightPeer,
     public void coalescePaintEvent(PaintEvent e) {
     }
 
-    @SuppressWarnings("deprecation")
-    public boolean handleEvent(Event e) {
+    public boolean handleEvent(@SuppressWarnings("deprecation") Event e) {
         return false;
     }
 

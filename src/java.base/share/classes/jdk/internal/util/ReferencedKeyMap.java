@@ -340,7 +340,6 @@ public final class ReferencedKeyMap<K, V> implements Map<K, V> {
         }
     }
 
-    @SuppressWarnings("unchecked")
     public void prepareForAOTCache() {
         // We are running the AOT assembly phase. The JVM has a single Java thread, so
         // we don't have any concurrent threads that may modify the map while we are

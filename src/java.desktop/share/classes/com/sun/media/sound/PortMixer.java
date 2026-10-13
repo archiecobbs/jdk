@@ -459,8 +459,7 @@ final class PortMixer extends AbstractMixer {
     private static native String nGetPortName(long id, int portIndex);
 
     // fills the vector with the controls for this port
-    @SuppressWarnings("rawtypes")
-    private static native void nGetControls(long id, int portIndex, Vector vector);
+    private static native void nGetControls(long id, int portIndex, @SuppressWarnings("rawtypes") Vector vector);
 
     // getters/setters for controls
     private static native void nControlSetIntValue(long controlID, int value);

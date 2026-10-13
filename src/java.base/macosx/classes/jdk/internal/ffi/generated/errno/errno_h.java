@@ -30,7 +30,6 @@ package jdk.internal.ffi.generated.errno;
 import java.lang.foreign.*;
 import java.lang.invoke.*;
 
-@SuppressWarnings("restricted")
 public class errno_h extends errno_h$shared {
 
     errno_h() {
@@ -62,6 +61,7 @@ public class errno_h extends errno_h$shared {
 
         public static final MemorySegment ADDR = SYMBOL_LOOKUP.findOrThrow("strerror_r");
 
+        @SuppressWarnings("restricted")
         public static final MethodHandle HANDLE = Linker.nativeLinker().downcallHandle(ADDR, DESC);
     }
 

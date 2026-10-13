@@ -33,8 +33,7 @@ import javax.swing.JComponent;
 public class ClientPropertyApplicator<T extends JComponent, N> implements PropertyChangeListener {
     private final Map<String, Property<N>> properties = new HashMap<String, Property<N>>();
 
-    @SuppressWarnings("unchecked")
-    public ClientPropertyApplicator(final Property<N>... propertyList) {
+    public ClientPropertyApplicator(@SuppressWarnings("unchecked") final Property<N>... propertyList) {
         for (final Property<N> p : propertyList) {
             properties.put(p.name, p);
         }
@@ -69,8 +68,8 @@ public class ClientPropertyApplicator<T extends JComponent, N> implements Proper
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public void propertyChange(final PropertyChangeEvent evt) {
+        @SuppressWarnings("unchecked")
         final N obj = convertJComponentToTarget((T)evt.getSource());
         if (obj == null) return;
         applyProperty(obj, evt.getPropertyName(), evt.getNewValue());

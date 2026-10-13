@@ -725,13 +725,13 @@ public class HTMLEditorKit extends StyledEditorKit implements Accessible {
          * @param e the mouse event
          * @see MouseListener#mouseClicked
          */
-        @SuppressWarnings("deprecation")
         public void mouseClicked(MouseEvent e) {
             JEditorPane editor = (JEditorPane) e.getSource();
 
             if (! editor.isEditable() && editor.isEnabled() &&
                     SwingUtilities.isLeftMouseButton(e)) {
                 Point pt = new Point(e.getX(), e.getY());
+                @SuppressWarnings("deprecation")
                 int pos = editor.viewToModel(pt);
                 if (pos >= 0) {
                     activateLink(pos, editor, e);
@@ -744,7 +744,6 @@ public class HTMLEditorKit extends StyledEditorKit implements Accessible {
         }
 
         // track the moving of the mouse.
-        @SuppressWarnings("deprecation")
         public void mouseMoved(MouseEvent e) {
             JEditorPane editor = (JEditorPane) e.getSource();
             if (!editor.isEnabled()) {
@@ -756,6 +755,7 @@ public class HTMLEditorKit extends StyledEditorKit implements Accessible {
             Cursor newCursor = kit.getDefaultCursor();
             if (!editor.isEditable()) {
                 Point pt = new Point(e.getX(), e.getY());
+                @SuppressWarnings("deprecation")
                 int pos = editor.getUI().viewToModel(editor, pt, bias);
                 if (bias[0] == Position.Bias.Backward && pos > 0) {
                     pos--;

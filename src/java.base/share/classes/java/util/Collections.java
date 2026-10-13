@@ -480,7 +480,7 @@ public final class Collections {
      *         list-iterator does not support the {@code set} operation.
      * @since 21
      */
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings("unchecked")
     public static void shuffle(List<?> list, RandomGenerator rnd) {
         int size = list.size();
         if (size < SHUFFLE_THRESHOLD || list instanceof RandomAccess) {
@@ -497,6 +497,7 @@ public final class Collections {
             // instead of using a raw type here, it's possible to capture
             // the wildcard but it will require a call to a supplementary
             // private method
+            @SuppressWarnings("rawtypes")
             ListIterator it = list.listIterator();
             for (Object e : arr) {
                 it.next();
@@ -518,11 +519,12 @@ public final class Collections {
      *         || j &lt; 0 || j &gt;= list.size()).
      * @since 1.4
      */
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings("unchecked")
     public static void swap(List<?> list, int i, int j) {
         // instead of using a raw type here, it's possible to capture
         // the wildcard but it will require a call to a supplementary
         // private method
+        @SuppressWarnings("rawtypes")
         final List l = list;
         l.set(i, l.set(j, l.get(i)));
     }
@@ -2169,24 +2171,24 @@ public final class Collections {
         public K ceilingKey(K key)               { return nm.ceilingKey(key); }
         public K higherKey(K key)                 { return nm.higherKey(key); }
 
-        @SuppressWarnings("unchecked")
         public Entry<K, V> lowerEntry(K key) {
+            @SuppressWarnings("unchecked")
             Entry<K,V> lower = (Entry<K, V>) nm.lowerEntry(key);
             return (null != lower)
                 ? new UnmodifiableEntrySet.UnmodifiableEntry<>(lower)
                 : null;
         }
 
-        @SuppressWarnings("unchecked")
         public Entry<K, V> floorEntry(K key) {
+            @SuppressWarnings("unchecked")
             Entry<K,V> floor = (Entry<K, V>) nm.floorEntry(key);
             return (null != floor)
                 ? new UnmodifiableEntrySet.UnmodifiableEntry<>(floor)
                 : null;
         }
 
-        @SuppressWarnings("unchecked")
         public Entry<K, V> ceilingEntry(K key) {
+            @SuppressWarnings("unchecked")
             Entry<K,V> ceiling = (Entry<K, V>) nm.ceilingEntry(key);
             return (null != ceiling)
                 ? new UnmodifiableEntrySet.UnmodifiableEntry<>(ceiling)
@@ -2194,24 +2196,24 @@ public final class Collections {
         }
 
 
-        @SuppressWarnings("unchecked")
         public Entry<K, V> higherEntry(K key) {
+            @SuppressWarnings("unchecked")
             Entry<K,V> higher = (Entry<K, V>) nm.higherEntry(key);
             return (null != higher)
                 ? new UnmodifiableEntrySet.UnmodifiableEntry<>(higher)
                 : null;
         }
 
-        @SuppressWarnings("unchecked")
         public Entry<K, V> firstEntry() {
+            @SuppressWarnings("unchecked")
             Entry<K,V> first = (Entry<K, V>) nm.firstEntry();
             return (null != first)
                 ? new UnmodifiableEntrySet.UnmodifiableEntry<>(first)
                 : null;
         }
 
-        @SuppressWarnings("unchecked")
         public Entry<K, V> lastEntry() {
+            @SuppressWarnings("unchecked")
             Entry<K,V> last = (Entry<K, V>) nm.lastEntry();
             return (null != last)
                 ? new UnmodifiableEntrySet.UnmodifiableEntry<>(last)

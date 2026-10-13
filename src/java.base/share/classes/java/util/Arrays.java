@@ -1324,11 +1324,11 @@ public final class Arrays {
      * off is the offset into src corresponding to low in dest
      * To be removed in a future release.
      */
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings("unchecked")
     private static void mergeSort(Object[] src,
                                   Object[] dest,
                                   int low, int high, int off,
-                                  Comparator c) {
+                                  @SuppressWarnings("rawtypes") Comparator c) {
         int length = high - low;
 
         // Insertion sort on smallest arrays

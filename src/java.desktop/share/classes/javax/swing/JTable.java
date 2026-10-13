@@ -741,8 +741,7 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
      * @param rowData           the data for the new table
      * @param columnNames       names of each column
      */
-    @SuppressWarnings("rawtypes")
-    public JTable(Vector<? extends Vector> rowData, Vector<?> columnNames) {
+    public JTable(@SuppressWarnings("rawtypes") Vector<? extends Vector> rowData, Vector<?> columnNames) {
         this(new DefaultTableModel(rowData, columnNames));
     }
 

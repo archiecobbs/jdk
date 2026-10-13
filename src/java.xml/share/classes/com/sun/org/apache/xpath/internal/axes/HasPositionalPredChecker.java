@@ -35,7 +35,6 @@ import com.sun.org.apache.xpath.internal.operations.Plus;
 import com.sun.org.apache.xpath.internal.operations.Quo;
 import com.sun.org.apache.xpath.internal.operations.Variable;
 
-@SuppressWarnings("deprecation")
 public class HasPositionalPredChecker extends XPathVisitor
 {
         private boolean m_hasPositionalPred = false;
@@ -93,6 +92,7 @@ public class HasPositionalPredChecker extends XPathVisitor
    * @param pred The predicate object.
    * @return true if the sub expressions should be traversed.
    */
+  @SuppressWarnings("deprecation")
   public boolean visitPredicate(ExpressionOwner owner, Expression pred)
   {
     m_predDepth++;

@@ -164,8 +164,7 @@ public class DefaultTableModel extends AbstractTableModel implements Serializabl
      * @see #getDataVector
      * @see #setDataVector
      */
-    @SuppressWarnings("rawtypes")
-    public DefaultTableModel(Vector<? extends Vector> data, Vector<?> columnNames) {
+    public DefaultTableModel(@SuppressWarnings("rawtypes") Vector<? extends Vector> data, Vector<?> columnNames) {
         setDataVector(data, columnNames);
     }
 

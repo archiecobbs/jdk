@@ -541,7 +541,6 @@ public class MBeanInfo implements Cloneable, Serializable, DescriptorRead {
      * This is obviously not an infallible test for immutability,
      * but it works for the public interfaces of the MBean*Info classes.
     */
-    @SuppressWarnings("removal")
     static boolean arrayGettersSafe(Class<?> subclass, Class<?> immutableClass) {
         if (subclass == immutableClass)
             return true;

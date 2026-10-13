@@ -617,7 +617,6 @@ final class PropertyPermissionCollection extends PermissionCollection
      * perms field. Reads in all_allowed.
      */
     @java.io.Serial
-    @SuppressWarnings("removal")
     private void readObject(ObjectInputStream in)
         throws IOException, ClassNotFoundException
     {
@@ -630,7 +629,7 @@ final class PropertyPermissionCollection extends PermissionCollection
         all_allowed = gfields.get("all_allowed", false);
 
         // Get permissions
-        @SuppressWarnings("unchecked")
+        @SuppressWarnings({ "removal", "unchecked" })
         Hashtable<String, PropertyPermission> permissions =
             (Hashtable<String, PropertyPermission>)gfields.get("permissions", null);
         perms = new ConcurrentHashMap<>(permissions.size()*2);

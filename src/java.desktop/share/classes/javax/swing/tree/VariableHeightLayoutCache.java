@@ -51,7 +51,6 @@ import sun.swing.SwingUtilities2;
  * @author Ray Ryan
  * @author Scott Violet
  */
-@SuppressWarnings("serial") // Same-version serialization only
 public class VariableHeightLayoutCache extends AbstractLayoutCache {
     /**
      * The array of nodes that are currently visible, in the order they
@@ -1009,6 +1008,7 @@ public class VariableHeightLayoutCache extends AbstractLayoutCache {
      * the nodes that have been expanded. This will also cache the preferred
      * size of the value it represents.
      */
+    @SuppressWarnings("serial") // Same-version serialization only
     private class TreeStateNode extends DefaultMutableTreeNode {
         /** Preferred size needed to draw the user object. */
         protected int             preferredWidth;

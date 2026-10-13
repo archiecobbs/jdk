@@ -717,7 +717,7 @@ public class GapContent extends GapVector implements AbstractDocument.Content, S
      * @param length the length &gt;= 0
      * @return the set of instances
      */
-    @SuppressWarnings({"rawtypes", "unchecked"}) // UndoPosRef type cannot be exposed
+    @SuppressWarnings("rawtypes") // UndoPosRef type cannot be exposed
     protected Vector getPositionsInRange(Vector v,
                                          int offset, int length) {
         int endOffset = offset + length;
@@ -747,6 +747,7 @@ public class GapContent extends GapVector implements AbstractDocument.Content, S
             endIndex = findMarkAdjustIndex(endOffset + (g1 - g0) + 1);
         }
 
+        @SuppressWarnings("unchecked")
         Vector<UndoPosRef> placeIn = (v == null) ?
             new Vector<>(Math.max(1, endIndex - startIndex)) :
             v;
@@ -768,9 +769,8 @@ public class GapContent extends GapVector implements AbstractDocument.Content, S
      * @param offset where the string was inserted
      * @param length length of inserted string
      */
-    @SuppressWarnings("rawtypes") // UndoPosRef type cannot be exposed
-    protected void updateUndoPositions(Vector positions, int offset,
-                                       int length) {
+    protected void updateUndoPositions(@SuppressWarnings("rawtypes") Vector positions, // UndoPosRef type cannot be exposed
+            int offset, int length) {
         // Find the indices of the end points.
         int endOffset = offset + length;
         int g1 = getGapEnd();

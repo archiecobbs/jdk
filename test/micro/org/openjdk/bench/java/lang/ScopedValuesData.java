@@ -26,7 +26,6 @@ package org.openjdk.bench.java.lang;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-@SuppressWarnings("preview")
 public class ScopedValuesData {
 
     static final ScopedValue<Integer> sl1 = ScopedValue.newInstance();

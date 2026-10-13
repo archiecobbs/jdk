@@ -328,7 +328,6 @@ public final class UCharacterProperty
     /**
      * Default name of the datafile
      */
-    @SuppressWarnings("deprecation")
     private static final String DATA_FILE_NAME_ =
             "/jdk/internal/icu/impl/data/icudata/uprops.icu";
 

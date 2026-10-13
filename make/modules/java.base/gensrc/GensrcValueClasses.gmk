@@ -71,6 +71,7 @@ $(eval $(call SetupTextFileProcessing, JAVA_BASE_VALUE_CLASS_TARGETS, \
     REPLACEMENTS := \
         /\*value\*/ class => value class ; \
         /\*value\*/ record => value record ; \
+        /\*value:\(.*\)\*/ => \1 ; \
 ))
 
 TARGETS += $(JAVA_BASE_VALUE_CLASS_TARGETS)

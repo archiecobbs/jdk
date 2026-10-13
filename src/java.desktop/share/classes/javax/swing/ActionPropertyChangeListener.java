@@ -137,10 +137,10 @@ abstract class ActionPropertyChangeListener<T extends JComponent>
     }
 
     @Serial
-    @SuppressWarnings("unchecked")
     private void readObject(ObjectInputStream s)
                      throws IOException, ClassNotFoundException {
         s.defaultReadObject();
+        @SuppressWarnings("unchecked")
         T target = (T)s.readObject();
         if (target != null) {
             setTarget(target);

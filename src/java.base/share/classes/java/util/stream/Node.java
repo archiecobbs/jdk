@@ -313,7 +313,6 @@ interface Node<T> {
     /**
      * Specialized {@code Node} for int elements
      */
-    @SuppressWarnings("overloads")
     interface OfInt extends OfPrimitive<Integer, IntConsumer, int[], Spliterator.OfInt, OfInt> {
 
         /**
@@ -325,6 +324,7 @@ interface Node<T> {
          *        elements may be processed without boxing.
          */
         @Override
+        @SuppressWarnings("overloads")
         default void forEach(Consumer<? super Integer> consumer) {
             if (consumer instanceof IntConsumer) {
                 forEach((IntConsumer) consumer);
@@ -391,7 +391,6 @@ interface Node<T> {
     /**
      * Specialized {@code Node} for long elements
      */
-    @SuppressWarnings("overloads")
     interface OfLong extends OfPrimitive<Long, LongConsumer, long[], Spliterator.OfLong, OfLong> {
 
         /**
@@ -403,6 +402,7 @@ interface Node<T> {
          *        the elements may be processed without boxing.
          */
         @Override
+        @SuppressWarnings("overloads")
         default void forEach(Consumer<? super Long> consumer) {
             if (consumer instanceof LongConsumer) {
                 forEach((LongConsumer) consumer);
@@ -469,7 +469,6 @@ interface Node<T> {
     /**
      * Specialized {@code Node} for double elements
      */
-    @SuppressWarnings("overloads")
     interface OfDouble extends OfPrimitive<Double, DoubleConsumer, double[], Spliterator.OfDouble, OfDouble> {
 
         /**
@@ -481,6 +480,7 @@ interface Node<T> {
          *        so the elements may be processed without boxing.
          */
         @Override
+        @SuppressWarnings("overloads")
         default void forEach(Consumer<? super Double> consumer) {
             if (consumer instanceof DoubleConsumer) {
                 forEach((DoubleConsumer) consumer);

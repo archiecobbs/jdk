@@ -746,7 +746,6 @@ final class PackagingPipeline {
                     || taskGraph.getAllHeadsOf(taskID).contains(PrimaryTaskID.COPY_APP_IMAGE));
         }
 
-        @SuppressWarnings("unchecked")
         private <T extends AppImageLayout> AppImageBuildEnv<Application, T> appBuildEnv() {
             return new AppImageBuildEnv<>(env, app);
         }

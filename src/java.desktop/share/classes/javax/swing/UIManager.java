@@ -538,7 +538,6 @@ public class UIManager implements Serializable
      *
      * @since 9
      */
-    @SuppressWarnings("deprecation")
     public static LookAndFeel createLookAndFeel(String name)
             throws UnsupportedLookAndFeelException {
         Objects.requireNonNull(name);
@@ -552,6 +551,7 @@ public class UIManager implements Serializable
                 if (info.getName().equals(name)) {
                     Class<?> cls = Class.forName(UIManager.class.getModule(),
                                                  info.getClassName());
+                    @SuppressWarnings("deprecation")
                     LookAndFeel laf =
                         (LookAndFeel) cls.newInstance();
                     if (!laf.isSupportedLookAndFeel()) {
@@ -1409,7 +1409,6 @@ public class UIManager implements Serializable
     }
 
 
-    @SuppressWarnings("deprecation")
     private static void initializeAuxiliaryLAFs(Properties swingProps)
     {
         String auxLookAndFeelNames = swingProps.getProperty(auxiliaryLAFsKey);
@@ -1429,6 +1428,7 @@ public class UIManager implements Serializable
             String className = p.nextToken();
             try {
                 Class<?> lnfClass = SwingUtilities.loadSystemClass(className);
+                @SuppressWarnings("deprecation")
                 LookAndFeel newLAF =
                         (LookAndFeel)lnfClass.newInstance();
                 newLAF.initialize();

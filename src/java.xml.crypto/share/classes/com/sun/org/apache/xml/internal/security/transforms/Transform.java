@@ -184,7 +184,6 @@ public final class Transform extends SignatureElementProxy {
      * @throws SecurityException if a security manager is installed and the
      *    caller does not have permission to register the transform
      */
-    @SuppressWarnings("unchecked")
     public static void register(String algorithmURI, String implementingClass)
         throws AlgorithmAlreadyRegisteredException, ClassNotFoundException,
             InvalidTransformException {
@@ -195,6 +194,7 @@ public final class Transform extends SignatureElementProxy {
             Object[] exArgs = { algorithmURI, transformSpi };
             throw new AlgorithmAlreadyRegisteredException("algorithm.alreadyRegistered", exArgs);
         }
+        @SuppressWarnings("unchecked")
         Class<? extends TransformSpi> transformSpiClass =
             (Class<? extends TransformSpi>)
                 ClassLoaderUtils.loadClass(implementingClass, Transform.class);

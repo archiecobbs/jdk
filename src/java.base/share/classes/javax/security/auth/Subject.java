@@ -271,9 +271,8 @@ public final class Subject implements java.io.Serializable {
      *
      * @see #current()
      */
-    @SuppressWarnings("removal")
     @Deprecated(since="17", forRemoval=true)
-    public static Subject getSubject(final AccessControlContext acc) {
+    public static Subject getSubject(@SuppressWarnings("removal") final AccessControlContext acc) {
         throw new UnsupportedOperationException("getSubject is not supported");
     }
 
@@ -489,11 +488,10 @@ public final class Subject implements java.io.Serializable {
      *
      * @see #callAs(Subject, Callable)
      */
-    @SuppressWarnings("removal")
     @Deprecated(since="17", forRemoval=true)
     public static <T> T doAsPrivileged(final Subject subject,
                         final java.security.PrivilegedAction<T> action,
-                        final java.security.AccessControlContext acc) {
+                        @SuppressWarnings("removal") final java.security.AccessControlContext acc) {
 
         Objects.requireNonNull(action,
                 ResourcesMgr.getString("invalid.null.action.provided"));
@@ -554,11 +552,10 @@ public final class Subject implements java.io.Serializable {
      *
      * @see #callAs(Subject, Callable)
      */
-    @SuppressWarnings("removal")
     @Deprecated(since="17", forRemoval=true)
     public static <T> T doAsPrivileged(final Subject subject,
                         final java.security.PrivilegedExceptionAction<T> action,
-                        final java.security.AccessControlContext acc)
+                        @SuppressWarnings("removal") final java.security.AccessControlContext acc)
                         throws java.security.PrivilegedActionException {
 
         Objects.requireNonNull(action,
@@ -896,7 +893,6 @@ public final class Subject implements java.io.Serializable {
      * @throws IOException if an I/O error occurs
      * @throws ClassNotFoundException if a serialized class cannot be loaded
      */
-    @SuppressWarnings("unchecked")
     @java.io.Serial
     private void readObject(java.io.ObjectInputStream s)
                 throws java.io.IOException, ClassNotFoundException {
@@ -905,6 +901,7 @@ public final class Subject implements java.io.Serializable {
 
         readOnly = gf.get("readOnly", false);
 
+        @SuppressWarnings("unchecked")
         Set<Principal> inputPrincs = (Set<Principal>)gf.get("principals", null);
 
         Objects.requireNonNull(inputPrincs,
@@ -1229,7 +1226,6 @@ public final class Subject implements java.io.Serializable {
          * @throws IOException if an I/O error occurs
          * @throws ClassNotFoundException if a serialized class cannot be loaded
          */
-        @SuppressWarnings("unchecked")
         @java.io.Serial
         private void readObject(ObjectInputStream ois)
             throws IOException, ClassNotFoundException
@@ -1238,6 +1234,7 @@ public final class Subject implements java.io.Serializable {
             subject = (Subject) fields.get("this$0", null);
             which = fields.get("which", 0);
 
+            @SuppressWarnings("unchecked")
             LinkedList<E> tmp = (LinkedList<E>) fields.get("elements", null);
 
             elements = Subject.collectionNullClean(tmp);

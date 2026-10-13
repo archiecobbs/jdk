@@ -125,7 +125,6 @@ public class MotifTextUI {
          * @see #damage
          */
         @Override
-        @SuppressWarnings("deprecation")
         public void paint(Graphics g) {
             if(isVisible()) {
                 try {
@@ -134,6 +133,7 @@ public class MotifTextUI {
                         c.getDisabledTextColor();
                     TextUI mapper = c.getUI();
                     int dot = getDot();
+                    @SuppressWarnings("deprecation")
                     Rectangle r = mapper.modelToView(c, dot);
                     int x0 = r.x - IBeamOverhang;
                     int x1 = r.x + IBeamOverhang;

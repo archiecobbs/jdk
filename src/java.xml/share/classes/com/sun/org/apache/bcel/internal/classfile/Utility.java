@@ -283,7 +283,6 @@ public abstract class Utility {
      *
      * @throws IOException if a failure from reading from the bytes argument occurs
      */
-    @SuppressWarnings("fallthrough") // by design for case Const.INSTANCEOF
     public static String codeToString(final ByteSequence bytes, final ConstantPool constantPool,
             final boolean verbose) throws IOException {
         final short opcode = (short) bytes.readUnsignedByte();

@@ -60,14 +60,13 @@ public final class DOMKeyInfoFactory extends KeyInfoFactory {
     public DOMKeyInfoFactory() { }
 
     @Override
-    @SuppressWarnings("rawtypes")
-    public KeyInfo newKeyInfo(List content) {
+    public KeyInfo newKeyInfo(@SuppressWarnings("rawtypes") List content) {
         return newKeyInfo(content, null);
     }
 
     @Override
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-    public KeyInfo newKeyInfo(List content, String id) {
+    @SuppressWarnings("unchecked")
+    public KeyInfo newKeyInfo(@SuppressWarnings("rawtypes") List content, String id) {
         return new DOMKeyInfo(content, id);
     }
 
@@ -96,14 +95,14 @@ public final class DOMKeyInfoFactory extends KeyInfoFactory {
     }
 
     @Override
-    @SuppressWarnings({ "rawtypes", "unchecked" })
-    public PGPData newPGPData(byte[] keyId, byte[] keyPacket, List other) {
+    @SuppressWarnings("unchecked")
+    public PGPData newPGPData(byte[] keyId, byte[] keyPacket, @SuppressWarnings("rawtypes") List other) {
         return new DOMPGPData(keyId, keyPacket, other);
     }
 
     @Override
-    @SuppressWarnings({ "rawtypes", "unchecked" })
-    public PGPData newPGPData(byte[] keyPacket, List other) {
+    @SuppressWarnings("unchecked")
+    public PGPData newPGPData(byte[] keyPacket, @SuppressWarnings("rawtypes") List other) {
         return new DOMPGPData(keyPacket, other);
     }
 
@@ -113,9 +112,9 @@ public final class DOMKeyInfoFactory extends KeyInfoFactory {
     }
 
     @Override
-    @SuppressWarnings({ "rawtypes", "unchecked" })
+    @SuppressWarnings("unchecked")
     public RetrievalMethod newRetrievalMethod(String uri, String type,
-        List transforms) {
+        @SuppressWarnings("rawtypes") List transforms) {
         if (uri == null) {
             throw new NullPointerException("uri must not be null");
         }
@@ -123,8 +122,7 @@ public final class DOMKeyInfoFactory extends KeyInfoFactory {
     }
 
     @Override
-    @SuppressWarnings({ "rawtypes" })
-    public X509Data newX509Data(List content) {
+    public X509Data newX509Data(@SuppressWarnings("rawtypes") List content) {
         return new DOMX509Data(content);
     }
 

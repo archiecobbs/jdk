@@ -115,7 +115,6 @@ public abstract class ClientNotifForwarder {
         private Thread thread;
     }
 
-    @SuppressWarnings("removal")
     public ClientNotifForwarder(ClassLoader defaultClassLoader, Map<String, ?> env) {
         maxNotifications = EnvHelp.getMaxFetchNotifNumber(env);
         timeout = EnvHelp.getFetchTimeout(env);

@@ -74,8 +74,7 @@ public final class CPrinterDialogPeer extends LWWindowPeer {
     @Override
     public void setEnabled(boolean enable) {}
     public void setBounds(int x, int y, int width, int height) {}
-    @SuppressWarnings("deprecation")
-    public boolean handleEvent(Event e) { return false; }
+    public boolean handleEvent(@SuppressWarnings("deprecation") Event e) { return false; }
     @Override
     public void setForeground(Color c) {}
     @Override

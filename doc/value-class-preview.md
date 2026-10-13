@@ -30,7 +30,7 @@ classes, done in
 
 2. Extract the content of each regular source file, search for any occurrences
    of `/*value*/ class` or `/*value*/ record`, and replace with `value class`
-   or `value record`.
+   or `value record` (a similar fixup is used for `@SuppressWarnings("serial")`).
 
 3. The replaced contents are written to the preview-specific generated files,
    located in `support/gensrc-valueclasses/java.base/`.  The regular source

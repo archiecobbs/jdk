@@ -388,8 +388,8 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
      * Compares using comparator or natural ordering if null.
      * Called only by methods that have performed required type checks.
      */
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    static int cpr(Comparator c, Object x, Object y) {
+    @SuppressWarnings("unchecked")
+    static int cpr(@SuppressWarnings("rawtypes") Comparator c, Object x, Object y) {
         return (c != null) ? c.compare(x, y) : ((Comparable)x).compareTo(y);
     }
 

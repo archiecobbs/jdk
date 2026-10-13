@@ -489,7 +489,6 @@ public final class RSACipher extends CipherSpi {
     }
 
     // see JCE spec
-    @SuppressWarnings("deprecation")
     protected Key engineUnwrap(byte[] wrappedKey, String algorithm,
             int type) throws InvalidKeyException, NoSuchAlgorithmException {
         if (wrappedKey.length > buffer.length) {
@@ -507,6 +506,7 @@ public final class RSACipher extends CipherSpi {
                     throw new IllegalStateException(
                             "No TlsRsaPremasterSecretParameterSpec specified");
                 }
+                @SuppressWarnings("deprecation")
                 TlsRsaPremasterSecretParameterSpec parameterSpec =
                         (TlsRsaPremasterSecretParameterSpec) spec;
                 encoded = doFinalForTls(parameterSpec.getClientVersion(),

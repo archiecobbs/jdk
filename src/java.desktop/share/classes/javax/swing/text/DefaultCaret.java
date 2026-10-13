@@ -335,10 +335,10 @@ public class DefaultCaret extends Rectangle implements Caret, FocusListener, Mou
      *
      * @param e the mouse event
      */
-    @SuppressWarnings("deprecation")
     protected void positionCaret(MouseEvent e) {
         Point pt = new Point(e.getX(), e.getY());
         Position.Bias[] biasRet = new Position.Bias[1];
+        @SuppressWarnings("deprecation")
         int pos = component.getUI().viewToModel(component, pt, biasRet);
         if(biasRet[0] == null)
             biasRet[0] = Position.Bias.Forward;
@@ -355,10 +355,10 @@ public class DefaultCaret extends Rectangle implements Caret, FocusListener, Mou
      *
      * @param e the mouse event
      */
-    @SuppressWarnings("deprecation")
     protected void moveCaret(MouseEvent e) {
         Point pt = new Point(e.getX(), e.getY());
         Position.Bias[] biasRet = new Position.Bias[1];
+        @SuppressWarnings("deprecation")
         int pos = component.getUI().viewToModel(component, pt, biasRet);
         if(biasRet[0] == null)
             biasRet[0] = Position.Bias.Forward;
@@ -665,11 +665,11 @@ public class DefaultCaret extends Rectangle implements Caret, FocusListener, Mou
      * @param g the graphics context
      * @see #damage
      */
-    @SuppressWarnings("deprecation")
     public void paint(Graphics g) {
         if(isVisible()) {
             try {
                 TextUI mapper = component.getUI();
+                @SuppressWarnings("deprecation")
                 Rectangle r = mapper.modelToView(component, dot, dotBias);
 
                 if ((r == null) || ((r.width == 0) && (r.height == 0))) {
@@ -1026,7 +1026,6 @@ public class DefaultCaret extends Rectangle implements Caret, FocusListener, Mou
      * @see #isActive
      * @see Caret#setVisible
      */
-    @SuppressWarnings("deprecation")
     public void setVisible(boolean e) {
         // focus lost notification can come in later after the
         // caret has been deinstalled, in which case the component
@@ -1038,6 +1037,7 @@ public class DefaultCaret extends Rectangle implements Caret, FocusListener, Mou
                 visible = e;
                 // repaint the caret
                 try {
+                    @SuppressWarnings("deprecation")
                     Rectangle loc = mapper.modelToView(component, dot,dotBias);
                     damage(loc);
                 } catch (BadLocationException badloc) {
@@ -1741,7 +1741,6 @@ public class DefaultCaret extends Rectangle implements Caret, FocusListener, Mou
          *
          * @param e the action event
          */
-        @SuppressWarnings("deprecation")
         public void actionPerformed(ActionEvent e) {
             if (width == 0 || height == 0) {
                 // setVisible(true) will cause a scroll, only do this if the
@@ -1749,6 +1748,7 @@ public class DefaultCaret extends Rectangle implements Caret, FocusListener, Mou
                 if (component != null) {
                     TextUI mapper = component.getUI();
                     try {
+                        @SuppressWarnings("deprecation")
                         Rectangle r = mapper.modelToView(component, dot,
                                                          dotBias);
                         if (r != null && r.width != 0 && r.height != 0) {

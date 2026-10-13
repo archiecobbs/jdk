@@ -34,7 +34,6 @@ import java.util.List;
  *
  * @LastModified: Oct 2017
  */
-@SuppressWarnings("unchecked") // method <T>toArray(T[])
 public final class StringListImpl extends AbstractList<String> implements StringList {
 
     /**
@@ -141,6 +140,7 @@ public final class StringListImpl extends AbstractList<String> implements String
         return a;
     }
 
+    @SuppressWarnings("unchecked")
     public Object[] toArray(Object[] a) {
         if (fVector != null) {
             return fVector.toArray(a);

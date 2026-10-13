@@ -899,13 +899,13 @@ public class Hashtable<K,V>
         }
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public synchronized void replaceAll(BiFunction<? super K, ? super V, ? extends V> function) {
         Objects.requireNonNull(function);     // explicit check required in case
                                               // table is empty.
         final int expectedModCount = modCount;
 
+        @SuppressWarnings("unchecked")
         Entry<K, V>[] tab = (Entry<K, V>[])table;
         for (Entry<K, V> entry : tab) {
             while (entry != null) {

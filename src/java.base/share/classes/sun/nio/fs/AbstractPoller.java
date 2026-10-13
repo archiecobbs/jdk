@@ -228,7 +228,6 @@ abstract class AbstractPoller implements Runnable {
      *
      * @return  true if poller thread should shutdown
      */
-    @SuppressWarnings("unchecked")
     boolean processRequests() {
         synchronized (requests) {
             Request req;
@@ -246,6 +245,7 @@ abstract class AbstractPoller implements Runnable {
                     case REGISTER: {
                         Object[] params = req.parameters();
                         Path path = (Path)params[0];
+                        @SuppressWarnings("unchecked")
                         Set<? extends WatchEvent.Kind<?>> events =
                             (Set<? extends WatchEvent.Kind<?>>)params[1];
                         WatchEvent.Modifier[] modifiers =

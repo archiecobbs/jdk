@@ -719,7 +719,6 @@ class SpinedBuffer<E>
     /**
      * An ordered collection of {@code int} values.
      */
-    @SuppressWarnings("overloads")
     static class OfInt extends SpinedBuffer.OfPrimitive<Integer, int[], IntConsumer>
             implements IntConsumer {
         OfInt() { }
@@ -729,6 +728,7 @@ class SpinedBuffer<E>
         }
 
         @Override
+        @SuppressWarnings("overloads")
         public void forEach(Consumer<? super Integer> consumer) {
             if (consumer instanceof IntConsumer) {
                 forEach((IntConsumer) consumer);
@@ -834,7 +834,6 @@ class SpinedBuffer<E>
     /**
      * An ordered collection of {@code long} values.
      */
-    @SuppressWarnings("overloads")
     static class OfLong extends SpinedBuffer.OfPrimitive<Long, long[], LongConsumer>
             implements LongConsumer {
         OfLong() { }
@@ -844,6 +843,7 @@ class SpinedBuffer<E>
         }
 
         @Override
+        @SuppressWarnings("overloads")
         public void forEach(Consumer<? super Long> consumer) {
             if (consumer instanceof LongConsumer) {
                 forEach((LongConsumer) consumer);
@@ -950,7 +950,6 @@ class SpinedBuffer<E>
     /**
      * An ordered collection of {@code double} values.
      */
-    @SuppressWarnings("overloads")
     static class OfDouble
             extends SpinedBuffer.OfPrimitive<Double, double[], DoubleConsumer>
             implements DoubleConsumer {
@@ -961,6 +960,7 @@ class SpinedBuffer<E>
         }
 
         @Override
+        @SuppressWarnings("overloads")
         public void forEach(Consumer<? super Double> consumer) {
             if (consumer instanceof DoubleConsumer) {
                 forEach((DoubleConsumer) consumer);

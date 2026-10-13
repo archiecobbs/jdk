@@ -470,7 +470,6 @@ public class PlainView extends View implements TabExpander {
      *   represent a valid location in the associated document
      * @see View#modelToView
      */
-    @SuppressWarnings("deprecation")
     public Shape modelToView(int pos, Shape a, Position.Bias b) throws BadLocationException {
         // line coordinates
         Document doc = getDocument();
@@ -494,6 +493,7 @@ public class PlainView extends View implements TabExpander {
             return new Rectangle2D.Float(lineArea.x + xOffs, lineArea.y, 1, metrics.getHeight());
         }
 
+        @SuppressWarnings("deprecation")
         int xOffs = Utilities.getTabbedTextWidth(s, metrics, tabBase, this,p0);
         SegmentCache.releaseSharedSegment(s);
 

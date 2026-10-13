@@ -125,7 +125,6 @@ public class X509CRLImpl extends X509CRL implements DerEncoder {
          *
          * @exception CRLException on parsing/construction errors.
          */
-        @SuppressWarnings("this-escape")
         public TBSCertList(X500Name issuer, Date thisDate, Date nextDate,
                            X509CRLEntry[] badCerts)
                 throws CRLException
@@ -134,6 +133,7 @@ public class X509CRLImpl extends X509CRL implements DerEncoder {
             this.thisUpdate = thisDate;
             this.nextUpdate = nextDate;
             if (badCerts != null) {
+                @SuppressWarnings("this-escape")
                 X500Principal crlIssuer = getIssuerX500Principal();
                 X500Principal badCertIssuer = crlIssuer;
                 for (int i = 0; i < badCerts.length; i++) {
@@ -176,7 +176,6 @@ public class X509CRLImpl extends X509CRL implements DerEncoder {
         /**
          * Constructs from the encoding.
          */
-        @SuppressWarnings("this-escape")
         public TBSCertList(DerValue value) throws IOException, CRLException {
 
             if (value.tag != DerValue.tag_Sequence)
@@ -238,6 +237,7 @@ public class X509CRLImpl extends X509CRL implements DerEncoder {
             if ((nextByte == DerValue.tag_SequenceOf)) {
                 DerValue[] badCerts = derStrm.getSequence(4);
 
+                @SuppressWarnings("this-escape")
                 X500Principal crlIssuer = getIssuerX500Principal();
                 X500Principal badCertIssuer = crlIssuer;
                 for (int i = 0; i < badCerts.length; i++) {

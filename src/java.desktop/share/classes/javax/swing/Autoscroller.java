@@ -163,7 +163,6 @@ class Autoscroller implements ActionListener {
      * ActionListener method. Invoked when the Timer fires. This will scroll
      * if necessary.
      */
-    @SuppressWarnings("deprecation")
     public void actionPerformed(ActionEvent x) {
         JComponent component = Autoscroller.component;
 
@@ -172,6 +171,7 @@ class Autoscroller implements ActionListener {
             return;
         }
         Point screenLocation = component.getLocationOnScreen();
+        @SuppressWarnings("deprecation")
         MouseEvent e = new MouseEvent(component, event.getID(),
                                       event.getWhen(), event.getModifiers(),
                                       event.getX() - screenLocation.x,

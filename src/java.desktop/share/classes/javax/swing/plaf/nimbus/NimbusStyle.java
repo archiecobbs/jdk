@@ -864,7 +864,7 @@ public final class NimbusStyle extends SynthStyle {
      * @param v
      * @return
      */
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     private int getExtendedState(SynthContext ctx, Values v) {
         JComponent c = ctx.getComponent();
         int xstate = 0;
@@ -900,7 +900,7 @@ public final class NimbusStyle extends SynthStyle {
             //there are custom states on this values, so I'll have to iterate
             //over them all and return a custom extended state
             int state = ctx.getComponentState();
-            for (State s : v.stateTypes) {
+            for (@SuppressWarnings("rawtypes") State s : v.stateTypes) {
                 if (s.isInState(c, state)) {
                     xstate |= mask;
                 }

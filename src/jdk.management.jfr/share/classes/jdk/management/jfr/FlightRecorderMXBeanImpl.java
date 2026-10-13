@@ -348,7 +348,6 @@ final class FlightRecorderMXBeanImpl extends StandardEmitterMBean implements Fli
         }
     }
 
-    @SuppressWarnings("removal")
     private FlightRecorder getRecorder() {
         // Synchronize on some private object that is always available
         synchronized (streamHandler) {
@@ -367,7 +366,6 @@ final class FlightRecorderMXBeanImpl extends StandardEmitterMBean implements Fli
         return new MBeanNotificationInfo[] { info };
     }
 
-    @SuppressWarnings("removal")
     @Override
     public void addNotificationListener(NotificationListener listener, NotificationFilter filter, Object handback) {
         MXBeanListener mxbeanListener = new MXBeanListener(listener, filter, handback);

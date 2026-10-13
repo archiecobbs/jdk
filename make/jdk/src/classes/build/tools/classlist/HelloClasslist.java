@@ -59,7 +59,6 @@ public class HelloClasslist {
 
     private static final Logger LOGGER = Logger.getLogger("Hello");
 
-    @SuppressWarnings("restricted")
     public static void main(String ... args) throws Throwable {
 
         FileSystems.getDefault();

@@ -678,10 +678,10 @@ public final class AquaComboBoxUI extends BasicComboBoxUI implements Sizeable {
         return new Dimension(cachedMinimumSize);
     }
 
-    @SuppressWarnings("unchecked")
     private static final RecyclableSingleton<ClientPropertyApplicator<JComboBox<?>, AquaComboBoxUI>> APPLICATOR = new
             RecyclableSingleton<ClientPropertyApplicator<JComboBox<?>, AquaComboBoxUI>>() {
         @Override
+        @SuppressWarnings("unchecked")
         protected ClientPropertyApplicator<JComboBox<?>, AquaComboBoxUI> getInstance() {
             return new ClientPropertyApplicator<JComboBox<?>, AquaComboBoxUI>(
                 new Property<AquaComboBoxUI>(AquaFocusHandler.FRAME_ACTIVE_PROPERTY) {

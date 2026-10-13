@@ -307,13 +307,12 @@ public class BufferedWriter extends Writer {
         }
     }
 
-    @SuppressWarnings("try")
     public void close() throws IOException {
         synchronized (lock) {
             if (out == null) {
                 return;
             }
-            try (Writer w = out) {
+            try (@SuppressWarnings("try") Writer w = out) {
                 flushBuffer();
             } finally {
                 out = null;

@@ -237,10 +237,10 @@ public class HostnameChecker {
      *
      * This method is currently used from within JSSE, do not remove.
      */
-    @SuppressWarnings("deprecation")
     public static X500Name getSubjectX500Name(X509Certificate cert)
             throws CertificateParsingException {
         try {
+            @SuppressWarnings("deprecation")
             Principal subjectDN = cert.getSubjectDN();
             if (subjectDN instanceof X500Name) {
                 return (X500Name)subjectDN;

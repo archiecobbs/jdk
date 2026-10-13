@@ -93,7 +93,6 @@ import java.util.Vector;
  *
  * @author Rob Davis
  */
-@SuppressWarnings("serial") // Same-version serialization only
 public class DefaultMutableTreeNode implements Cloneable,
        MutableTreeNode, Serializable
 {
@@ -111,6 +110,7 @@ public class DefaultMutableTreeNode implements Cloneable,
         = Collections.emptyEnumeration();
 
     /** this node's parent, or null if this node has no parent */
+    @SuppressWarnings("serial") // Same-version serialization only
     protected MutableTreeNode   parent;
 
     /** array of children, may be null if this node has no children */

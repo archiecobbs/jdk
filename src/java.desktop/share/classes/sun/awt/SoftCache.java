@@ -373,9 +373,9 @@ public class SoftCache extends AbstractMap<Object, Object> implements Map<Object
             return ent.setValue(ValueCell.create(ent.getKey(), value, queue));
         }
 
-        @SuppressWarnings("unchecked")
         public boolean equals(Object o) {
             if (! (o instanceof Map.Entry)) return false;
+            @SuppressWarnings("unchecked")
             Map.Entry<Object, Object> e = (Map.Entry<Object, Object>)o;
             return (valEquals(ent.getKey(), e.getKey())
                     && valEquals(value, e.getValue()));

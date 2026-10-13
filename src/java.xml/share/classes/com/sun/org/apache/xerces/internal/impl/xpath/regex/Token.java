@@ -1569,11 +1569,11 @@ class Token implements java.io.Serializable {
             out.writeFields();
     }
 
-        @SuppressWarnings("unchecked")
         private void readObject(ObjectInputStream in)
                             throws IOException, ClassNotFoundException {
             // We have to read serialized fields first.
             ObjectInputStream.GetField gf = in.readFields();
+            @SuppressWarnings("unchecked")
             Vector<Token> vChildren = (Vector<Token>)gf.get("children", null);
 
             //convert Vector back to List

@@ -585,8 +585,7 @@ public class      BeanContextSupport extends BeanContextChildSupport
      * this {@code BeanContext}, false if not.
      */
     @Override
-    @SuppressWarnings("rawtypes")
-    public boolean containsAll(Collection c) {
+    public boolean containsAll(@SuppressWarnings("rawtypes") Collection c) {
         synchronized(children) {
             for (Object o : c)
                 if(!contains(o))
@@ -603,8 +602,7 @@ public class      BeanContextSupport extends BeanContextChildSupport
      * @return this implementation unconditionally throws {@code UnsupportedOperationException}
      */
     @Override
-    @SuppressWarnings("rawtypes")
-    public boolean addAll(Collection c) {
+    public boolean addAll(@SuppressWarnings("rawtypes") Collection c) {
         throw new UnsupportedOperationException();
     }
 
@@ -616,8 +614,7 @@ public class      BeanContextSupport extends BeanContextChildSupport
 
      */
     @Override
-    @SuppressWarnings("rawtypes")
-    public boolean removeAll(Collection c) {
+    public boolean removeAll(@SuppressWarnings("rawtypes") Collection c) {
         throw new UnsupportedOperationException();
     }
 
@@ -629,8 +626,7 @@ public class      BeanContextSupport extends BeanContextChildSupport
      * @return this implementation unconditionally throws {@code UnsupportedOperationException}
      */
     @Override
-    @SuppressWarnings("rawtypes")
-    public boolean retainAll(Collection c) {
+    public boolean retainAll(@SuppressWarnings("rawtypes") Collection c) {
         throw new UnsupportedOperationException();
     }
 
@@ -960,8 +956,9 @@ public class      BeanContextSupport extends BeanContextChildSupport
      * @throws IOException if deserialization failed
      * @throws ClassNotFoundException if needed classes are not found
      */
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    protected final void deserialize(ObjectInputStream ois, Collection coll) throws IOException, ClassNotFoundException {
+    @SuppressWarnings("unchecked")
+    protected final void deserialize(ObjectInputStream ois, @SuppressWarnings("rawtypes") Collection coll)
+      throws IOException, ClassNotFoundException {
         int count = 0;
 
         count = ois.readInt();

@@ -33,7 +33,6 @@ import jdk.tools.jlink.internal.runtimelink.JimageDiffGenerator.ImageResource;
 import jdk.tools.jlink.plugin.ResourcePool;
 import jdk.tools.jlink.plugin.ResourcePoolEntry;
 
-@SuppressWarnings("try")
 public class ResourcePoolReader implements ImageResource {
 
     private final ResourcePool pool;
@@ -43,6 +42,7 @@ public class ResourcePoolReader implements ImageResource {
     }
 
     @Override
+    @SuppressWarnings("try")
     public void close() throws Exception {
         // nothing
     }

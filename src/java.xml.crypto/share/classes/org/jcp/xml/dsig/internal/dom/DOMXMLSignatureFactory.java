@@ -77,9 +77,9 @@ public final class DOMXMLSignatureFactory extends XMLSignatureFactory {
     }
 
     @Override
-    @SuppressWarnings({ "unchecked", "rawtypes" })
+    @SuppressWarnings("unchecked")
     public XMLSignature newXMLSignature(SignedInfo si, KeyInfo ki,
-        List objects, String id, String signatureValueId) {
+        @SuppressWarnings("rawtypes") List objects, String id, String signatureValueId) {
         return new DOMXMLSignature(si, ki, objects, id, signatureValueId);
     }
 
@@ -89,8 +89,8 @@ public final class DOMXMLSignatureFactory extends XMLSignatureFactory {
     }
 
     @Override
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-    public Reference newReference(String uri, DigestMethod dm, List transforms,
+    @SuppressWarnings("unchecked")
+    public Reference newReference(String uri, DigestMethod dm, @SuppressWarnings("rawtypes") List transforms,
         String type, String id) {
         return new DOMReference(uri, type, dm, transforms, id, getProvider());
     }
@@ -114,8 +114,8 @@ public final class DOMXMLSignatureFactory extends XMLSignatureFactory {
     }
 
     @Override
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-    public Reference newReference(String uri, DigestMethod dm, List transforms,
+    @SuppressWarnings("unchecked")
+    public Reference newReference(String uri, DigestMethod dm, @SuppressWarnings("rawtypes") List transforms,
         String type, String id, byte[] digestValue) {
         if (digestValue == null) {
             throw new NullPointerException("digestValue cannot be null");
@@ -125,49 +125,47 @@ public final class DOMXMLSignatureFactory extends XMLSignatureFactory {
     }
 
     @Override
-    @SuppressWarnings({ "rawtypes" })
     public SignedInfo newSignedInfo(CanonicalizationMethod cm,
-        SignatureMethod sm, List references) {
+        SignatureMethod sm, @SuppressWarnings("rawtypes") List references) {
         return newSignedInfo(cm, sm, references, null);
     }
 
     @Override
-    @SuppressWarnings({ "unchecked", "rawtypes" })
+    @SuppressWarnings("unchecked")
     public SignedInfo newSignedInfo(CanonicalizationMethod cm,
-        SignatureMethod sm, List references, String id) {
+        SignatureMethod sm, @SuppressWarnings("rawtypes") List references, String id) {
         return new DOMSignedInfo(cm, sm, references, id);
     }
 
     // Object factory methods
     @Override
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-    public XMLObject newXMLObject(List content, String id, String mimeType,
+    @SuppressWarnings("unchecked")
+    public XMLObject newXMLObject(@SuppressWarnings("rawtypes") List content, String id, String mimeType,
         String encoding) {
         return new DOMXMLObject(content, id, mimeType, encoding);
     }
 
     @Override
-    @SuppressWarnings({ "rawtypes" })
-    public Manifest newManifest(List references) {
+    public Manifest newManifest(@SuppressWarnings("rawtypes") List references) {
         return newManifest(references, null);
     }
 
     @Override
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-    public Manifest newManifest(List references, String id) {
+    @SuppressWarnings("unchecked")
+    public Manifest newManifest(@SuppressWarnings("rawtypes") List references, String id) {
         return new DOMManifest(references, id);
     }
 
     @Override
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-    public SignatureProperties newSignatureProperties(List props, String id) {
+    @SuppressWarnings("unchecked")
+    public SignatureProperties newSignatureProperties(@SuppressWarnings("rawtypes") List props, String id) {
         return new DOMSignatureProperties(props, id);
     }
 
     @Override
-    @SuppressWarnings({ "unchecked", "rawtypes" })
+    @SuppressWarnings("unchecked")
     public SignatureProperty newSignatureProperty
-        (List info, String target, String id) {
+        (@SuppressWarnings("rawtypes") List info, String target, String id) {
         return new DOMSignatureProperty(info, target, id);
     }
 

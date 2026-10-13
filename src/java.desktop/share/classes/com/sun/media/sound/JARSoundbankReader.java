@@ -72,7 +72,6 @@ public final class JARSoundbankReader extends SoundbankReader {
     }
 
     @Override
-    @SuppressWarnings("deprecation")
     public Soundbank getSoundbank(URL url)
             throws InvalidMidiDataException, IOException {
         Objects.requireNonNull(url);
@@ -93,6 +92,7 @@ public final class JARSoundbankReader extends SoundbankReader {
                     try {
                         Class<?> c = Class.forName(line.trim(), false, ucl);
                         if (Soundbank.class.isAssignableFrom(c)) {
+                            @SuppressWarnings("deprecation")
                             Object o = c.newInstance();
                             soundbanks.add((Soundbank) o);
                         }

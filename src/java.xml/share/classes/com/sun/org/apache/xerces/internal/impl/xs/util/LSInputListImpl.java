@@ -34,7 +34,6 @@ import org.w3c.dom.ls.LSInput;
  *
  * @LastModified: Oct 2017
  */
-@SuppressWarnings("unchecked") // method <T>toArray(T[])
 public final class LSInputListImpl extends AbstractList<LSInput> implements LSInputList {
 
     /**
@@ -103,6 +102,7 @@ public final class LSInputListImpl extends AbstractList<LSInput> implements LSIn
         return a;
     }
 
+    @SuppressWarnings("unchecked")
     public Object[] toArray(Object[] a) {
         if (a.length < fLength) {
             Class<?> arrayClass = a.getClass();

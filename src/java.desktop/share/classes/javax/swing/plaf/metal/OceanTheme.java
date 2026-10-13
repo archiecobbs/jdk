@@ -50,7 +50,6 @@ import sun.swing.PrintColorUIResource;
  * @since 1.5
  * @see MetalLookAndFeel#setCurrentTheme
  */
-@SuppressWarnings("serial") // Superclass is not serializable across versions
 public class OceanTheme extends DefaultMetalTheme {
     private static final ColorUIResource PRIMARY1 =
                               new ColorUIResource(0x6382BF);
@@ -79,6 +78,7 @@ public class OceanTheme extends DefaultMetalTheme {
 
     // ComponentOrientation Icon
     // Delegates to different icons based on component orientation
+    @SuppressWarnings("serial") // Superclass is not serializable across versions
     private static class COIcon extends IconUIResource {
         private Icon rtl;
 

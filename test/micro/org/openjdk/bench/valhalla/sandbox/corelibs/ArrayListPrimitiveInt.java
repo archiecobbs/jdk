@@ -288,12 +288,10 @@ public class ArrayListPrimitiveInt
 
     // Positional Access Operations
 
-    @SuppressWarnings("unchecked")
     PrimitiveInt elementData(int index) {
         return (PrimitiveInt) elementData[index];
     }
 
-    @SuppressWarnings("unchecked")
     static PrimitiveInt elementAt(PrimitiveInt[] es, int index) {
         return es[index];
     }
@@ -600,7 +598,6 @@ public class ArrayListPrimitiveInt
             return cursor != size;
         }
 
-        @SuppressWarnings("unchecked")
         public PrimitiveInt next() {
             checkForComodification();
             int i = cursor;

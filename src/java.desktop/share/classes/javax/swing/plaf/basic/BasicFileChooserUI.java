@@ -691,7 +691,6 @@ public class BasicFileChooserUI extends FileChooserUI {
         public void mouseReleased(MouseEvent evt) {
         }
 
-        @SuppressWarnings("deprecation")
         public void valueChanged(ListSelectionEvent evt) {
             if(!evt.getValueIsAdjusting()) {
                 JFileChooser chooser = getFileChooser();
@@ -704,6 +703,7 @@ public class BasicFileChooserUI extends FileChooserUI {
 
                 if (chooser.isMultiSelectionEnabled()) {
                     File[] files = null;
+                    @SuppressWarnings("deprecation")
                     Object[] objects = list.getSelectedValues();
                     if (objects != null) {
                         if (objects.length == 1

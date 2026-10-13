@@ -1163,7 +1163,6 @@ public class AWTEventMulticaster implements
      *
      * @since 1.4
      */
-    @SuppressWarnings("unchecked")
     public static <T extends EventListener> T[]
         getListeners(EventListener l, Class<T> listenerType)
     {
@@ -1172,6 +1171,7 @@ public class AWTEventMulticaster implements
         }
 
         int n = getListenerCount(l, listenerType);
+        @SuppressWarnings("unchecked")
         T[] result = (T[])Array.newInstance(listenerType, n);
         populateListenerArray(result, l, 0);
         return result;

@@ -48,7 +48,6 @@ import sun.swing.SwingUtilities2;
  *
  * @author Scott Violet
  */
-@SuppressWarnings("serial") // Same-version serialization only
 public class FixedHeightLayoutCache extends AbstractLayoutCache {
     /** Root node. */
     private FHTreeStateNode    root;
@@ -744,6 +743,7 @@ public class FixedHeightLayoutCache extends AbstractLayoutCache {
      * FHTreeStateNode result in the TreeModel being queried. And it
      * obviously does not support variable sized row heights.
      */
+    @SuppressWarnings("serial") // Same-version serialization only
     private class FHTreeStateNode extends DefaultMutableTreeNode {
         /** Is this node expanded? */
         protected boolean         isExpanded;

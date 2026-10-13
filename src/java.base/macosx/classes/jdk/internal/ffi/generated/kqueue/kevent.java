@@ -45,7 +45,6 @@ import static java.lang.foreign.ValueLayout.*;
  * }
  * }
  */
-@SuppressWarnings("restricted")
 public class kevent {
 
     kevent() {
@@ -372,6 +371,7 @@ public class kevent {
      * Reinterprets {@code addr} using target {@code arena} and {@code cleanupAction} (if any).
      * The returned segment has size {@code elementCount * layout().byteSize()}
      */
+    @SuppressWarnings("restricted")
     public static MemorySegment reinterpret(MemorySegment addr, long elementCount, Arena arena, Consumer<MemorySegment> cleanup) {
         return addr.reinterpret(layout().byteSize() * elementCount, arena, cleanup);
     }

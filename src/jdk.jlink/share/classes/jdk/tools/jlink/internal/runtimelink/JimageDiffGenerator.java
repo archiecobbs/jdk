@@ -48,7 +48,6 @@ public class JimageDiffGenerator {
      * delta can can then be used for jlink input together *with* a prepared
      * run-time image.
      */
-    @SuppressWarnings("try")
     public interface ImageResource extends AutoCloseable {
         public List<String> getEntries();
         public byte[] getResourceBytes(String name);

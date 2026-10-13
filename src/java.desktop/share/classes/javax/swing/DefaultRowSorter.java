@@ -945,7 +945,6 @@ public abstract class DefaultRowSorter<M, I> extends RowSorter<M> {
         return true;
     }
 
-    @SuppressWarnings("unchecked")
     private int compare(int model1, int model2) {
         int column;
         SortOrder sortOrder;
@@ -976,6 +975,7 @@ public abstract class DefaultRowSorter<M, I> extends RowSorter<M> {
                 } else if (v2 == null) {
                     result = 1;
                 } else {
+                    @SuppressWarnings("unchecked")
                     Comparator<Object> c =
                         (Comparator<Object>)sortComparators[counter];
                     result = c.compare(v1, v2);

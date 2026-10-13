@@ -1222,7 +1222,6 @@ public class LineReaderImpl implements LineReader, Flushable {
         }
     }
 
-    @SuppressWarnings("unchecked")
     protected Widget getWidget(Object binding) {
         Widget w;
         if (binding instanceof Widget) {
@@ -5387,7 +5386,6 @@ public class LineReaderImpl implements LineReader, Flushable {
         return new PostResult(sb.toAttributedString(), out[0], out[1]);
     }
 
-    @SuppressWarnings("unchecked")
     protected void toColumns(
             Object items,
             int width,
@@ -5423,6 +5421,7 @@ public class LineReaderImpl implements LineReader, Flushable {
         }
         // This is a Candidate list
         else if (items instanceof List) {
+            @SuppressWarnings("unchecked")
             List<Candidate> candidates = (List<Candidate>) items;
             maxWidth = Math.min(width, maxWidth);
             int c = width / maxWidth;

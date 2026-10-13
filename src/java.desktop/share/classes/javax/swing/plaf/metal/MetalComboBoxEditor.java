@@ -45,7 +45,6 @@ import javax.swing.plaf.basic.BasicComboBoxEditor;
  *
  * @author Steve Wilson
  */
-@SuppressWarnings("serial") // Same-version serialization only
 public class MetalComboBoxEditor extends BasicComboBoxEditor {
 
     /**
@@ -87,6 +86,7 @@ public class MetalComboBoxEditor extends BasicComboBoxEditor {
     */
     protected static Insets editorBorderInsets = new Insets( 2, 2, 2, 0 );
 
+    @SuppressWarnings("serial") // Same-version serialization only
     static class EditorBorder extends AbstractBorder {
         public void paintBorder(Component c, Graphics g, int x, int y, int w, int h) {
             g.translate( x, y );

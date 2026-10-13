@@ -1169,7 +1169,6 @@ public class XArrayList<E> extends AbstractList<E>
             return cursor.advance().exists();
         }
 
-        @SuppressWarnings("unchecked")
         public E next() {
             E val = cursor.get();
             lastRet = cursor;

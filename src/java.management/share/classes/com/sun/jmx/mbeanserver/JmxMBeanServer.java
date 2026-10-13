@@ -211,7 +211,6 @@ public final class JmxMBeanServer
      *        java.util.concurrent.locks.ReentrantReadWriteLock#ReentrantReadWriteLock(boolean)
      *        fair locking} policy.
      */
-    @SuppressWarnings("removal")
     JmxMBeanServer(String domain, MBeanServer outer,
                    MBeanServerDelegate    delegate,
                    MBeanInstantiator      instantiator,
@@ -1177,7 +1176,6 @@ public final class JmxMBeanServer
      * Initializes this MBeanServer, registering the MBeanServerDelegate.
      * <p>This method must be called once, before using the MBeanServer.
      **/
-    @SuppressWarnings("removal")
     private void initialize() {
         if (instantiator == null) throw new
             IllegalStateException("instantiator must not be null.");

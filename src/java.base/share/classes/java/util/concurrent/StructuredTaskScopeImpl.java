@@ -61,7 +61,6 @@ final class StructuredTaskScopeImpl<T, R, R_X extends Throwable>
     // set by the timer thread, read by the owner thread
     private volatile boolean timeoutExpired;
 
-    @SuppressWarnings("this-escape")
     private StructuredTaskScopeImpl(Joiner<? super T, ? extends R, R_X> joiner,
                                     ThreadFactory threadFactory,
                                     String name) {

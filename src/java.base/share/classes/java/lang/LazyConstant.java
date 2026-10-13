@@ -310,7 +310,6 @@ public sealed interface LazyConstant<T>
      *                              {@code null}
      *
      */
-    @SuppressWarnings("unchecked")
     static <T> LazyConstant<T> of(Supplier<? extends T> computingFunction) {
         Objects.requireNonNull(computingFunction);
         return LazyConstantImpl.ofLazy(computingFunction);

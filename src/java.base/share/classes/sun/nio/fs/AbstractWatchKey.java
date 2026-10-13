@@ -122,7 +122,6 @@ abstract class AbstractWatchKey implements WatchKey {
     /**
      * Adds the event to this key and signals it.
      */
-    @SuppressWarnings("unchecked")
     final void signalEvent(WatchEvent.Kind<?> kind, Object context) {
         boolean isModify = (kind == StandardWatchEventKinds.ENTRY_MODIFY);
         synchronized (this) {
@@ -166,6 +165,7 @@ abstract class AbstractWatchKey implements WatchKey {
             }
 
             // non-repeated event
+            @SuppressWarnings("unchecked")
             Event<Object> ev =
                 new Event<>((WatchEvent.Kind<Object>)kind, context);
             if (isModify) {

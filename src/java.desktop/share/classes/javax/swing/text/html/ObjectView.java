@@ -91,7 +91,6 @@ public class ObjectView extends ComponentView  {
      * as a specification of the classname, which
      * we try to load.
      */
-    @SuppressWarnings("deprecation")
     protected Component createComponent() {
         if (!createComp) {
             return getUnloadableRepresentation();
@@ -102,6 +101,7 @@ public class ObjectView extends ComponentView  {
             Class<?> c = Class.forName(classname, false,Thread.currentThread().
                                        getContextClassLoader());
             if (Component.class.isAssignableFrom(c)) {
+                @SuppressWarnings("deprecation")
                 Object o = c.newInstance();
                 if (o instanceof Component) {
                     Component comp = (Component) o;

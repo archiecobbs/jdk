@@ -63,8 +63,7 @@ class NameGenerator {
     /**
      * Returns the root name of the class.
      */
-    @SuppressWarnings("rawtypes")
-    public static String unqualifiedClassName(Class type) {
+    public static String unqualifiedClassName(@SuppressWarnings("rawtypes") Class type) {
         if (type.isArray()) {
             return unqualifiedClassName(type.getComponentType())+"Array";
         }

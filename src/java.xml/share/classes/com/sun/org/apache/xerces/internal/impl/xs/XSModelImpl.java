@@ -59,7 +59,6 @@ import java.util.NoSuchElementException;
  *
  * @LastModified: Oct 2017
  */
-@SuppressWarnings("unchecked") // method <T>toArray(T[])
 public final class XSModelImpl extends AbstractList<XSNamespaceItem> implements XSModel, XSNamespaceItemList {
 
     // the max index / the max value of XSObject type
@@ -788,6 +787,7 @@ public final class XSModelImpl extends AbstractList<XSNamespaceItem> implements 
         return a;
     }
 
+    @SuppressWarnings("unchecked")
     public Object[] toArray(Object[] a) {
         if (a.length < fGrammarCount) {
             Class<?> arrayClass = a.getClass();

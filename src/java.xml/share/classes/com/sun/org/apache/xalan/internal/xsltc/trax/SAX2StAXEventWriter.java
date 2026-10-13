@@ -125,7 +125,7 @@ public class SAX2StAXEventWriter extends SAX2StAXBaseWriter {
 
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings("unchecked")
     public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
         if (needToCallStartDocument) {
             writeStartDocument();
@@ -135,6 +135,7 @@ public class SAX2StAXEventWriter extends SAX2StAXBaseWriter {
         eventFactory.setLocation(getCurrentLocation());
 
         // create attribute and namespace events
+        @SuppressWarnings("rawtypes")
         Collection[] events = {null, null};
         createStartEvents(attributes, events);
 

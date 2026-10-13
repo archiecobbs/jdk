@@ -161,7 +161,6 @@ class LineView extends ParagraphView {
     /**
      * Returns the location for the tab.
      */
-    @SuppressWarnings("deprecation")
     protected float getPreTab(float x, int tabOffset) {
         Document d = getDocument();
         View v = getViewAtPosition(tabOffset, null);
@@ -169,6 +168,7 @@ class LineView extends ParagraphView {
             // Assume f is fixed point.
             Font f = ((StyledDocument)d).getFont(v.getAttributes());
             Container c = getContainer();
+            @SuppressWarnings("deprecation")
             FontMetrics fm = (c != null) ? c.getFontMetrics(f) :
                 Toolkit.getDefaultToolkit().getFontMetrics(f);
             int width = getCharactersPerTab() * fm.charWidth('W');

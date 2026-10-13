@@ -663,7 +663,6 @@ public class PKCS7 {
      * Populate array of Issuer DNs from certificates and convert
      * each Principal to type X500Name if necessary.
      */
-    @SuppressWarnings("deprecation")
     private void populateCertIssuerNames() {
         if (certificates == null)
             return;
@@ -671,6 +670,7 @@ public class PKCS7 {
         certIssuerNames = new Principal[certificates.length];
         for (int i = 0; i < certificates.length; i++) {
             X509Certificate cert = certificates[i];
+            @SuppressWarnings("deprecation")
             Principal certIssuerName = cert.getIssuerDN();
             if (!(certIssuerName instanceof X500Name)) {
                 // must extract the original encoded form of DN for

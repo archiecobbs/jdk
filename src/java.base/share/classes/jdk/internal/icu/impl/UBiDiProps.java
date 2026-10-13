@@ -199,7 +199,6 @@ public final class UBiDiProps {
     private Trie2_16 trie;
 
     // data format constants ----------------------------------------------- ***
-    @SuppressWarnings("deprecation")
     private static final String DATA_FILE_NAME =
             "/jdk/internal/icu/impl/data/icudata/ubidi.icu";
 

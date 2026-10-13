@@ -37,7 +37,6 @@ import java.util.NoSuchElementException;
  *
  * @LastModified: Oct 2017
  */
-@SuppressWarnings("unchecked") // method <T>toArray(T[])
 public class XSObjectListImpl extends AbstractList<XSObject> implements XSObjectList {
 
     /**
@@ -205,6 +204,7 @@ public class XSObjectListImpl extends AbstractList<XSObject> implements XSObject
         return a;
     }
 
+    @SuppressWarnings("unchecked")
     public Object[] toArray(Object[] a) {
         if (a.length < fLength) {
             Class<?> arrayClass = a.getClass();

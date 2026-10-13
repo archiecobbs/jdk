@@ -359,7 +359,6 @@ public class SignatureAlgorithm extends Algorithm {
      * @throws SecurityException if a security manager is installed and the
      *    caller does not have permission to register the signature algorithm
      */
-    @SuppressWarnings("unchecked")
     public static void register(String algorithmURI, String implementingClass)
        throws AlgorithmAlreadyRegisteredException, ClassNotFoundException,
            XMLSignatureException {
@@ -375,6 +374,7 @@ public class SignatureAlgorithm extends Algorithm {
             );
         }
         try {
+            @SuppressWarnings("unchecked")
             Class<? extends SignatureAlgorithmSpi> clazz =
                 (Class<? extends SignatureAlgorithmSpi>)
                     ClassLoaderUtils.loadClass(implementingClass, SignatureAlgorithm.class);

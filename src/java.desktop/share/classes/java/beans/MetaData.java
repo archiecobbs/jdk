@@ -1290,8 +1290,8 @@ static final class sun_swing_PrintColorUIResource_PersistenceDelegate extends Pe
         internalPersistenceDelegates.put("java.sql.Time", new java_util_Date_PersistenceDelegate());
     }
 
-    @SuppressWarnings({"rawtypes", "deprecation"})
-    public static synchronized PersistenceDelegate getPersistenceDelegate(Class type) {
+    @SuppressWarnings("deprecation")
+    public static synchronized PersistenceDelegate getPersistenceDelegate(@SuppressWarnings("rawtypes") Class type) {
         if (type == null) {
             return nullPersistenceDelegate;
         }

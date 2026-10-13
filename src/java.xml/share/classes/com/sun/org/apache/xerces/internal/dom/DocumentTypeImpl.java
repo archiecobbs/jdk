@@ -536,7 +536,6 @@ public class DocumentTypeImpl
         out.writeFields();
     }
 
-    @SuppressWarnings("unchecked")
     private void readObject(ObjectInputStream in)
                         throws IOException, ClassNotFoundException {
         // We have to read serialized fields first.
@@ -550,6 +549,7 @@ public class DocumentTypeImpl
         internalSubset = (String)gf.get("internalSubset", null);
         doctypeNumber = gf.get("doctypeNumber", 0);
 
+        @SuppressWarnings("unchecked")
         Hashtable<String, UserDataRecord> ud =
                 (Hashtable<String, UserDataRecord>)gf.get("userData", null);
 

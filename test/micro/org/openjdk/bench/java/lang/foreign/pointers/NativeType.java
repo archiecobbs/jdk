@@ -79,7 +79,6 @@ public sealed abstract class NativeType<X> {
         }
     };
 
-    @SuppressWarnings("unchecked")
     final static OfPointer C_VOID_PTR = new OfPointer();
 
     @SuppressWarnings("unchecked")

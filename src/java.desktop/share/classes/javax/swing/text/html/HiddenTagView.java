@@ -129,9 +129,9 @@ class HiddenTagView extends EditableView implements DocumentListener {
 
     // local methods
 
-    @SuppressWarnings("deprecation")
     void updateYAlign(Font font) {
         Container c = getContainer();
+        @SuppressWarnings("deprecation")
         FontMetrics fm = (c != null) ? c.getFontMetrics(font) :
             Toolkit.getDefaultToolkit().getFontMetrics(font);
         float h = fm.getHeight();

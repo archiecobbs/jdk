@@ -138,7 +138,6 @@ abstract sealed class AbstractSpecies<E> extends jdk.internal.vm.vector.VectorSu
     }
 
     @ForceInline
-    @SuppressWarnings("unchecked")
     //NOT FINAL: SPECIALIZED
     int laneTypeOrdinal() {
         return laneType.ordinal();

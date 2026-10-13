@@ -2612,8 +2612,8 @@ public class StyleSheet extends StyleContext {
             }
         }
 
-        @SuppressWarnings("deprecation")
         void paint(Graphics g, float x, float y, float w, float h, View v) {
+            @SuppressWarnings("deprecation")
             Rectangle clip = g.getClipRect();
             if (clip != null) {
                 // Constrain the clip so that images don't draw outside the

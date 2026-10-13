@@ -133,12 +133,12 @@ public final class DebugSettings {
     /*
      * Sets up default property values
      */
-    @SuppressWarnings("deprecation")
     private void loadDefaultProperties() {
         // is there a more inefficient way to setup default properties?
         // maybe, but this has got to be close to 100% non-optimal
         try {
             for ( int nprop = 0; nprop < DEFAULT_PROPS.length; nprop++ ) {
+                @SuppressWarnings("deprecation")
                 StringBufferInputStream in = new StringBufferInputStream(DEFAULT_PROPS[nprop]);
                 props.load(in);
                 in.close();

@@ -240,12 +240,13 @@ class ComparableTimSort {
      * @param start the index of the first element in the range that is
      *        not already known to be sorted ({@code lo <= start <= hi})
      */
-    @SuppressWarnings({"fallthrough", "rawtypes", "unchecked"})
+    @SuppressWarnings({"fallthrough", "unchecked"})
     private static void binarySort(Object[] a, int lo, int hi, int start) {
         assert lo <= start && start <= hi;
         if (start == lo)
             start++;
         for ( ; start < hi; start++) {
+            @SuppressWarnings("rawtypes")
             Comparable pivot = (Comparable) a[start];
 
             // Set left (and right) to the index where a[start] (pivot) belongs

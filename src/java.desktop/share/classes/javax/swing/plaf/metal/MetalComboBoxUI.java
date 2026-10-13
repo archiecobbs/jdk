@@ -51,7 +51,6 @@ import java.beans.*;
  * @see MetalComboBoxButton
  * @author Tom Santos
  */
-@SuppressWarnings("serial") // Same-version serialization only
 public class MetalComboBoxUI extends BasicComboBoxUI {
 
     /**
@@ -399,6 +398,7 @@ public class MetalComboBoxUI extends BasicComboBoxUI {
      * @deprecated As of Java 2 platform v1.4.
      */
     @Deprecated
+    @SuppressWarnings("serial") // Same-version serialization only
     public class MetalComboPopup extends BasicComboPopup {
 
         /**

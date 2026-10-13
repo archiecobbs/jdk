@@ -94,10 +94,10 @@ final class LazyCollections {
         }
 
         @Override
-        @SuppressWarnings("unchecked")
         public <T> T[] toArray(T[] a) {
             if (a.length < size) {
                 // Make a new array of a's runtime type, but my contents:
+                @SuppressWarnings("unchecked")
                 T[] n = (T[]) Array.newInstance(a.getClass().getComponentType(), size);
                 return copyInto(n);
             }
@@ -328,10 +328,10 @@ final class LazyCollections {
             return getOrDefault(key, null);
         }
 
-        @SuppressWarnings("unchecked")
         @ForceInline
         final V orElseCompute(K key, int index) {
             final long offset = offsetFor(index);
+            @SuppressWarnings("unchecked")
             final V v = (V) UNSAFE.getReferenceAcquire(values, offset);
             if (v != null) {
                 return v;

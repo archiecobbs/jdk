@@ -33,7 +33,6 @@ import jdk.internal.vm.vector.VectorSupport;
 
 import static jdk.incubator.vector.VectorOperators.*;
 
-@SuppressWarnings("cast")
 abstract sealed class AbstractVector<E> extends Vector<E>
         permits ByteVector, DoubleVector, FloatVector, IntVector, LongVector, ShortVector, Float16Vector {
     /**
@@ -177,11 +176,12 @@ abstract sealed class AbstractVector<E> extends Vector<E>
 
     /*package-private*/
     @ForceInline
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     final AbstractVector<?> asVectorRawTemplate(LaneType laneType) {
         // NOTE:  This assumes that convert0('X')
         // respects REGISTER_ENDIAN order.
         AbstractSpecies<E> srcSpecies = vspecies();
+        @SuppressWarnings("rawtypes")
         AbstractSpecies dstSpecies = srcSpecies.withLanes(laneType);
         return dstSpecies.swapIfNeeded(srcSpecies, convert0('X', dstSpecies));
     }
@@ -668,6 +668,7 @@ abstract sealed class AbstractVector<E> extends Vector<E>
      */
     /*package-private*/
     @ForceInline
+    @SuppressWarnings("cast")
     final <F>
     AbstractVector<F> defaultCast(AbstractSpecies<F> dsp) {
         int rlength = dsp.laneCount;

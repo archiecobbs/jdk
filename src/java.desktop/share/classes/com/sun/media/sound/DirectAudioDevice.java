@@ -1365,9 +1365,8 @@ final class DirectAudioDevice extends AbstractMixer {
 
     } // class DirectBAOS
 
-    @SuppressWarnings("rawtypes")
     private static native void nGetFormats(int mixerIndex, int deviceID,
-                                           boolean isSource, Vector formats);
+                                           boolean isSource, @SuppressWarnings("rawtypes") Vector formats);
 
     private static native long nOpen(int mixerIndex, int deviceID, boolean isSource,
                                      int encoding,

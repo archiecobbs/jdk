@@ -193,7 +193,6 @@ public interface TypeDescriptor {
          * @throws IndexOutOfBoundsException if {@code pos} is outside the closed
          * range {[0, parameterCount]}
          */
-        @SuppressWarnings("unchecked")
-        M insertParameterTypes(int pos, F... paramTypes);
+        M insertParameterTypes(int pos, @SuppressWarnings("unchecked") F... paramTypes);
     }
 }

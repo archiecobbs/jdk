@@ -432,11 +432,11 @@ public class MethodGenerator extends MethodGen
          * {@link #lookUpByName(String)}
          * @param lvg a <code>LocalVariableGen</code>
          */
-        @SuppressWarnings("unchecked")
         protected void removeByNameTracking(LocalVariableGen lvg) {
             Object duplicateNameEntry = _nameToLVGMap.get(lvg.getName());
 
             if (duplicateNameEntry instanceof ArrayList) {
+                @SuppressWarnings("unchecked")
                 List<LocalVariableGen> sameNameList =
                         (List<LocalVariableGen>)duplicateNameEntry;
                 for (int i = 0; i < sameNameList.size(); i++) {
@@ -458,12 +458,12 @@ public class MethodGenerator extends MethodGen
          * @param name
          * @return
          */
-        @SuppressWarnings("unchecked")
         protected LocalVariableGen lookUpByName(String name) {
             LocalVariableGen lvg = null;
             Object duplicateNameEntry = _nameToLVGMap.get(name);
 
             if (duplicateNameEntry instanceof ArrayList) {
+                @SuppressWarnings("unchecked")
                 List<LocalVariableGen> sameNameList =
                         (List<LocalVariableGen>)duplicateNameEntry;
 
@@ -490,7 +490,6 @@ public class MethodGenerator extends MethodGen
          * @return an array of {@code LocalVariableGen} containing all the
          * local variables
          */
-        @SuppressWarnings("unchecked")
         private LocalVariableGen[] getLocals() {
             LocalVariableGen[] locals = null;
             List<LocalVariableGen> allVarsEverDeclared = new ArrayList<>();
@@ -499,6 +498,7 @@ public class MethodGenerator extends MethodGen
                 Object vars = nameVarsPair.getValue();
                 if (vars != null) {
                     if (vars instanceof ArrayList) {
+                        @SuppressWarnings("unchecked")
                         List<LocalVariableGen> varsList =
                                 (List<LocalVariableGen>) vars;
                         for (int i = 0; i < varsList.size(); i++) {

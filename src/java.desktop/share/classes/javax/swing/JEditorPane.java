@@ -874,7 +874,6 @@ public class JEditorPane extends JTextComponent {
      *
      * @param reference the named location to scroll to
      */
-    @SuppressWarnings("deprecation")
     public void scrollToReference(String reference) {
         Document d = getDocument();
         if (d instanceof HTMLDocument) {
@@ -887,6 +886,7 @@ public class JEditorPane extends JTextComponent {
                     // found a matching reference in the document.
                     try {
                         int pos = iter.getStartOffset();
+                        @SuppressWarnings("deprecation")
                         Rectangle r = modelToView(pos);
                         if (r != null) {
                             // the view is visible, scroll it to the

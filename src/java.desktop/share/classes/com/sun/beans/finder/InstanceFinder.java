@@ -86,7 +86,6 @@ class InstanceFinder<T> {
         return null;
     }
 
-    @SuppressWarnings("deprecation")
     protected T instantiate(Class<?> type, String name) {
         if (type != null) {
             try {
@@ -94,7 +93,7 @@ class InstanceFinder<T> {
                     type = ClassFinder.findClass(name, type.getClassLoader());
                 }
                 if (this.type.isAssignableFrom(type)) {
-                    @SuppressWarnings("unchecked")
+                    @SuppressWarnings({ "deprecation", "unchecked" })
                     T tmp = (T) type.newInstance();
                     return tmp;
                 }

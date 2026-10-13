@@ -612,7 +612,6 @@ public class LingeredApp {
      * This part is the application itself. First arg is optional "forceCrash".
      * Following arg is the lock file name.
      */
-    @SuppressWarnings("restricted")
     public static void main(String args[]) {
         // Checks the property directly so the app keeps working with a minimal classpath.
         if ("Virtual".equals(System.getProperty("test.thread.factory"))) {

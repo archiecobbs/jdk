@@ -155,7 +155,6 @@ public class SwingUtilities2 {
     private static final StringBuilder SKIP_CLICK_COUNT =
         new StringBuilder("skipClickCount");
 
-    @SuppressWarnings("unchecked")
     public static void putAATextInfo(boolean lafCondition,
             Map<Object, Object> map) {
         SunToolkit.setAAFontSettingsCondition(lafCondition);
@@ -163,6 +162,7 @@ public class SwingUtilities2 {
         Object desktopHints = tk.getDesktopProperty(SunToolkit.DESKTOPFONTHINTS);
 
         if (desktopHints instanceof Map) {
+            @SuppressWarnings("unchecked")
             Map<Object, Object> hints = (Map<Object, Object>) desktopHints;
             Object aaHint = hints.get(KEY_TEXT_ANTIALIASING);
             if (aaHint == null

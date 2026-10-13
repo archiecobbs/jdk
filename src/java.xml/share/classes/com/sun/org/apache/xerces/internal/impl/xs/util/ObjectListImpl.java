@@ -31,7 +31,6 @@ import java.util.AbstractList;
  *
  * @LastModified: Oct 2017
  */
-@SuppressWarnings("unchecked") // method <T>toArray(T[])
 public final class ObjectListImpl extends AbstractList<Object> implements ObjectList {
 
     /**
@@ -97,6 +96,7 @@ public final class ObjectListImpl extends AbstractList<Object> implements Object
         return a;
     }
 
+    @SuppressWarnings("unchecked")
     public Object[] toArray(Object[] a) {
         if (a.length < fLength) {
             Class<?> arrayClass = a.getClass();

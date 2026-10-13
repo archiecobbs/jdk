@@ -251,12 +251,10 @@ public class ArrayListInt
 
     // Positional Access Operations
 
-    @SuppressWarnings("unchecked")
     int elementData(int index) {
         return (int) elementData[index];
     }
 
-    @SuppressWarnings("unchecked")
     static int elementAt(int[] es, int index) {
         return es[index];
     }
@@ -563,7 +561,6 @@ public class ArrayListInt
             return cursor != size;
         }
 
-        @SuppressWarnings("unchecked")
         public int next() {
             checkForComodification();
             int i = cursor;

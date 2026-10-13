@@ -799,9 +799,9 @@ public abstract class JTextComponent extends JComponent implements Scrollable, A
      * @param p the point to calculate a drop location for
      * @return the drop location, or <code>null</code>
      */
-    @SuppressWarnings("deprecation")
     DropLocation dropLocationForPoint(Point p) {
         Position.Bias[] bias = new Position.Bias[1];
+        @SuppressWarnings("deprecation")
         int index = getUI().viewToModel(this, p, bias);
 
         // viewToModel currently returns null for some HTML content

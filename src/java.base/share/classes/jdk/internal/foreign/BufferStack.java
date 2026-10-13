@@ -164,7 +164,6 @@ public final class BufferStack {
 
             @ForceInline
             @Override
-            @SuppressWarnings("restricted")
             public MemorySegment allocate(long byteSize, long byteAlignment) {
                 // Make sure we are on the right thread and not closed
                 MemorySessionImpl.toMemorySession(confinedArena).checkValidState();

@@ -742,10 +742,9 @@ public abstract class SunToolkit extends Toolkit
         return false;
     }
 
-    @SuppressWarnings("try")
     protected static boolean imageExists(URL url) {
         if (url != null) {
-            try (InputStream is = url.openStream()) {
+            try (@SuppressWarnings("try") InputStream is = url.openStream()) {
                 return true;
             }catch(IOException e){
                 return false;

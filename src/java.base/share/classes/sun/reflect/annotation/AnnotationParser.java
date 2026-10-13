@@ -441,8 +441,8 @@ public class AnnotationParser {
      *           u2   const_name_index;
      *       } enum_const_value;
      */
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    private static Object parseEnumValue(Class<? extends Enum> enumType, ByteBuffer buf,
+    @SuppressWarnings("unchecked")
+    private static Object parseEnumValue(@SuppressWarnings("rawtypes") Class<? extends Enum> enumType, ByteBuffer buf,
                                          ConstantPool constPool,
                                          Class<?> container) {
         int typeNameIndex = buf.getShort() & 0xFFFF;

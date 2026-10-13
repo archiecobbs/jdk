@@ -299,8 +299,7 @@ public final class StringContent implements AbstractDocument.Content, Serializab
      *
      * @param positions the positions of the instances
      */
-    @SuppressWarnings("rawtypes") // UndoPosRef type cannot be exposed
-    protected void updateUndoPositions(Vector positions) {
+    protected void updateUndoPositions(@SuppressWarnings("rawtypes") Vector positions) { // UndoPosRef type cannot be exposed
         for(int counter = positions.size() - 1; counter >= 0; counter--) {
             UndoPosRef ref = (UndoPosRef) positions.elementAt(counter);
             // Check if the Position is still valid.

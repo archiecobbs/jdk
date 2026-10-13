@@ -535,7 +535,6 @@ public class MotifLookAndFeel extends BasicLookAndFeel
 
         Object optionPaneMessageAreaBorder = new BorderUIResource.EmptyBorderUIResource(10,10,12,10);
 
-        @SuppressWarnings("deprecation")
         final int metaMask = KeyEvent.META_MASK;
         Object commonInputMap = new UIDefaults.LazyInputMap(new Object[] {
                 "SPACE", "pressed",

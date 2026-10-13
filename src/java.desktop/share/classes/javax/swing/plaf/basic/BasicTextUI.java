@@ -2294,7 +2294,6 @@ public abstract class BasicTextUI extends TextUI implements ViewFactory {
          * <li>the press event is located over a selection
          * </ul>
          */
-        @SuppressWarnings("deprecation")
         protected boolean isDragPossible(MouseEvent e) {
             JTextComponent c = (JTextComponent)e.getSource();
             if (c.isEnabled()) {
@@ -2303,6 +2302,7 @@ public abstract class BasicTextUI extends TextUI implements ViewFactory {
                 int mark = caret.getMark();
                 if (dot != mark) {
                     Point p = new Point(e.getX(), e.getY());
+                    @SuppressWarnings("deprecation")
                     int pos = c.viewToModel(p);
 
                     int p0 = Math.min(dot, mark);

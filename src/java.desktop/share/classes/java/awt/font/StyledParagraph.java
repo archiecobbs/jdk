@@ -341,10 +341,10 @@ final class StyledParagraph {
      * starts array does not have room for the index, a
      * new array is created and returned.
      */
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings("unchecked")
     private static int[] addToVector(Object obj,
                                      int index,
-                                     Vector v,
+                                     @SuppressWarnings("rawtypes") Vector v,
                                      int[] starts) {
 
         if (!v.lastElement().equals(obj)) {

@@ -2455,7 +2455,6 @@ public class BasicTreeUI extends TreeUI
      * @param messageCancel message to cancel editing
      * @param messageTree message to tree
      */
-    @SuppressWarnings("deprecation")
     protected void completeEditing(boolean messageStop,
                                    boolean messageCancel,
                                    boolean messageTree) {
@@ -2466,6 +2465,7 @@ public class BasicTreeUI extends TreeUI
             Object                newValue = oldEditor.getCellEditorValue();
             Rectangle             editingBounds = getPathBounds(tree,
                                                                 editingPath);
+            @SuppressWarnings("deprecation")
             boolean               requestFocus = (tree != null &&
                                    (tree.hasFocus() || SwingUtilities.
                                     findFocusOwner(editingComponent) != null));

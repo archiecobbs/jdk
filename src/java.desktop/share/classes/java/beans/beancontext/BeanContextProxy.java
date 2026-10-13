@@ -72,7 +72,6 @@ package java.beans.beancontext;
  * @see java.beans.beancontext.BeanContextChildSupport
  */
 
-@SuppressWarnings("removal")
 @Deprecated(since = "23", forRemoval = true)
 public interface BeanContextProxy {
 
@@ -82,5 +81,6 @@ public interface BeanContextProxy {
      * @return the {@code BeanContextChild} (or subinterface)
      * associated with this object
      */
+    @SuppressWarnings("removal")
     BeanContextChild getBeanContextProxy();
 }

@@ -69,9 +69,8 @@ public final class JrtFileSystemProvider extends FileSystemProvider {
     /**
      * Need RuntimePermission "accessSystemModules" to create or get jrt:/
      */
-    @SuppressWarnings("removal")
+    @SuppressWarnings({ "removal", "suppression" })
     private void checkPermission() {
-        @SuppressWarnings({ "removal", "suppression" })
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             RuntimePermission perm = new RuntimePermission("accessSystemModules");

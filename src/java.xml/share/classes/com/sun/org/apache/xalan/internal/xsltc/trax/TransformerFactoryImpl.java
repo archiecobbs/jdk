@@ -618,9 +618,9 @@ public class TransformerFactoryImpl
      * @return 'true' if feature is supported, 'false' if not
      */
     @Override
-    @SuppressWarnings("deprecation")
     public boolean getFeature(String name) {
         // All supported features should be listed here
+        @SuppressWarnings("deprecation")
         String[] features = {
             DOMSource.FEATURE,
             DOMResult.FEATURE,

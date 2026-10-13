@@ -394,7 +394,6 @@ implements Serializable
      * permsMap field. Reads in allPermission.
      */
     @java.io.Serial
-    @SuppressWarnings("removal")
     private void readObject(ObjectInputStream in) throws IOException,
     ClassNotFoundException {
         // Don't call defaultReadObject()
@@ -436,6 +435,7 @@ implements Serializable
         }
 
         // Set hasUnresolved
+        @SuppressWarnings("removal")
         UnresolvedPermissionCollection uc =
         (UnresolvedPermissionCollection) permsMap.get(UnresolvedPermission.class);
         hasUnresolved = (uc != null && uc.elements().hasMoreElements());

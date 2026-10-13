@@ -90,7 +90,6 @@ public interface PrimitiveIterator<T, T_CONS> extends Iterator<T> {
      * An Iterator specialized for {@code int} values.
      * @since 1.8
      */
-    @SuppressWarnings("overloads")
     public static interface OfInt extends PrimitiveIterator<Integer, IntConsumer> {
 
         /**
@@ -139,6 +138,7 @@ public interface PrimitiveIterator<T, T_CONS> extends Iterator<T> {
          * and then passed to {@link #forEachRemaining}.
          */
         @Override
+        @SuppressWarnings("overloads")
         default void forEachRemaining(Consumer<? super Integer> action) {
             if (action instanceof IntConsumer) {
                 forEachRemaining((IntConsumer) action);
@@ -158,7 +158,6 @@ public interface PrimitiveIterator<T, T_CONS> extends Iterator<T> {
      * An Iterator specialized for {@code long} values.
      * @since 1.8
      */
-    @SuppressWarnings("overloads")
     public static interface OfLong extends PrimitiveIterator<Long, LongConsumer> {
 
         /**
@@ -207,6 +206,7 @@ public interface PrimitiveIterator<T, T_CONS> extends Iterator<T> {
          * and then passed to {@link #forEachRemaining}.
          */
         @Override
+        @SuppressWarnings("overloads")
         default void forEachRemaining(Consumer<? super Long> action) {
             if (action instanceof LongConsumer) {
                 forEachRemaining((LongConsumer) action);
@@ -225,7 +225,6 @@ public interface PrimitiveIterator<T, T_CONS> extends Iterator<T> {
      * An Iterator specialized for {@code double} values.
      * @since 1.8
      */
-    @SuppressWarnings("overloads")
     public static interface OfDouble extends PrimitiveIterator<Double, DoubleConsumer> {
 
         /**
@@ -275,6 +274,7 @@ public interface PrimitiveIterator<T, T_CONS> extends Iterator<T> {
          * {@link #forEachRemaining}.
          */
         @Override
+        @SuppressWarnings("overloads")
         default void forEachRemaining(Consumer<? super Double> action) {
             if (action instanceof DoubleConsumer) {
                 forEachRemaining((DoubleConsumer) action);

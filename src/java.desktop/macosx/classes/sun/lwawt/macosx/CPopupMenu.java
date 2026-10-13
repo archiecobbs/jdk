@@ -46,8 +46,7 @@ final class CPopupMenu extends CMenu implements PopupMenuPeer {
     private native long nativeShowPopupMenu(long modelPtr, int x, int y);
 
     @Override
-    @SuppressWarnings("deprecation")
-    public void show(Event e) {
+    public void show(@SuppressWarnings("deprecation") Event e) {
         Component origin = (Component)e.target;
         if (origin != null) {
             Point loc = origin.getLocationOnScreen();

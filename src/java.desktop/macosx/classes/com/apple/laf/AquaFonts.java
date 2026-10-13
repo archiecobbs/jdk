@@ -34,7 +34,6 @@ import javax.swing.plaf.*;
 
 import com.apple.laf.AquaUtils.RecyclableSingleton;
 
-@SuppressWarnings("serial") // JDK implementation class
 public final class AquaFonts {
     private static final String MAC_DEFAULT_FONT_NAME = "Lucida Grande";
 
@@ -122,6 +121,7 @@ public final class AquaFonts {
     /**
      * All fonts derived from this type will also be of this type, and not a plain java.awt.Font
      */
+    @SuppressWarnings("serial") // JDK implementation class
     static class DerivedUIResourceFont extends FontUIResource implements UIResource {
         public DerivedUIResourceFont(final Font font) {
             super(font);

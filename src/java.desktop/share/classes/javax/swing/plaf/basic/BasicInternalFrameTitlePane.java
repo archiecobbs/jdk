@@ -933,12 +933,12 @@ public class BasicInternalFrameTitlePane extends JComponent
      * This class should be treated as a &quot;protected&quot; inner class.
      * Instantiate it only within subclasses of <code>Foo</code>.
      */
-    @SuppressWarnings("deprecation")
     public class SystemMenuBar extends JMenuBar {
         /**
          * Constructs a {@code SystemMenuBar}.
          */
         public SystemMenuBar() {}
+        @SuppressWarnings("deprecation")
         public boolean isFocusTraversable() { return false; }
         public void requestFocus() {}
         public void paint(Graphics g) {

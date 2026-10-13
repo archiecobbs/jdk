@@ -448,12 +448,12 @@ public class JMenuItem extends AbstractButton implements Accessible,MenuElement 
      * @param path the <code>MenuElement</code> path array
      * @param manager   the <code>MenuSelectionManager</code>
      */
-    @SuppressWarnings("deprecation")
     public void processKeyEvent(KeyEvent e,MenuElement[] path,MenuSelectionManager manager) {
         if (DEBUG) {
             System.out.println("in JMenuItem.processKeyEvent/3 for " + getText() +
                                    "  " + KeyStroke.getKeyStrokeForEvent(e));
         }
+        @SuppressWarnings("deprecation")
         MenuKeyEvent mke = new MenuKeyEvent(e.getComponent(), e.getID(),
                                              e.getWhen(), e.getModifiers(),
                                              e.getKeyCode(), e.getKeyChar(),

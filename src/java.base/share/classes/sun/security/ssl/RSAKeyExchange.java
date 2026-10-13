@@ -113,12 +113,12 @@ final class RSAKeyExchange {
             return cipher.wrap(premasterSecret);
         }
 
-        @SuppressWarnings("deprecation")
         static RSAPremasterSecret createPremasterSecret(
                 ClientHandshakeContext chc) throws GeneralSecurityException {
             String algorithm = chc.negotiatedProtocol.useTLS12PlusSpec() ?
                     "SunTls12RsaPremasterSecret" : "SunTlsRsaPremasterSecret";
             KeyGenerator kg = KeyGenerator.getInstance(algorithm);
+            @SuppressWarnings("deprecation")
             TlsRsaPremasterSecretParameterSpec spec =
                     new TlsRsaPremasterSecretParameterSpec(
                             chc.clientHelloVersion,

@@ -1199,7 +1199,6 @@ final class FilePermissionCollection extends PermissionCollection
      * @return an enumeration of all the FilePermission objects.
      */
     @Override
-    @SuppressWarnings("removal")
     public Enumeration<Permission> elements() {
         return perms.elements();
     }
