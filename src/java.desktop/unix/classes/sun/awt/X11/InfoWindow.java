@@ -146,9 +146,9 @@ public abstract class InfoWindow extends Window {
         }
 
         // WARNING: this method may be executed on Toolkit thread.
-        @SuppressWarnings("deprecation")
         private void doClose() {
             SunToolkit.executeOnEventHandlerThread(InfoWindow.this, new Runnable() {
+                @SuppressWarnings("deprecation")
                 public void run() {
                     InfoWindow.super.hide();
                     invalidate();
@@ -455,13 +455,13 @@ public abstract class InfoWindow extends Window {
                 gtkImagesLoaded = true;
             }
         }
-        @SuppressWarnings("deprecation")
         private final class ActionPerformer extends MouseAdapter {
             @Override
             public void mouseClicked(MouseEvent e) {
                 // hide the balloon by any click
                 hide();
                 if (e.getButton() == MouseEvent.BUTTON1) {
+                    @SuppressWarnings("deprecation")
                     ActionEvent aev = new ActionEvent(target, ActionEvent.ACTION_PERFORMED,
                                                       liveArguments.getActionCommand(),
                                                       e.getWhen(), e.getModifiers());

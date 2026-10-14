@@ -1049,7 +1049,6 @@ final class XDnDDropTargetProtocol extends XDropTargetProtocol {
         }
     }
 
-    @SuppressWarnings("static")
     private void notifyProtocolListener(XWindow xwindow, int x, int y,
                                         int dropAction,
                                         XClientMessageEvent xclient,
@@ -1060,6 +1059,7 @@ final class XDnDDropTargetProtocol extends XDropTargetProtocol {
         // the original structure can be freed before this
         // SunDropTargetEvent is dispatched.
         if (xclient != null) {
+            @SuppressWarnings("static")
             int size = new XClientMessageEvent(nativeCtxt).getSize();
 
             nativeCtxt = unsafe.allocateMemory(size + 4 * Native.getLongSize());

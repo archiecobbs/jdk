@@ -199,7 +199,6 @@ class GTKFileChooserUI extends SynthFileChooserUI {
     }
 
     @Override
-    @SuppressWarnings("deprecation")
     public String getFileName() {
         JFileChooser fc = getFileChooser();
         String typedInName = fileNameTextField != null ?
@@ -212,6 +211,7 @@ class GTKFileChooserUI extends SynthFileChooserUI {
         int mode = fc.getFileSelectionMode();
         JList<File> list = mode == JFileChooser.DIRECTORIES_ONLY ?
             directoryList : fileList;
+        @SuppressWarnings("deprecation")
         Object[] files = list.getSelectedValues();
         int len = files.length;
         ArrayList<String> result = new ArrayList<String>(len + 1);
@@ -507,7 +507,6 @@ class GTKFileChooserUI extends SynthFileChooserUI {
 
 
 
-    @SuppressWarnings("deprecation")
     protected class SelectionListener implements ListSelectionListener {
         @Override
         public void valueChanged(ListSelectionEvent e) {
@@ -517,6 +516,7 @@ class GTKFileChooserUI extends SynthFileChooserUI {
 
                 if (chooser.isMultiSelectionEnabled()) {
                     File[] files = null;
+                    @SuppressWarnings("deprecation")
                     Object[] objects = list.getSelectedValues();
                     if (objects != null) {
                         if (objects.length == 1

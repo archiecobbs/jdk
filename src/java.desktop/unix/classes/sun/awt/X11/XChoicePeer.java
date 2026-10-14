@@ -541,13 +541,12 @@ public final class XChoicePeer extends XComponentPeer implements ChoicePeer, Top
 
     // Stolen from TinyChoicePeer
     @Override
-    @SuppressWarnings("deprecation")
     public Dimension getMinimumSize() {
         // TODO: move this impl into ListHelper?
         FontMetrics fm = getFontMetrics(target.getFont());
         Choice c = (Choice)target;
         int w = 0;
-        for (int i = c.countItems() ; i-- > 0 ;) {
+        for (@SuppressWarnings("deprecation") int i = c.countItems() ; i-- > 0 ;) {
             w = Math.max(fm.stringWidth(c.getItem(i)), w);
         }
         return new Dimension(w + TEXT_XPAD + WIDGET_OFFSET,

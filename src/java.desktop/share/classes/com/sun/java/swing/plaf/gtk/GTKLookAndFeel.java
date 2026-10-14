@@ -1716,11 +1716,11 @@ public class GTKLookAndFeel extends SynthLookAndFeel {
      * adjustments that windows/metal do.  This is because gtk doesn't
      * provide margins/insets for checkbox/radiobuttons.
      */
-    @SuppressWarnings("fallthrough")
     private static class GnomeLayoutStyle extends DefaultLayoutStyle {
         private static GnomeLayoutStyle INSTANCE = new GnomeLayoutStyle();
 
         @Override
+        @SuppressWarnings("fallthrough")
         public int getPreferredGap(JComponent component1,
                 JComponent component2, ComponentPlacement type, int position,
                 Container parent) {

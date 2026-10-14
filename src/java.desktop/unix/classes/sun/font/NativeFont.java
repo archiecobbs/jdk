@@ -329,7 +329,6 @@ public final class NativeFont extends PhysicalFont {
      * ie to request 12 pt Times New Roman italic font, use an XLFD like :
      * -monotype-times new roman-regular-i---*-120-72-72-p-*-iso8859-1
      */
-    @SuppressWarnings("cast")
     byte[] getPlatformNameBytes(int ptSize) {
         int[] hPos = new int[14];
         int hyphenCnt = 1;
@@ -342,6 +341,7 @@ public final class NativeFont extends PhysicalFont {
                     pos++;
             }
         }
+        @SuppressWarnings("cast")
         String sizeStr = Integer.toString((int)Math.abs(ptSize)*10);
         StringBuilder sb = new StringBuilder(platName);
         /* work backwards so as to not invalidate the positions. */

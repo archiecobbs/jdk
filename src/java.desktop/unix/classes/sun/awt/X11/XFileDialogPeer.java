@@ -882,9 +882,9 @@ final class Separator extends Canvas {
     }
 
     @Override
-    @SuppressWarnings("deprecation")
     public void paint(Graphics g) {
         int x1, y1, x2, y2;
+        @SuppressWarnings("deprecation")
         Rectangle bbox = bounds();
         Color c = getBackground();
         Color brighter = c.brighter();

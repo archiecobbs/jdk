@@ -479,11 +479,11 @@ public final class XTrayIconPeer implements TrayIconPeer,
             XToolkit.postEvent(e);
         }
         @Override
-        @SuppressWarnings("deprecation")
         public void mouseClicked(MouseEvent e) {
             if ((e.getClickCount() == 1 || xtiPeer.balloon.isVisible()) &&
                 e.getButton() == MouseEvent.BUTTON1)
             {
+                @SuppressWarnings("deprecation")
                 ActionEvent aev = new ActionEvent(xtiPeer.target, ActionEvent.ACTION_PERFORMED,
                                                   xtiPeer.target.getActionCommand(), e.getWhen(),
                                                   e.getModifiers());
