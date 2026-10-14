@@ -86,9 +86,9 @@ class PendingIoCache {
         }
     }
 
-    @SuppressWarnings("unchecked")
     <V,A> PendingFuture<V,A> remove(long overlapped) {
         synchronized (this) {
+            @SuppressWarnings("unchecked")
             PendingFuture<V,A> res = pendingIoMap.remove(overlapped);
             if (res != null) {
                 if (overlappedCacheCount < overlappedCache.length) {

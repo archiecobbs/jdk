@@ -2370,9 +2370,9 @@ public class WindowsLookAndFeel extends BasicLookAndFeel
 
     // Windows LayoutStyle.  From:
     // http://msdn.microsoft.com/library/default.asp?url=/library/en-us/dnwue/html/ch14e.asp
-    @SuppressWarnings("fallthrough")
     private final class WindowsLayoutStyle extends DefaultLayoutStyle {
         @Override
+        @SuppressWarnings("fallthrough")
         public int getPreferredGap(JComponent component1,
                 JComponent component2, ComponentPlacement type, int position,
                 Container parent) {
@@ -2447,10 +2447,10 @@ public class WindowsLookAndFeel extends BasicLookAndFeel
     /**
      * Calculates the dialog unit mapping.
      */
-    @SuppressWarnings("deprecation")
     private void calculateBaseUnits() {
         // This calculation comes from:
         // http://support.microsoft.com/default.aspx?scid=kb;EN-US;125681
+        @SuppressWarnings("deprecation")
         FontMetrics metrics = Toolkit.getDefaultToolkit().getFontMetrics(
                 UIManager.getFont("Button.font"));
         baseUnitX = metrics.stringWidth(

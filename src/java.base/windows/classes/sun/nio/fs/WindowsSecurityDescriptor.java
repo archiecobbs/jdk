@@ -342,7 +342,6 @@ class WindowsSecurityDescriptor {
      * Returns security descriptor representing the ACL or the "null" security
      * descriptor if the attribute is not in the array.
      */
-    @SuppressWarnings("unchecked")
     static WindowsSecurityDescriptor fromAttribute(FileAttribute<?>... attrs)
         throws IOException
     {
@@ -354,6 +353,7 @@ class WindowsSecurityDescriptor {
             if (attr == null)
                 throw new NullPointerException();
             if (attr.name().equals("acl:acl")) {
+                @SuppressWarnings("unchecked")
                 List<AclEntry> acl = (List<AclEntry>)attr.value();
                 sd = new WindowsSecurityDescriptor(acl);
             } else {

@@ -71,8 +71,7 @@ final class WPopupMenuPeer extends WMenuPeer implements PopupMenuPeer {
     private native void createMenu(WComponentPeer parent);
 
     @Override
-    @SuppressWarnings("deprecation")
-    public void show(Event e) {
+    public void show(@SuppressWarnings("deprecation") Event e) {
         Component origin = (Component)e.target;
         WComponentPeer peer = (WComponentPeer) WToolkit.targetToPeer(origin);
         if (peer == null) {
@@ -110,6 +109,5 @@ final class WPopupMenuPeer extends WMenuPeer implements PopupMenuPeer {
         _show(e);
     }
 
-    @SuppressWarnings("deprecation")
-    private native void _show(Event e);
+    private native void _show(@SuppressWarnings("deprecation") Event e);
 }
